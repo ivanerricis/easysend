@@ -1,0 +1,11 @@
+pnpm-lock.yaml
+CHANGELOG.md
+docs/api.md
+apps/api/drizzle/**
+**/dist
+**/coverage
+.local-data
+.pnpm-store
+CLAUDE.md
+docs/SPEC.md
+docs/FASI.md

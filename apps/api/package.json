@@ -1,0 +1,33 @@
+{
+  "name": "@easysend/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/db/migrate-cli.ts"
+  },
+  "dependencies": {
+    "better-sqlite3": "catalog:",
+    "drizzle-orm": "catalog:",
+    "express": "catalog:",
+    "helmet": "catalog:",
+    "pino": "catalog:",
+    "pino-http": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@easysend/shared": "workspace:*",
+    "@types/better-sqlite3": "catalog:",
+    "@types/express": "catalog:",
+    "@types/supertest": "catalog:",
+    "drizzle-kit": "catalog:",
+    "pino-pretty": "catalog:",
+    "supertest": "catalog:",
+    "tsdown": "catalog:"
+  }
+}

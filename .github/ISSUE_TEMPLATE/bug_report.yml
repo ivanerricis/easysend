@@ -50,5 +50,5 @@ body:
     id: logs
     attributes:
       label: Logs
-      description: "Relevant log output. WARNING: remove any secrets, tokens, passwords, keys and personal data before pasting."
+      description: 'Relevant log output. WARNING: remove any secrets, tokens, passwords, keys and personal data before pasting.'
       render: shell
