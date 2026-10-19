@@ -43,6 +43,7 @@ CREATE INDEX `sessions_expires_at_idx` ON `sessions` (`expires_at`);--> statemen
 CREATE TABLE `users` (
 	`id` text PRIMARY KEY NOT NULL,
 	`email` text NOT NULL,
+	`display_name` text,
 	`password_hash` text NOT NULL,
 	`role` text DEFAULT 'user' NOT NULL,
 	`totp_secret_enc` text,

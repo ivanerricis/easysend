@@ -7,6 +7,8 @@ export const users = sqliteTable(
   {
     id: idColumn(),
     email: text('email').notNull(),
+    /** Optional name shown on the public download page; null falls back to the instance name. */
+    displayName: text('display_name'),
     passwordHash: text('password_hash').notNull(),
     role: text('role', { enum: USER_ROLES }).notNull().default('user'),
     totpSecretEnc: text('totp_secret_enc'),
