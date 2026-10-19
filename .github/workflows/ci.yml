@@ -1,0 +1,85 @@
+# The job names (lint, typecheck, test, build) are required status checks
+# on main (ruleset "protect-main"). Never rename them.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: actionlint
+        run: |
+          docker run --rm -v "$PWD:/repo" -w /repo \
+            rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+            -color
+      - name: Validate release-please JSON
+        run: jq empty release-please-config.json .release-please-manifest.json
+      - name: Check for CRLF line endings
+        run: |
+          if git ls-files --eol | grep 'w/crlf'; then
+            echo "::error::CRLF line endings found in the files above"
+            exit 1
+          fi
+
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Guard
+        run: |
+          test ! -f pnpm-workspace.yaml || { echo "::error::pnpm workspace exists: replace this placeholder job (phase 1)"; exit 1; }
+      - run: echo "Placeholder until phase 1"
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Guard
+        run: |
+          test ! -f pnpm-workspace.yaml || { echo "::error::pnpm workspace exists: replace this placeholder job (phase 1)"; exit 1; }
+      - run: echo "Placeholder until phase 1"
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Guard
+        run: |
+          test ! -f pnpm-workspace.yaml || { echo "::error::pnpm workspace exists: replace this placeholder job (phase 1)"; exit 1; }
+      - run: echo "Placeholder until phase 1"
