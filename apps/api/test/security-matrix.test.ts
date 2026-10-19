@@ -398,12 +398,13 @@ describe('security matrix: setup wizard', () => {
     const t = await createTestApp({ setupCompleted: false });
     const client = await unlocked(t);
     const failures = await forEach(unsafeSetup, async (e) => {
-      for (const options of [
-        { csrf: false as const },
+      const attempts: Parameters<TestClient['get']>[1][] = [
+        { csrf: false },
         { csrf: 'wrong-token' },
         { headers: { Origin: 'https://evil.example' } },
         { headers: { 'Sec-Fetch-Site': 'cross-site' } },
-      ]) {
+      ];
+      for (const options of attempts) {
         const problem = expectError(await send(client, e, options), 403, 'CSRF_INVALID');
         if (problem) return `${problem} (${JSON.stringify(options)})`;
       }

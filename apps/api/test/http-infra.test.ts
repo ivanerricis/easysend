@@ -296,7 +296,7 @@ describe('validate, sendJson and endpointGuards', () => {
     expect(endpointGuards(csrf, 'auth.login')).toHaveLength(2); // csrf + validate
     expect(endpointGuards(csrf, 'me.password')).toHaveLength(3); // auth + csrf + validate
     expect(endpointGuards(csrf, 'auth.logout')).toHaveLength(2); // any-auth + csrf
-    expect(() => endpointGuards(csrf, 'setup.admin')).toThrow(/phase 4/);
+    expect(() => endpointGuards(csrf, 'setup.admin')).toThrow(/setupEndpointGuards/);
 
     const app = express();
     app.use(requestId, express.json(), cookieParser);
