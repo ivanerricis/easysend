@@ -38,8 +38,15 @@ export function trackDb(handle: DbHandle): DbHandle {
   return handle;
 }
 
+/** Local-mode config whose DATA_DIR is a fresh temp dir, so tests never touch `/data`. */
 export function testConfig(overrides: Record<string, string> = {}): AppConfig {
-  return loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', APP_MODE: 'local', ...overrides });
+  return loadConfig({
+    NODE_ENV: 'test',
+    LOG_LEVEL: 'silent',
+    APP_MODE: 'local',
+    DATA_DIR: makeTempDir(),
+    ...overrides,
+  });
 }
 
 /** Migrated in-memory database. */
