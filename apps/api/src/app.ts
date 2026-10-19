@@ -14,13 +14,23 @@ export interface AppDeps {
   logger: Logger;
 }
 
-/** SPEC 11-bis: in local mode, report requests whose Host differs from PUBLIC_URL (once per host). */
+/** True for localhost, 127.0.0.1 and [::1] with any port (container healthchecks, local tools). */
+export function isLoopbackHost(host: string): boolean {
+  const name = host.startsWith('[') ? host.slice(0, host.indexOf(']') + 1) : host.split(':')[0];
+  return name === 'localhost' || name === '127.0.0.1' || name === '[::1]';
+}
+
+/**
+ * SPEC 11-bis: in local mode, report requests whose Host differs from PUBLIC_URL (once per host).
+ * Health checks and loopback hosts are skipped so the container healthcheck stays quiet.
+ */
 function localHostWarning(config: AppConfig, logger: Logger): RequestHandler {
   const expected = config.publicUrl ? new URL(config.publicUrl).host : undefined;
   const seen = new Set<string>();
   return (req, _res, next) => {
     const host = req.headers.host;
-    if (expected && host && host !== expected && !seen.has(host)) {
+    const skip = req.path === '/api/health' || (host !== undefined && isLoopbackHost(host));
+    if (!skip && expected && host && host !== expected && !seen.has(host)) {
       seen.add(host);
       logger.warn(
         { host, expected },
