@@ -228,6 +228,8 @@ export interface TestAppOverrides {
   clock?: TestClock;
   /** Any `AppDeps` field (secrets, passwordHasher, mailer, mailTransport...). */
   deps?: Partial<AppDeps>;
+  /** Default true: the wizard is marked completed. False leaves `setup_completed` unset. */
+  setupCompleted?: boolean;
 }
 
 /**
@@ -249,6 +251,7 @@ export async function createTestApp(overrides: TestAppOverrides = {}): Promise<T
     mailTransport: mailbox,
     ...overrides.deps,
   });
+  if (overrides.setupCompleted ?? true) ctx.settings.set('setup_completed', true);
   const testApp: TestApp = {
     app,
     ctx,

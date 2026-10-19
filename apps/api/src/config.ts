@@ -56,7 +56,10 @@ const envSchema = z.object({
 
 export interface AppConfig {
   mode: AppMode;
+  /** `PUBLIC_URL` or, in local mode, the local default. Prefer `ctx.publicUrl()`, which also reads the setting. */
   publicUrl: string | undefined;
+  /** `PUBLIC_URL` only when set explicitly (it wins over the `public_url` setting). */
+  publicUrlEnv: string | undefined;
   timezone: string;
   nodeEnv: (typeof NODE_ENVS)[number];
   port: number;
@@ -110,6 +113,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   return {
     mode: e.APP_MODE,
     publicUrl,
+    publicUrlEnv: e.PUBLIC_URL,
     timezone: e.TZ,
     nodeEnv: e.NODE_ENV,
     port: e.PORT,

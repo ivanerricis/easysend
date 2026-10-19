@@ -11,11 +11,21 @@ import {
   welcomeMessage,
 } from './messages.js';
 
+export interface MailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType: string;
+  /** Content-ID for inline images referenced as `cid:` in the HTML. */
+  cid?: string;
+}
+
 export interface MailMessage {
   from: string;
   to: string;
   subject: string;
   text: string;
+  html?: string;
+  attachments?: MailAttachment[];
 }
 
 /** Minimal transport contract: nodemailer's transporter fits, tests inject a recorder. */
@@ -28,7 +38,12 @@ export interface OutgoingMail {
   to: string;
   subject: string;
   text: string;
+  html?: string;
+  attachments?: MailAttachment[];
 }
+
+/** Result of a test email: a safe error code (never a message) when it fails. */
+export type MailTestResult = { ok: true } | { ok: false; code: string };
 
 /** What the notification email to a recipient says about a transfer. */
 export interface TransferNotice {
@@ -62,10 +77,30 @@ export interface Mailer {
     /** Unix seconds. */
     downloadedAt: number;
   }): Promise<boolean>;
+  /**
+   * Sends a test message through the GIVEN settings (never the stored ones) and reports the outcome.
+   * `code` is a nodemailer error code from a fixed allowlist, else `UNKNOWN`. Never throws.
+   */
+  sendTest(settings: SmtpSettings, to: string, locale: Locale | null): Promise<MailTestResult>;
 }
 
 const LOCAL_FROM = 'EasySend <no-reply@localhost>';
 const TIMEOUT_MS = 15_000;
+const TEST_TIMEOUT_MS = 10_000;
+
+/** Error codes of a failed test send that are safe to show to the admin. */
+const SAFE_TEST_ERROR_CODES = new Set([
+  'EAUTH',
+  'ECONNECTION',
+  'ECONNREFUSED',
+  'ETIMEDOUT',
+  'ESOCKET',
+  'EDNS',
+  'ETLS',
+  'EENVELOPE',
+  'EMESSAGE',
+  'EPROTOCOL',
+]);
 
 interface ResolvedSmtp {
   transport: MailTransport;
@@ -80,7 +115,11 @@ function formatFrom(smtp: SmtpSettings): string {
     : smtp.fromEmail;
 }
 
-function createSmtpTransport(smtp: SmtpSettings, password: string | undefined): MailTransport {
+function createSmtpTransport(
+  smtp: SmtpSettings,
+  password: string | undefined,
+  timeoutMs: number = TIMEOUT_MS,
+): MailTransport {
   const transporter = nodemailer.createTransport({
     host: smtp.host,
     port: smtp.port,
@@ -88,9 +127,9 @@ function createSmtpTransport(smtp: SmtpSettings, password: string | undefined): 
     requireTLS: smtp.security === 'starttls',
     ignoreTLS: smtp.security === 'none',
     ...(smtp.username ? { auth: { user: smtp.username, pass: password ?? '' } } : {}),
-    connectionTimeout: TIMEOUT_MS,
-    greetingTimeout: TIMEOUT_MS,
-    socketTimeout: TIMEOUT_MS,
+    connectionTimeout: timeoutMs,
+    greetingTimeout: timeoutMs,
+    socketTimeout: timeoutMs,
   });
   return {
     sendMail: (message) => transporter.sendMail(message),
@@ -115,11 +154,14 @@ export function createMailer(deps: {
     AppConfig,
     'mode' | 'publicUrl' | 'smtpDevHost' | 'smtpDevPort' | 'passwordResetTtlMinutes' | 'timezone'
   >;
+  /** Current public URL (env, setting or local default). Default: `config.publicUrl`. */
+  publicUrl?: () => string | undefined;
   settingsRepo: Pick<SettingsRepo, 'get' | 'getDefaultLocale' | 'getInstanceName'>;
   logger: Logger;
   transport?: MailTransport;
 }): Mailer {
   const { config, settingsRepo, logger } = deps;
+  const publicUrl = deps.publicUrl ?? (() => config.publicUrl);
 
   function resolve(): ResolvedSmtp | undefined {
     const smtp = settingsRepo.get('smtp');
@@ -159,21 +201,23 @@ export function createMailer(deps: {
   }
 
   function buildLink(pathname: string, token: string): string | undefined {
-    if (!config.publicUrl) {
+    const base = publicUrl();
+    if (!base) {
       logger.error('email not sent: PUBLIC_URL is not set, cannot build the link');
       return undefined;
     }
-    const url = new URL(pathname, config.publicUrl);
+    const url = new URL(pathname, base);
     url.searchParams.set('token', token);
     return url.toString();
   }
 
   function buildUrl(pathname: string): string | undefined {
-    if (!config.publicUrl) {
+    const base = publicUrl();
+    if (!base) {
       logger.error('email not sent: PUBLIC_URL is not set, cannot build the link');
       return undefined;
     }
-    return new URL(pathname, config.publicUrl).toString();
+    return new URL(pathname, base).toString();
   }
 
   const localeOf = (locale: Locale | null): Locale => locale ?? settingsRepo.getDefaultLocale();
@@ -235,6 +279,33 @@ export function createMailer(deps: {
         timezone: config.timezone,
       });
       return send({ to, ...content });
+    },
+
+    async sendTest(smtp, to, locale) {
+      const transport = deps.transport ?? createSmtpTransport(smtp, smtp.password, TEST_TIMEOUT_MS);
+      try {
+        const name = settingsRepo.getInstanceName() || DEFAULT_INSTANCE_NAME;
+        const it = localeOf(locale) === 'it';
+        await transport.sendMail({
+          from: formatFrom(smtp),
+          to,
+          subject: it ? `${name}: email di prova` : `${name}: test email`,
+          text: it
+            ? `Questa è un'email di prova inviata da ${name}. Se la leggi, l'SMTP funziona.`
+            : `This is a test email sent by ${name}. If you can read it, SMTP works.`,
+        });
+        return { ok: true };
+      } catch (error) {
+        // Never the message: it may echo server replies or credentials.
+        const code = (error as { code?: unknown } | null)?.code;
+        logger.warn({ err: safeError(error) }, 'test email not sent');
+        return {
+          ok: false,
+          code: typeof code === 'string' && SAFE_TEST_ERROR_CODES.has(code) ? code : 'UNKNOWN',
+        };
+      } finally {
+        if (!deps.transport) transport.close?.();
+      }
     },
   };
 }

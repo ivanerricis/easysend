@@ -11,7 +11,7 @@ import { TEST_SECRETS, TestClient, silentLogger } from './helpers.js';
 /** Minimal app: `x-test-session` fakes a logged-in session with that id. */
 function makeApp() {
   const csrf = createCsrf({
-    config: { publicUrl: 'http://localhost:8080' },
+    publicUrl: () => 'http://localhost:8080',
     csrfKey: deriveKeys(TEST_SECRETS).csrf,
   });
   const app = express();

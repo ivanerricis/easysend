@@ -1,5 +1,4 @@
 import type { Request, RequestHandler, Response } from 'express';
-import type { AppConfig } from '../config.js';
 import { hmacBase64url, randomToken, timingSafeEqualStrings } from '../crypto/hash.js';
 import { AUTH_POLICY } from '../auth/policy.js';
 import { CSRF_COOKIE, readCookie, setCookie } from './cookies.js';
@@ -25,11 +24,11 @@ export interface CsrfService {
 }
 
 export function createCsrf(deps: {
-  config: Pick<AppConfig, 'publicUrl'>;
+  /** Current public URL (evaluated per request: the wizard can set it at runtime). */
+  publicUrl: () => string | undefined;
   csrfKey: Uint8Array;
 }): CsrfService {
-  const { config, csrfKey } = deps;
-  const publicOrigin = config.publicUrl ? new URL(config.publicUrl).origin : undefined;
+  const { publicUrl, csrfKey } = deps;
 
   const sign = (kind: 'pre' | 'session', value: string): string =>
     hmacBase64url(csrfKey, `${kind}:${value}`);
@@ -66,6 +65,8 @@ export function createCsrf(deps: {
       return next(new AppError('CSRF_INVALID', 'Cross-site request rejected'));
     }
     const origin = req.get('origin');
+    const configured = publicUrl();
+    const publicOrigin = configured ? new URL(configured).origin : undefined;
     if (origin !== undefined && origin !== publicOrigin && origin !== requestOrigin(req)) {
       return next(new AppError('CSRF_INVALID', 'Cross-site request rejected'));
     }

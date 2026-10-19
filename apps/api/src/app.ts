@@ -1,17 +1,20 @@
 import express, { type Express, type RequestHandler } from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
-import type { AppConfig } from './config.js';
 import { createContext, type AppContext, type AppDeps } from './context.js';
 import { cookieParser } from './http/cookies.js';
 import { createErrorHandler, notFoundHandler } from './http/error-handler.js';
+import { createSetupGate } from './http/setup-gate.js';
 import { requestId } from './http/request-id.js';
 import type { Logger } from './logger.js';
+import { adminTunnelRouter } from './routes/admin-tunnel.js';
 import { adminUsersRouter } from './routes/admin-users.js';
 import { authRouter } from './routes/auth.js';
 import { downloadsRouter } from './routes/downloads.js';
 import { healthRouter } from './routes/health.js';
 import { meRouter } from './routes/me.js';
+import { settingsRouter } from './routes/settings.js';
+import { setupRouter } from './routes/setup.js';
 import { transfersRouter } from './routes/transfers.js';
 import { uploadsRouter } from './uploads/tus.js';
 
@@ -27,13 +30,15 @@ export function isLoopbackHost(host: string): boolean {
  * SPEC 11-bis: in local mode, report requests whose Host differs from PUBLIC_URL (once per host).
  * Health checks and loopback hosts are skipped so the container healthcheck stays quiet.
  */
-function localHostWarning(config: AppConfig, logger: Logger): RequestHandler {
-  const expected = config.publicUrl ? new URL(config.publicUrl).host : undefined;
+function localHostWarning(publicUrl: () => string | undefined, logger: Logger): RequestHandler {
   const seen = new Set<string>();
   return (req, _res, next) => {
     const host = req.headers.host;
-    const skip = req.path === '/api/health' || (host !== undefined && isLoopbackHost(host));
-    if (!skip && expected && host && host !== expected && !seen.has(host)) {
+    const skip = req.path === '/api/health' || !host || isLoopbackHost(host) || seen.has(host);
+    if (skip) return next();
+    const configured = publicUrl();
+    const expected = configured ? new URL(configured).host : undefined;
+    if (expected && host !== expected) {
       seen.add(host);
       logger.warn(
         { host, expected },
@@ -66,7 +71,11 @@ export function createAppWithContext(deps: AppDeps): { app: Express; ctx: AppCon
     }),
   );
   app.use(helmet());
-  if (config.mode === 'local') app.use(localHostWarning(config, logger));
+  if (config.mode === 'local') app.use(localHostWarning(() => ctx.publicUrl(), logger));
+
+  // Until the wizard completes only health, setup, public settings and assets answer. Mounted
+  // before tus so uploads are gated too.
+  app.use(createSetupGate(ctx.settings));
 
   // tus must read the raw request stream, so it is mounted BEFORE the body parsers below. Its
   // router adds its own cookie parsing, cross-site check, session and CSRF handling.
@@ -88,6 +97,9 @@ export function createAppWithContext(deps: AppDeps): { app: Express; ctx: AppCon
     adminUsersRouter(ctx),
     transfersRouter(ctx),
     downloadsRouter(ctx),
+    setupRouter(ctx),
+    settingsRouter(ctx),
+    adminTunnelRouter(ctx),
   );
 
   app.use(notFoundHandler);

@@ -289,7 +289,7 @@ describe('validate, sendJson and endpointGuards', () => {
 
   it('endpointGuards chains auth, CSRF and validation from the contract', async () => {
     const csrf = createCsrf({
-      config: { publicUrl: undefined },
+      publicUrl: () => undefined,
       csrfKey: deriveKeys(TEST_SECRETS).csrf,
     });
     expect(endpointGuards(csrf, 'auth.csrf')).toHaveLength(0); // public, safe, no input

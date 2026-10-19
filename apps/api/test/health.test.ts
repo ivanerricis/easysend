@@ -1,13 +1,20 @@
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { errorResponseSchema, healthResponseSchema } from '@easysend/shared';
-import { createApp } from '../src/app.js';
+import { createAppWithContext } from '../src/app.js';
 import { migratedMemoryDb, silentLogger, TEST_SECRETS, testConfig } from './helpers.js';
 
 async function makeApp() {
   const config = testConfig({ APP_VERSION: '9.9.9' });
   const db = await migratedMemoryDb();
-  return { app: createApp({ config, db, logger: silentLogger, secrets: TEST_SECRETS }), db };
+  const { app, ctx } = createAppWithContext({
+    config,
+    db,
+    logger: silentLogger,
+    secrets: TEST_SECRETS,
+  });
+  ctx.settings.set('setup_completed', true);
+  return { app, db };
 }
 
 describe('GET /api/health', () => {

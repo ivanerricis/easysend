@@ -110,7 +110,7 @@ export function toTransferSummary(
 
 /** Full view: summary plus files, recipients, pending uploads and the public link. */
 export function toTransferDetail(
-  ctx: Pick<AppContext, 'db' | 'config'>,
+  ctx: Pick<AppContext, 'db' | 'publicUrl'>,
   row: TransferRow,
   nowSec: number,
 ): TransferDetail {
@@ -156,8 +156,8 @@ export function toTransferDetail(
     ),
     message: row.message,
     shareUrl:
-      row.status !== 'uploading' && ctx.config.publicUrl
-        ? new URL(`/d/${row.token}`, ctx.config.publicUrl).toString()
+      row.status !== 'uploading' && ctx.publicUrl()
+        ? new URL(`/d/${row.token}`, ctx.publicUrl()).toString()
         : null,
     firstDownloadedAt: row.firstDownloadedAt,
     files: files.map((file) => ({
