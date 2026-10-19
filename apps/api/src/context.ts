@@ -13,6 +13,7 @@ import type { Secrets } from './secrets.js';
 import { createSettingsRepo, type SettingsRepo } from './settings/repo.js';
 import { createSmtpVerification, type SmtpVerification } from './settings/smtp-verification.js';
 import { statfsDiskSpace, type DiskSpace } from './storage/disk.js';
+import { createSetupCodeService, type SetupCodeService } from './setup/code.js';
 import { createSetupLimiters, type SetupLimiters } from './setup/limiters.js';
 import { createTransferLimiters, type TransferLimiters } from './transfers/limiters.js';
 import { createUploadWorker, type UploadWorker } from './uploads/worker.js';
@@ -58,6 +59,8 @@ export interface AppContext {
   limiters: AuthLimiters;
   transferLimiters: TransferLimiters;
   setupLimiters: SetupLimiters;
+  /** One-time code that authorises the first-run wizard (in memory, printed in the logs). */
+  setupCode: SetupCodeService;
   diskSpace: DiskSpace;
   /** Background queue that hashes and encrypts finished uploads (one per app). */
   uploadWorker: UploadWorker;
@@ -109,6 +112,11 @@ export function createContext(deps: AppDeps): AppContext {
     limiters: createAuthLimiters(),
     transferLimiters: createTransferLimiters(),
     setupLimiters: createSetupLimiters(),
+    setupCode: createSetupCodeService({
+      clock,
+      ttlMinutes: config.setupCodeTtlMinutes,
+      logger,
+    }),
     diskSpace: deps.diskSpace ?? statfsDiskSpace,
     publicUrl,
     clientIp,

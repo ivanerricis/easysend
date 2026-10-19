@@ -141,8 +141,9 @@ export const endpoints: readonly EndpointDef[] = [
     auth: 'setup',
     body: setupAdminRequestSchema,
     response: json(200, twoFactorSetupResponseSchema),
+    errors: ['CONFLICT'],
     notes:
-      'Nothing is created yet: email, password hash and TOTP secret are kept as a pending enrolment (secret stored encrypted). The QR code is rendered by the client from `otpauthUri`; `secret` is the plain-text alternative. Calling it again replaces the pending enrolment. `displayName` is optional and trimmed.',
+      'Nothing is created yet: email, password hash and TOTP secret are kept as a pending enrolment (secret stored encrypted). The QR code is rendered by the client from `otpauthUri`; `secret` is the plain-text alternative. Calling it again replaces the pending enrolment. `displayName` is optional and trimmed. `CONFLICT` when an admin already exists (for example one created locally with the CLI): the step is already done.',
   }),
   defineEndpoint({
     id: 'setup.adminVerify',

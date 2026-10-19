@@ -286,9 +286,13 @@ Start admin creation: returns the TOTP secret to enrol
 }
 ```
 
+**Errors**
+
+- `409` `CONFLICT`: The request conflicts with the current state of the resource.
+
 Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`, `409` `SETUP_ALREADY_COMPLETED`.
 
-**Notes:** Nothing is created yet: email, password hash and TOTP secret are kept as a pending enrolment (secret stored encrypted). The QR code is rendered by the client from `otpauthUri`; `secret` is the plain-text alternative. Calling it again replaces the pending enrolment. `displayName` is optional and trimmed.
+**Notes:** Nothing is created yet: email, password hash and TOTP secret are kept as a pending enrolment (secret stored encrypted). The QR code is rendered by the client from `otpauthUri`; `secret` is the plain-text alternative. Calling it again replaces the pending enrolment. `displayName` is optional and trimmed. `CONFLICT` when an admin already exists (for example one created locally with the CLI): the step is already done.
 
 ### `POST /api/setup/admin/verify`
 
