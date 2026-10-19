@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX } from '../constants.js';
+import { EMAIL_MAX_LENGTH, PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX } from '../constants.js';
 
 /** Opaque random text id. */
 export const idSchema = z.string().min(1).max(64);
@@ -23,3 +23,13 @@ export const paginatedSchema = <T extends z.ZodType>(item: T) =>
     page: z.number().int().min(1),
     pageSize: z.number().int().min(1).max(PAGE_SIZE_MAX),
   });
+
+/** Email address, bounded to the RFC 5321 maximum. */
+export const emailSchema = z.email().max(EMAIL_MAX_LENGTH);
+
+/** `{ ok: true }` body for operations that return nothing else. */
+export const okResponseSchema = z.object({ ok: z.literal(true) });
+export type OkResponse = z.infer<typeof okResponseSchema>;
+
+/** `:id` path parameter. */
+export const idParamsSchema = z.object({ id: idSchema });
