@@ -28,6 +28,9 @@
     "pino": "catalog:",
     "pino-http": "catalog:",
     "rate-limiter-flexible": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "sharp": "catalog:",
     "yazl": "catalog:",
     "zod": "catalog:"
   },
@@ -35,6 +38,8 @@
     "@easysend/shared": "workspace:*",
     "@types/better-sqlite3": "catalog:",
     "@types/express": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
     "@types/supertest": "catalog:",
     "@types/yauzl": "catalog:",
     "@types/yazl": "catalog:",
