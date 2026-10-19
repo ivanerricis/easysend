@@ -17,7 +17,7 @@
 9. **CSRF also before login**: Login, password reset and the setup code step also require `X-CSRF-Token`, using the double-submit token from `GET /api/auth/csrf`. The only unsafe endpoint without CSRF is `POST /api/downloads/:token/unlock` (public, token-based). Login responses return a fresh `csrfToken` because the session id changes.
 10. **SMTP editable after setup**: Admins can change SMTP later with `PUT /api/admin/settings/smtp`, which only saves after a successful `POST /api/admin/settings/smtp/test`, like the wizard.
 11. **Appearance vs general settings**: Instance name, footer and default theme belong to `appearance`; disk reserve, chunk size and default language belong to the general settings. `PUT /api/setup/general` writes both.
-12. **Sender shown on the download page**: Users have no display name, so the public download page shows `sender` as the part of the owner email before `@`. Alternative: show only the instance name, or add an optional display name to users.
+12. **Sender shown on the download page**: Users have an optional display name (`displayName`, 1 to 80 characters), editable by the user and by admins. The public download page returns it as `senderName`; when it is not set the client shows the instance name. The owner email is never exposed.
 13. **Admins use the normal transfer endpoints**: Admins manage any transfer through `/api/transfers/:id` (edit expiry, revoke, delete); `GET /api/admin/transfers` only adds the cross-user listing.
 
 ## Conventions
@@ -121,7 +121,7 @@
 | POST | `/api/auth/password-reset/request` | public | Ask for a password reset link by email |
 | POST | `/api/auth/password-reset/confirm` | public | Set a new password with the emailed token |
 | GET | `/api/me` | session | Current user with quota and usage |
-| PATCH | `/api/me` | session | Update language and theme preference |
+| PATCH | `/api/me` | session | Update display name, language and theme preference |
 | POST | `/api/me/password` | session | Change password |
 | POST | `/api/me/2fa/setup` | session | Start TOTP enrolment: returns the secret |
 | POST | `/api/me/2fa/enable` | session | Confirm the first code and enable 2FA |
@@ -131,7 +131,7 @@
 | GET | `/api/admin/users` | admin | List users |
 | POST | `/api/admin/users` | admin | Create a user |
 | GET | `/api/admin/users/:id` | admin | Get one user |
-| PATCH | `/api/admin/users/:id` | admin | Change role, quota, disabled flag or language |
+| PATCH | `/api/admin/users/:id` | admin | Change role, quota, disabled flag, language or display name |
 | POST | `/api/admin/users/:id/reset-2fa` | admin | Reset the 2FA of a user (lost device) |
 | DELETE | `/api/admin/users/:id` | admin | Delete a user and delete or reassign their transfers |
 | POST | `/api/transfers` | session | Create a draft transfer |
@@ -272,6 +272,7 @@ Start admin creation: returns the TOTP secret to enrol
 ```ts
 {
   email: string (email, max 254)
+  displayName?: string (min 1, max 80)
   password: string (min 12, max 128)
 }
 ```
@@ -287,7 +288,7 @@ Start admin creation: returns the TOTP secret to enrol
 
 Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`, `409` `SETUP_ALREADY_COMPLETED`.
 
-**Notes:** Nothing is created yet: email, password hash and TOTP secret are kept as a pending enrolment (secret stored encrypted). The QR code is rendered by the client from `otpauthUri`; `secret` is the plain-text alternative. Calling it again replaces the pending enrolment.
+**Notes:** Nothing is created yet: email, password hash and TOTP secret are kept as a pending enrolment (secret stored encrypted). The QR code is rendered by the client from `otpauthUri`; `secret` is the plain-text alternative. Calling it again replaces the pending enrolment. `displayName` is optional and trimmed.
 
 ### `POST /api/setup/admin/verify`
 
@@ -310,6 +311,7 @@ Confirm the first TOTP code: creates the admin and opens a session
   user: {
     id: string (min 1, max 64)
     email: string (email, max 254)
+    displayName: string (min 1, max 80) | null
     role: "admin" | "user"
     locale: "it" | "en"
     themePreference: "light" | "dark" | "system" | null
@@ -573,6 +575,7 @@ Current session state
     user: {
       id: string (min 1, max 64)
       email: string (email, max 254)
+      displayName: string (min 1, max 80) | null
       role: "admin" | "user"
       locale: "it" | "en"
       themePreference: "light" | "dark" | "system" | null
@@ -611,6 +614,7 @@ Log in with email and password
     user: {
       id: string (min 1, max 64)
       email: string (email, max 254)
+      displayName: string (min 1, max 80) | null
       role: "admin" | "user"
       locale: "it" | "en"
       themePreference: "light" | "dark" | "system" | null
@@ -663,6 +667,7 @@ Second step: verify a TOTP code
   user: {
     id: string (min 1, max 64)
     email: string (email, max 254)
+    displayName: string (min 1, max 80) | null
     role: "admin" | "user"
     locale: "it" | "en"
     themePreference: "light" | "dark" | "system" | null
@@ -705,6 +710,7 @@ Second step: use a one-time recovery code
   user: {
     id: string (min 1, max 64)
     email: string (email, max 254)
+    displayName: string (min 1, max 80) | null
     role: "admin" | "user"
     locale: "it" | "en"
     themePreference: "light" | "dark" | "system" | null
@@ -766,6 +772,7 @@ Forced enrolment: confirm the first code and finish the login
   user: {
     id: string (min 1, max 64)
     email: string (email, max 254)
+    displayName: string (min 1, max 80) | null
     role: "admin" | "user"
     locale: "it" | "en"
     themePreference: "light" | "dark" | "system" | null
@@ -872,6 +879,7 @@ Current user with quota and usage
   user: {
     id: string (min 1, max 64)
     email: string (email, max 254)
+    displayName: string (min 1, max 80) | null
     role: "admin" | "user"
     locale: "it" | "en"
     themePreference: "light" | "dark" | "system" | null
@@ -888,7 +896,7 @@ Also possible: `401` `UNAUTHENTICATED`, `500` `INTERNAL_ERROR`.
 
 ### `PATCH /api/me`
 
-Update language and theme preference
+Update display name, language and theme preference
 
 **Auth:** `session` · **CSRF:** required · **Success:** `200` json · **Id:** `me.update`
 
@@ -897,6 +905,7 @@ Update language and theme preference
 ```ts
 {
   locale?: "it" | "en"
+  displayName?: string (min 1, max 80) | null
   themePreference?: "light" | "dark" | "system" | null
 }
 ```
@@ -908,6 +917,7 @@ Update language and theme preference
   user: {
     id: string (min 1, max 64)
     email: string (email, max 254)
+    displayName: string (min 1, max 80) | null
     role: "admin" | "user"
     locale: "it" | "en"
     themePreference: "light" | "dark" | "system" | null
@@ -922,7 +932,7 @@ Update language and theme preference
 
 Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`.
 
-**Notes:** At least one field is required.
+**Notes:** At least one field is required. `displayName` is trimmed (1 to 80 characters); `null` clears it.
 
 ### `POST /api/me/password`
 
@@ -1125,6 +1135,7 @@ List users
   items: Array<{
     id: string (min 1, max 64)
     email: string (email, max 254)
+    displayName: string (min 1, max 80) | null
     role: "admin" | "user"
     locale: "it" | "en"
     themePreference: "light" | "dark" | "system" | null
@@ -1157,6 +1168,7 @@ Create a user
 ```ts
 {
   email: string (email, max 254)
+  displayName?: string (min 1, max 80)
   role?: "admin" | "user"  // default "user"
   password?: string (min 12, max 128)
   locale?: "it" | "en"
@@ -1170,6 +1182,7 @@ Create a user
 {
   id: string (min 1, max 64)
   email: string (email, max 254)
+  displayName: string (min 1, max 80) | null
   role: "admin" | "user"
   locale: "it" | "en"
   themePreference: "light" | "dark" | "system" | null
@@ -1189,7 +1202,7 @@ Create a user
 
 Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `FORBIDDEN`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`.
 
-**Notes:** If `password` is omitted the user receives a welcome email with a one-time link to set it. There is no public registration.
+**Notes:** If `password` is omitted the user receives a welcome email with a one-time link to set it. `displayName` is optional and trimmed. There is no public registration.
 
 ### `GET /api/admin/users/:id`
 
@@ -1211,6 +1224,7 @@ Get one user
 {
   id: string (min 1, max 64)
   email: string (email, max 254)
+  displayName: string (min 1, max 80) | null
   role: "admin" | "user"
   locale: "it" | "en"
   themePreference: "light" | "dark" | "system" | null
@@ -1232,7 +1246,7 @@ Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `FORBIDD
 
 ### `PATCH /api/admin/users/:id`
 
-Change role, quota, disabled flag or language
+Change role, quota, disabled flag, language or display name
 
 **Auth:** `admin` · **CSRF:** required · **Success:** `200` json · **Id:** `users.update`
 
@@ -1252,6 +1266,7 @@ Change role, quota, disabled flag or language
   quotaBytes?: integer (min 0) | null
   disabled?: boolean
   locale?: "it" | "en"
+  displayName?: string (min 1, max 80) | null
 }
 ```
 
@@ -1261,6 +1276,7 @@ Change role, quota, disabled flag or language
 {
   id: string (min 1, max 64)
   email: string (email, max 254)
+  displayName: string (min 1, max 80) | null
   role: "admin" | "user"
   locale: "it" | "en"
   themePreference: "light" | "dark" | "system" | null
@@ -1281,7 +1297,7 @@ Change role, quota, disabled flag or language
 
 Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `FORBIDDEN`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`.
 
-**Notes:** The quota is changed only here: `quotaBytes: null` removes it. Demoting or disabling the last active admin answers `LAST_ADMIN`. Disabling a user destroys their sessions. At least one field is required.
+**Notes:** The quota is changed only here: `quotaBytes: null` removes it. Demoting or disabling the last active admin answers `LAST_ADMIN`. Disabling a user destroys their sessions. `displayName` is trimmed; `null` clears it. At least one field is required.
 
 ### `POST /api/admin/users/:id/reset-2fa`
 
@@ -2188,7 +2204,7 @@ Public information of a transfer
     locked: false
     title: string | null
     message: string | null
-    sender: string
+    senderName: string (min 1, max 80) | null
     files: Array<{
       id: string (min 1, max 64)
       name: string (min 1, max 255)
@@ -2210,7 +2226,7 @@ Public information of a transfer
 
 Also possible: `400` `VALIDATION_ERROR`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`.
 
-**Notes:** No account is needed. Password-protected links answer `{ locked: true }` (no file names, sizes or sender) until unlocked with a valid `es_dl` cookie. Expiry is checked on every request.
+**Notes:** No account is needed. Password-protected links answer `{ locked: true }` (no file names, sizes or sender) until unlocked with a valid `es_dl` cookie. Expiry is checked on every request. When `senderName` is null the client shows the instance name (from `GET /api/public/settings`). The owner email is never exposed.
 
 ### `POST /api/downloads/:token/unlock`
 
