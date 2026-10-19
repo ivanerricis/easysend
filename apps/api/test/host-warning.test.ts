@@ -3,7 +3,7 @@ import { pino } from 'pino';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp, isLoopbackHost } from '../src/app.js';
-import { migratedMemoryDb, testConfig } from './helpers.js';
+import { migratedMemoryDb, TEST_SECRETS, testConfig } from './helpers.js';
 
 async function makeApp() {
   const lines: string[] = [];
@@ -15,7 +15,7 @@ async function makeApp() {
   });
   const logger = pino({ level: 'warn' }, stream);
   const config = testConfig({ PUBLIC_URL: 'http://localhost:8080' });
-  const app = createApp({ config, db: await migratedMemoryDb(), logger });
+  const app = createApp({ config, db: await migratedMemoryDb(), logger, secrets: TEST_SECRETS });
   return { app, lines };
 }
 

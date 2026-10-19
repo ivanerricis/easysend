@@ -12,7 +12,23 @@ const REDACT_PATHS = [
   '*.token',
   '*.secret',
   '*.apiKey',
+  '*.recoveryCode',
+  '*.newPassword',
+  '*.currentPassword',
+  '*.csrfToken',
+  '*.otpauthUri',
+  'req.headers["x-csrf-token"]',
+  'req.body.code',
   'password',
+  // `code` is redacted only at the top level and in request bodies: `*.code` would also hide
+  // the useful `err.code` (ECONNREFUSED...).
+  'code',
+  'recoveryCode',
+  'newPassword',
+  'currentPassword',
+  'csrfToken',
+  'otpauthUri',
+  'secret',
   'token',
 ];
 
