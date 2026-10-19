@@ -5,7 +5,7 @@ import type { ErrorCode } from '../schemas/errors.js';
  * Who may call an endpoint.
  * - `public`: no authentication.
  * - `setup`: signed `es_setup` cookie issued by `POST /api/setup/code`; only while setup is incomplete.
- * - `mfa-pending`: session whose second factor is not verified yet; valid only for the 2FA steps of the login.
+ * - `mfa-pending`: session whose second factor is not verified yet; valid only for the 2FA steps of the login (and logout, which also cancels a half-done login).
  * - `session`: fully authenticated session (any role).
  * - `admin`: fully authenticated session with the `admin` role.
  */
@@ -33,6 +33,7 @@ export const SAFE_METHODS: readonly HttpMethod[] = ['GET', 'HEAD', 'OPTIONS'];
 
 export const RATE_LIMITS = [
   'login',
+  'reauth',
   'passwordReset',
   'transferCreate',
   'downloadPassword',

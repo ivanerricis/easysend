@@ -23,7 +23,7 @@
 ## Conventions
 
 - **Base path**: every endpoint lives under `/api`. Bodies and responses are JSON (`application/json`) unless the endpoint says otherwise.
-- **Authentication**: session cookie `es_session` (httpOnly, Secure, SameSite). Levels: `public`, `setup` (signed `es_setup` cookie issued by the setup code step), `mfa-pending` (password accepted, second factor missing: valid only for the 2FA login steps), `session` (any logged-in user), `admin` (role `admin`).
+- **Authentication**: session cookie `es_session` (httpOnly, Secure, SameSite). Levels: `public`, `setup` (signed `es_setup` cookie issued by the setup code step), `mfa-pending` (password accepted, second factor missing: valid only for the 2FA login steps and logout), `session` (any logged-in user), `admin` (role `admin`).
 - **CSRF**: every unsafe request (POST, PUT, PATCH, DELETE) that needs a session, plus the login, setup code and password reset requests, must send the `X-CSRF-Token` header. The token comes from `GET /api/auth/csrf` (before login, backed by a double-submit cookie) or from the login/session responses. Endpoints marked `CSRF: no` are public token-based endpoints (downloads).
 - **Errors**: always `{ "error": { "code", "message", "requestId", "details"? } }`. `code` is stable and translated by the web app (`errors.<CODE>`); `message` is English and informational. `requestId` matches the `X-Request-Id` response header. Codes and statuses are listed below.
 - **Timestamps**: Unix seconds (integer), same as the database. Sizes are bytes (integer).
@@ -61,7 +61,7 @@
 | `SETUP_REQUIRED` | 409 | The first-run setup is not completed yet; use the setup wizard. |
 | `INVALID_CREDENTIALS` | 401 | Wrong email or password (never says which). |
 | `ACCOUNT_DISABLED` | 403 | The account was disabled by an admin. |
-| `ACCOUNT_LOCKED` | 429 | Temporarily blocked after too many failed logins; see `Retry-After`. |
+| `ACCOUNT_LOCKED` | 429 | Temporarily blocked after too many failed logins or re-authentications; see `Retry-After`. |
 | `INVALID_TOTP_CODE` | 401 | Wrong or expired TOTP code. |
 | `INVALID_RECOVERY_CODE` | 401 | Wrong or already used recovery code. |
 | `TWO_FACTOR_REQUIRED` | 403 | 2FA is mandatory for admins and cannot be disabled. |
@@ -117,7 +117,7 @@
 | POST | `/api/auth/login/recovery` | mfa-pending | Second step: use a one-time recovery code |
 | POST | `/api/auth/login/2fa-setup` | mfa-pending | Forced enrolment: get a new TOTP secret |
 | POST | `/api/auth/login/2fa-setup/verify` | mfa-pending | Forced enrolment: confirm the first code and finish the login |
-| POST | `/api/auth/logout` | session | Log out and destroy the session |
+| POST | `/api/auth/logout` | mfa-pending | Log out and destroy the session |
 | POST | `/api/auth/password-reset/request` | public | Ask for a password reset link by email |
 | POST | `/api/auth/password-reset/confirm` | public | Set a new password with the emailed token |
 | GET | `/api/me` | session | Current user with quota and usage |
@@ -640,7 +640,7 @@ Response headers:
 
 - `401` `INVALID_CREDENTIALS`: Wrong email or password (never says which).
 - `403` `ACCOUNT_DISABLED`: The account was disabled by an admin.
-- `429` `ACCOUNT_LOCKED`: Temporarily blocked after too many failed logins; see `Retry-After`.
+- `429` `ACCOUNT_LOCKED`: Temporarily blocked after too many failed logins or re-authentications; see `Retry-After`.
 
 Also possible: `400` `VALIDATION_ERROR`, `403` `CSRF_INVALID`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`.
 
@@ -682,7 +682,7 @@ Second step: verify a TOTP code
 
 **Errors**
 
-- `429` `ACCOUNT_LOCKED`: Temporarily blocked after too many failed logins; see `Retry-After`.
+- `429` `ACCOUNT_LOCKED`: Temporarily blocked after too many failed logins or re-authentications; see `Retry-After`.
 - `401` `INVALID_TOTP_CODE`: Wrong or expired TOTP code.
 
 Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`.
@@ -725,7 +725,7 @@ Second step: use a one-time recovery code
 
 **Errors**
 
-- `429` `ACCOUNT_LOCKED`: Temporarily blocked after too many failed logins; see `Retry-After`.
+- `429` `ACCOUNT_LOCKED`: Temporarily blocked after too many failed logins or re-authentications; see `Retry-After`.
 - `401` `INVALID_RECOVERY_CODE`: Wrong or already used recovery code.
 
 Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`.
@@ -755,7 +755,7 @@ Also possible: `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `500` `INTERNAL_ER
 
 Forced enrolment: confirm the first code and finish the login
 
-**Auth:** `mfa-pending` · **CSRF:** required · **Success:** `200` json · **Id:** `auth.login2faSetupVerify`
+**Auth:** `mfa-pending` · **CSRF:** required · **Rate limit:** `login` · **Success:** `200` json · **Id:** `auth.login2faSetupVerify`
 
 **Body** (`application/json`)
 
@@ -787,9 +787,10 @@ Forced enrolment: confirm the first code and finish the login
 
 **Errors**
 
+- `429` `ACCOUNT_LOCKED`: Temporarily blocked after too many failed logins or re-authentications; see `Retry-After`.
 - `401` `INVALID_TOTP_CODE`: Wrong or expired TOTP code.
 
-Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`.
+Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`.
 
 **Notes:** Enables 2FA, returns the recovery codes once and promotes the session to a full one.
 
@@ -797,13 +798,15 @@ Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_IN
 
 Log out and destroy the session
 
-**Auth:** `session` · **CSRF:** required · **Success:** `204` empty · **Id:** `auth.logout`
+**Auth:** `mfa-pending` · **CSRF:** required · **Success:** `204` empty · **Id:** `auth.logout`
 
 **Response `204`**
 
 No body.
 
 Also possible: `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`.
+
+**Notes:** Also ends a pending (mfa-pending) login.
 
 ### `POST /api/auth/password-reset/request`
 
@@ -938,7 +941,7 @@ Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_IN
 
 Change password
 
-**Auth:** `session` · **CSRF:** required · **Success:** `204` empty · **Id:** `me.password`
+**Auth:** `session` · **CSRF:** required · **Rate limit:** `reauth` · **Success:** `204` empty · **Id:** `me.password`
 
 **Body** (`application/json`)
 
@@ -955,9 +958,10 @@ No body.
 
 **Errors**
 
+- `429` `ACCOUNT_LOCKED`: Temporarily blocked after too many failed logins or re-authentications; see `Retry-After`.
 - `403` `PASSWORD_INCORRECT`: The password supplied for confirmation or unlock is wrong.
 
-Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`.
+Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`.
 
 **Notes:** Invalidates all the other sessions of the user.
 
@@ -1019,7 +1023,7 @@ Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_IN
 
 Disable 2FA (not allowed for admins)
 
-**Auth:** `session` · **CSRF:** required · **Success:** `204` empty · **Id:** `me.2faDisable`
+**Auth:** `session` · **CSRF:** required · **Rate limit:** `reauth` · **Success:** `204` empty · **Id:** `me.2faDisable`
 
 **Body** (`application/json`)
 
@@ -1036,11 +1040,12 @@ No body.
 
 **Errors**
 
+- `429` `ACCOUNT_LOCKED`: Temporarily blocked after too many failed logins or re-authentications; see `Retry-After`.
 - `401` `INVALID_TOTP_CODE`: Wrong or expired TOTP code.
 - `403` `TWO_FACTOR_REQUIRED`: 2FA is mandatory for admins and cannot be disabled.
 - `403` `PASSWORD_INCORRECT`: The password supplied for confirmation or unlock is wrong.
 
-Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`.
+Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`.
 
 **Notes:** Requires the password and a current TOTP code.
 
@@ -1048,7 +1053,7 @@ Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_IN
 
 Regenerate the recovery codes
 
-**Auth:** `session` · **CSRF:** required · **Success:** `200` json · **Id:** `me.recoveryCodes`
+**Auth:** `session` · **CSRF:** required · **Rate limit:** `reauth` · **Success:** `200` json · **Id:** `me.recoveryCodes`
 
 **Body** (`application/json`)
 
@@ -1070,10 +1075,11 @@ Regenerate the recovery codes
 **Errors**
 
 - `409` `CONFLICT`: The request conflicts with the current state of the resource.
+- `429` `ACCOUNT_LOCKED`: Temporarily blocked after too many failed logins or re-authentications; see `Retry-After`.
 - `401` `INVALID_TOTP_CODE`: Wrong or expired TOTP code.
 - `403` `PASSWORD_INCORRECT`: The password supplied for confirmation or unlock is wrong.
 
-Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`.
+Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`.
 
 **Notes:** Replaces all the previous codes. `CONFLICT` when 2FA is not enabled.
 
