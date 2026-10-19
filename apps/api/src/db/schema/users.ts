@@ -13,6 +13,8 @@ export const users = sqliteTable(
     role: text('role', { enum: USER_ROLES }).notNull().default('user'),
     totpSecretEnc: text('totp_secret_enc'),
     totpEnabled: integer('totp_enabled', { mode: 'boolean' }).notNull().default(false),
+    /** Time-step counter of the last accepted TOTP code; a code at or below it is a replay. */
+    totpLastCounter: integer('totp_last_counter'),
     /** Null means unlimited. */
     quotaBytes: integer('quota_bytes'),
     usedBytes: integer('used_bytes').notNull().default(0),
@@ -66,8 +68,13 @@ export const sessions = sqliteTable(
     userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
+    /** Idle expiry: moves forward while the session is used, never past `absoluteExpiresAt`. */
     expiresAt: integer('expires_at').notNull(),
+    /** Hard limit, fixed at creation. The SQL default only lets the migration add the column. */
+    absoluteExpiresAt: integer('absolute_expires_at').notNull().default(0),
     createdAt: createdAtColumn(),
+    /** Last time `expiresAt` was refreshed (throttled to every few minutes). */
+    lastSeenAt: integer('last_seen_at').notNull().default(0),
     ipHash: text('ip_hash'),
     userAgent: text('user_agent'),
     mfaVerified: integer('mfa_verified', { mode: 'boolean' }).notNull().default(false),
