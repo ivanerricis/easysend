@@ -73,6 +73,9 @@ const apiEnv = {
   SHARED_DIR: sharedDir,
   LOG_LEVEL: 'debug',
   LOG_PRETTY: 'true',
+  // Mailpit is published on the host at the effective SMTP port.
+  SMTP_DEV_HOST: 'localhost',
+  SMTP_DEV_PORT: fileEnv.MAILPIT_SMTP_PORT || '1025',
 };
 
 const children = [];

@@ -49,6 +49,8 @@ const envSchema = z.object({
     .min(1)
     .max(CHUNK_SIZE_MB.max)
     .default(CHUNK_SIZE_MB.default),
+  SMTP_DEV_HOST: z.string().min(1).optional(),
+  SMTP_DEV_PORT: z.coerce.number().int().min(1).max(65535).optional(),
   APP_VERSION: z.string().min(1).optional(),
 });
 
@@ -76,6 +78,9 @@ export interface AppConfig {
   cleanupCron: string;
   defaultDiskReserveMb: number;
   defaultChunkSizeMb: number;
+  /** Local-mode SMTP fallback (Mailpit), used only when no SMTP settings are stored. */
+  smtpDevHost: string | undefined;
+  smtpDevPort: number | undefined;
   version: string;
 }
 
@@ -126,6 +131,8 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     cleanupCron: e.CLEANUP_CRON,
     defaultDiskReserveMb: e.DEFAULT_DISK_RESERVE_MB,
     defaultChunkSizeMb: e.DEFAULT_CHUNK_SIZE_MB,
+    smtpDevHost: e.SMTP_DEV_HOST,
+    smtpDevPort: e.SMTP_DEV_PORT,
     version: e.APP_VERSION ?? DEV_VERSION,
   };
 }
