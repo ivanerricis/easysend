@@ -104,7 +104,7 @@ Regole:
 - Deploy sull'LXC: metodo manuale (`scripts/deploy.sh [versione]` e `scripts/rollback.sh`), da implementare nella fase 6.
 - `main` protetto da ruleset `protect-main`: PR obbligatoria, controlli obbligatori `lint`, `typecheck`, `test`, `build` (nomi dei job da non rinominare mai), branch aggiornato, niente force push né cancellazione. Solo squash merge con titolo della PR.
 - release-please: tipo `simple`, manifest `0.0.0` e `release-as: 0.1.0`; rimuovere `release-as` subito dopo il merge della release 0.1.0.
-- La PR di release creata con GITHUB_TOKEN non avvia la CI: il workflow di release-please la lancia con `workflow_dispatch` sul branch della PR (niente bypass, niente PAT).
+- La PR di release creata con GITHUB_TOKEN ha la CI in attesa di approvazione ("action required"): prima di unire la release si approva il run dalla PR ("Approve workflows to run") o con `gh api -X POST repos/ivanerricis/easysend/actions/runs/<id>/approve`. Il dispatch della CI è stato tolto perché i controlli lanciati così non si collegano alla PR. Niente bypass, niente PAT.
 - Lingua su GitHub: template, issue ed etichette in inglese; riepiloghi di fase nelle PR in italiano.
 - Il progetto resta in `C:\` su Windows (non in WSL2); nel README va la nota di SPEC 11-bis.
 - Node 26 gestito con fnm, pnpm 12.14.0 in `packageManager`. Lint con ESLint 10 (flat) più Prettier.

@@ -18,24 +18,13 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-      actions: write
     steps:
       - id: rp
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-      # PRs created with GITHUB_TOKEN do not trigger pull_request workflows, but
-      # workflow_dispatch is allowed: run CI on the release branch so the required
-      # checks (lint, typecheck, test, build) appear on the release PR.
-      # Skipped when no release PR was created or updated.
-      # Step env is evaluated even when the step is skipped, so the PR JSON is
-      # passed raw and parsed in the script (fromJSON('') would fail the job).
-      - name: Run CI on the release PR branch
-        if: ${{ steps.rp.outputs.prs_created == 'true' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_JSON: ${{ steps.rp.outputs.pr }}
-        run: |
-          head_branch=$(jq -r '.headBranchName' <<< "$PR_JSON")
-          gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$head_branch"
+      # The release PR is created with GITHUB_TOKEN, so GitHub queues its CI run
+      # as "action required". Before merging the release, approve that run from
+      # the PR ("Approve workflows to run") or with
+      # `gh api -X POST repos/<owner>/<repo>/actions/runs/<id>/approve`.
