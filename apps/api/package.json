@@ -7,9 +7,9 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsdown",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/db/migrate-cli.ts"
+    "db:migrate": "tsx src/cli/migrate.ts"
   },
   "dependencies": {
     "better-sqlite3": "catalog:",
