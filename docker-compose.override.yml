@@ -1,0 +1,23 @@
+# Local builds: auto-loaded by `docker compose` unless COMPOSE_FILE is set (production .env sets it).
+# Image names stay the GHCR ones; pull_policy: build always builds from this checkout.
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION}
+    pull_policy: build
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    pull_policy: build
+
+  cloudflared:
+    build:
+      context: .
+      dockerfile: docker/cloudflared/Dockerfile
+    pull_policy: build

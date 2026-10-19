@@ -1,0 +1,24 @@
+# Local try-out on a dev PC (see scripts/local.mjs). Combine with docker-compose.yml and
+# docker-compose.override.yml. cloudflared is never started here (its profile is not enabled).
+
+services:
+  api:
+    environment:
+      APP_MODE: local
+      PUBLIC_URL: http://localhost:${LOCAL_WEB_PORT:-8080}
+      TRUST_PROXY: 1
+      LOG_LEVEL: debug
+
+  web:
+    ports: !override
+      - '127.0.0.1:${LOCAL_WEB_PORT:-8080}:8080'
+
+  mailpit:
+    image: axllent/mailpit:v1.31.6
+    restart: unless-stopped
+    mem_limit: 128m
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - '127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025'
+      - '127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025'
