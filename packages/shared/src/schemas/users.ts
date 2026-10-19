@@ -13,6 +13,7 @@ import {
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
   THEME_PREFERENCES,
+  TOTP_CODE_LENGTH,
   TITLE_MAX_LENGTH,
   USER_ROLES,
 } from '../constants.js';
@@ -36,8 +37,8 @@ export const displayNameSchema = z.string().trim().min(1).max(DISPLAY_NAME_MAX_L
 /** New password: length bounds only (no composition rules). */
 export const passwordSchema = z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH);
 
-/** Six-digit TOTP code. */
-export const totpCodeSchema = z.string().regex(/^[0-9]{6}$/);
+/** TOTP code of `TOTP_CODE_LENGTH` digits. */
+export const totpCodeSchema = z.string().regex(new RegExp(`^[0-9]{${TOTP_CODE_LENGTH}}$`));
 
 /** One-time recovery code as shown to the user (the server ignores dashes and case). */
 export const recoveryCodeSchema = z.string().min(8).max(32);

@@ -24,8 +24,7 @@ async function main(): Promise<void> {
     mkdirSync(dir, { recursive: true });
   }
 
-  // Phase 2 consumes the secrets (encryption, sessions); resolving them now creates the key files.
-  resolveSecrets(config.secretsDir, process.env);
+  const secrets = resolveSecrets(config.secretsDir, process.env);
 
   const db = openDatabase(config.dbPath);
   await runMigrations(db.sqlite, {
@@ -34,7 +33,7 @@ async function main(): Promise<void> {
     logger,
   });
 
-  const app = createApp({ config, db, logger });
+  const app = createApp({ config, db, logger, secrets });
   const server = app.listen(config.port, () => {
     logger.info({ port: config.port }, 'listening');
   });

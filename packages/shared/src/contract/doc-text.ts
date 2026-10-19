@@ -16,7 +16,8 @@ export const ERROR_MEANINGS: Record<ErrorCode, string> = {
   SETUP_REQUIRED: 'The first-run setup is not completed yet; use the setup wizard.',
   INVALID_CREDENTIALS: 'Wrong email or password (never says which).',
   ACCOUNT_DISABLED: 'The account was disabled by an admin.',
-  ACCOUNT_LOCKED: 'Temporarily blocked after too many failed logins; see `Retry-After`.',
+  ACCOUNT_LOCKED:
+    'Temporarily blocked after too many failed logins or re-authentications; see `Retry-After`.',
   INVALID_TOTP_CODE: 'Wrong or expired TOTP code.',
   INVALID_RECOVERY_CODE: 'Wrong or already used recovery code.',
   TWO_FACTOR_REQUIRED: '2FA is mandatory for admins and cannot be disabled.',
@@ -54,7 +55,7 @@ export const ERROR_MEANINGS: Record<ErrorCode, string> = {
 
 export const CONVENTIONS: readonly string[] = [
   '- **Base path**: every endpoint lives under `/api`. Bodies and responses are JSON (`application/json`) unless the endpoint says otherwise.',
-  '- **Authentication**: session cookie `es_session` (httpOnly, Secure, SameSite). Levels: `public`, `setup` (signed `es_setup` cookie issued by the setup code step), `mfa-pending` (password accepted, second factor missing: valid only for the 2FA login steps), `session` (any logged-in user), `admin` (role `admin`).',
+  '- **Authentication**: session cookie `es_session` (httpOnly, Secure, SameSite). Levels: `public`, `setup` (signed `es_setup` cookie issued by the setup code step), `mfa-pending` (password accepted, second factor missing: valid only for the 2FA login steps and logout), `session` (any logged-in user), `admin` (role `admin`).',
   '- **CSRF**: every unsafe request (POST, PUT, PATCH, DELETE) that needs a session, plus the login, setup code and password reset requests, must send the `X-CSRF-Token` header. The token comes from `GET /api/auth/csrf` (before login, backed by a double-submit cookie) or from the login/session responses. Endpoints marked `CSRF: no` are public token-based endpoints (downloads).',
   '- **Errors**: always `{ "error": { "code", "message", "requestId", "details"? } }`. `code` is stable and translated by the web app (`errors.<CODE>`); `message` is English and informational. `requestId` matches the `X-Request-Id` response header. Codes and statuses are listed below.',
   '- **Timestamps**: Unix seconds (integer), same as the database. Sizes are bytes (integer).',

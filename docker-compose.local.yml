@@ -8,6 +8,8 @@ services:
       PUBLIC_URL: http://localhost:${LOCAL_WEB_PORT:-8080}
       TRUST_PROXY: 1
       LOG_LEVEL: debug
+      SMTP_DEV_HOST: mailpit
+      SMTP_DEV_PORT: 1025
 
   web:
     ports: !override

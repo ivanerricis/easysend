@@ -79,7 +79,7 @@ describe('migrations', () => {
     };
 
     const first = await runMigrations(sqlite, options);
-    expect(first.applied).toEqual(['0000_init']);
+    expect(first.applied).toEqual(['0000_init', '0001_auth_sessions']);
     expect(first.backupPath).toBeUndefined();
 
     const second = await runMigrations(sqlite, options);
@@ -99,17 +99,17 @@ describe('migrations', () => {
     // Copy the real migrations and append an extra one.
     const extended = path.join(dir, 'drizzle');
     cpSync(base, extended, { recursive: true });
-    writeFileSync(path.join(extended, '0001_extra.sql'), 'CREATE TABLE extra (id integer);\n');
+    writeFileSync(path.join(extended, '0002_extra.sql'), 'CREATE TABLE extra (id integer);\n');
     const journalFile = path.join(extended, 'meta', '_journal.json');
     const journal = JSON.parse(readFileSync(journalFile, 'utf8')) as {
       entries: { idx: number; version: string; when: number; tag: string; breakpoints: boolean }[];
     };
     const last = journal.entries[journal.entries.length - 1];
     journal.entries.push({
-      idx: 1,
+      idx: journal.entries.length,
       version: last?.version ?? '6',
       when: (last?.when ?? 0) + 1000,
-      tag: '0001_extra',
+      tag: '0002_extra',
       breakpoints: true,
     });
     writeFileSync(journalFile, JSON.stringify(journal));
@@ -120,9 +120,9 @@ describe('migrations', () => {
       logger: silentLogger,
     });
 
-    expect(result.applied).toEqual(['0001_extra']);
+    expect(result.applied).toEqual(['0002_extra']);
     expect(result.backupPath).toBeDefined();
-    expect(path.basename(result.backupPath ?? '')).toMatch(/^app-pre-0001_extra-.+\.sqlite$/);
+    expect(path.basename(result.backupPath ?? '')).toMatch(/^app-pre-0002_extra-.+\.sqlite$/);
     expect(names(sqlite, 'table')).toContain('extra');
 
     // The backup holds the pre-migration state: data present, new table absent.
@@ -144,12 +144,13 @@ describe('migrations', () => {
     const journal = JSON.parse(readFileSync(journalFile, 'utf8')) as {
       entries: { idx: number; version: string; when: number; tag: string; breakpoints: boolean }[];
     };
-    const first = journal.entries[0];
+    const first = journal.entries[journal.entries.length - 1];
+    const baseCount = journal.entries.length;
     for (let i = 1; i <= 7; i++) {
-      const tag = `000${i}_t${i}`;
+      const tag = `010${i}_t${i}`;
       writeFileSync(path.join(extended, `${tag}.sql`), `CREATE TABLE t${i} (id integer);\n`);
       journal.entries.push({
-        idx: i,
+        idx: baseCount + i - 1,
         version: first?.version ?? '6',
         when: (first?.when ?? 0) + i * 1000,
         tag,
@@ -160,6 +161,46 @@ describe('migrations', () => {
     }
 
     expect(readdirSync(backupDir)).toHaveLength(5);
+  });
+
+  it('applies 0001 on a database that already has 0000 and rows in sessions', async () => {
+    const dir = makeTempDir();
+    const backupDir = path.join(dir, 'backups');
+    const { sqlite } = trackDb(openDatabase(path.join(dir, 'app.sqlite')));
+    const full = resolveMigrationsFolder();
+
+    // A folder holding only 0000: the state of a database created by phase 1.
+    const onlyInit = path.join(dir, 'drizzle-0000');
+    cpSync(full, onlyInit, { recursive: true });
+    const journalFile = path.join(onlyInit, 'meta', '_journal.json');
+    const journal = JSON.parse(readFileSync(journalFile, 'utf8')) as { entries: unknown[] };
+    journal.entries = journal.entries.slice(0, 1);
+    writeFileSync(journalFile, JSON.stringify(journal));
+    await runMigrations(sqlite, { migrationsFolder: onlyInit, backupDir, logger: silentLogger });
+
+    sqlite
+      .prepare(
+        "INSERT INTO users (id, email, password_hash, created_at) VALUES ('u', 'a@b.c', 'h', 1)",
+      )
+      .run();
+    sqlite
+      .prepare("INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES ('s', 'u', 9, 1)")
+      .run();
+
+    const result = await runMigrations(sqlite, {
+      migrationsFolder: full,
+      backupDir,
+      logger: silentLogger,
+    });
+
+    expect(result.applied).toEqual(['0001_auth_sessions']);
+    expect(sqlite.prepare('SELECT last_seen_at, absolute_expires_at FROM sessions').get()).toEqual({
+      last_seen_at: 0,
+      absolute_expires_at: 0,
+    });
+    expect(sqlite.prepare('SELECT totp_last_counter FROM users').get()).toEqual({
+      totp_last_counter: null,
+    });
   });
 
   it('cascades from transfers to transfer_files and restricts user deletion', async () => {

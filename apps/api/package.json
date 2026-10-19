@@ -9,15 +9,21 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/cli/migrate.ts"
+    "db:migrate": "tsx src/cli/migrate.ts",
+    "user:create-admin": "tsx src/cli/create-admin.ts"
   },
   "dependencies": {
+    "@node-rs/argon2": "catalog:",
     "better-sqlite3": "catalog:",
+    "cookie": "catalog:",
     "drizzle-orm": "catalog:",
     "express": "catalog:",
     "helmet": "catalog:",
+    "nodemailer": "catalog:",
+    "otpauth": "catalog:",
     "pino": "catalog:",
     "pino-http": "catalog:",
+    "rate-limiter-flexible": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
