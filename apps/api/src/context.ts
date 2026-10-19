@@ -13,6 +13,7 @@ import type { Secrets } from './secrets.js';
 import { createSettingsRepo, type SettingsRepo } from './settings/repo.js';
 import { statfsDiskSpace, type DiskSpace } from './storage/disk.js';
 import { createTransferLimiters, type TransferLimiters } from './transfers/limiters.js';
+import { createUploadWorker, type UploadWorker } from './uploads/worker.js';
 
 /** What the application is built from. Everything but the first four is optional (defaults for production). */
 export interface AppDeps {
@@ -49,6 +50,8 @@ export interface AppContext {
   limiters: AuthLimiters;
   transferLimiters: TransferLimiters;
   diskSpace: DiskSpace;
+  /** Background queue that hashes and encrypts finished uploads (one per app). */
+  uploadWorker: UploadWorker;
   /** Real client address (see `createClientIpResolver`). Never log it: use `ipHashOf`. */
   clientIp: ClientIpResolver;
   /** `ip_hash` value for the audit log and sessions. */
@@ -71,7 +74,8 @@ export function createContext(deps: AppDeps): AppContext {
       ...(deps.mailTransport ? { transport: deps.mailTransport } : {}),
     });
 
-  return {
+  // The worker reads the context only when it runs, so it can be attached after the object exists.
+  const ctx = {
     config,
     db,
     dbHandle: deps.db,
@@ -87,6 +91,8 @@ export function createContext(deps: AppDeps): AppContext {
     transferLimiters: createTransferLimiters(),
     diskSpace: deps.diskSpace ?? statfsDiskSpace,
     clientIp,
-    ipHashOf: (req) => ipHash(keys.ipHash, clientIp(req)),
-  };
+    ipHashOf: (req: Parameters<ClientIpResolver>[0]) => ipHash(keys.ipHash, clientIp(req)),
+  } as AppContext;
+  ctx.uploadWorker = createUploadWorker(ctx);
+  return ctx;
 }

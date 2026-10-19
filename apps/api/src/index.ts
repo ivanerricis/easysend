@@ -1,9 +1,10 @@
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { createApp } from './app.js';
+import { createAppWithContext } from './app.js';
 import { ConfigError, loadConfig } from './config.js';
 import { openDatabase } from './db/client.js';
 import { resolveMigrationsFolder, runMigrations } from './db/migrate.js';
+import { scheduleCleanup } from './jobs/cleanup.js';
 import { createLogger } from './logger.js';
 import { resolveSecrets } from './secrets.js';
 
@@ -33,7 +34,10 @@ async function main(): Promise<void> {
     logger,
   });
 
-  const app = createApp({ config, db, logger, secrets });
+  const { app, ctx } = createAppWithContext({ config, db, logger, secrets });
+  // Uploads interrupted by a restart while being encrypted are queued again.
+  await ctx.uploadWorker.recover();
+  const cleanup = scheduleCleanup(ctx);
   const server = app.listen(config.port, () => {
     logger.info({ port: config.port }, 'listening');
   });
@@ -47,6 +51,9 @@ async function main(): Promise<void> {
     if (shuttingDown) return;
     shuttingDown = true;
     logger.info({ signal }, 'shutting down');
+    cleanup.stop();
+    // An encryption still running is redone at the next start (`recover`).
+    ctx.uploadWorker.stop();
     const force = setTimeout(() => {
       logger.warn('forcing open connections closed');
       server.closeAllConnections();
