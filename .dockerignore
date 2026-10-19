@@ -1,0 +1,17 @@
+.git
+.github
+**/node_modules
+**/dist
+**/coverage
+.local-data
+.env*
+!.env.example
+!.env.local.example
+docs
+e2e
+*.md
+playwright-report
+test-results
+blob-report
+.pnpm-store
+**/*.tsbuildinfo
