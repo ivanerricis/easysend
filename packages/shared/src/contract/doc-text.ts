@@ -79,7 +79,7 @@ export const CONTRACT_DECISIONS: readonly ContractDecision[] = [
   },
   {
     title: 'Download counting',
-    text: 'Every file or zip request starting at byte 0 counts as one download; later `Range` requests of the same file do not. The first count triggers the sender notification.',
+    text: 'Every file or zip request starting at byte 0 counts as one download. A counted file download sets the signed resume cookie `es_dlr` (`Path=/api/downloads/<token>/files/<fileId>`, valid 24 hours): a later `Range` request of that file carrying it is a free resume, without it the request counts. The first count triggers the sender notification.',
   },
   {
     title: 'Unix-second timestamps',

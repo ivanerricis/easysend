@@ -11,6 +11,7 @@ import { effectiveStatus, type TransferRow } from '../transfers/service.js';
 import { TRANSFER_POLICY } from '../transfers/policy.js';
 
 export const DOWNLOAD_COOKIE = 'es_dl';
+export const RESUME_COOKIE = 'es_dlr';
 
 /**
  * Why a link cannot be used right now, as the error to answer, or null when it is usable.
@@ -54,6 +55,12 @@ export async function resolveTransfer(
 
 // ---- Unlock cookie ------------------------------------------------------------------------
 
+/** Expiry and MAC of a signed `<exp>.<mac>` cookie value, or null when it is malformed. */
+function parseSignedCookie(value: string | undefined): { exp: number; mac: string } | null {
+  const match = value ? /^(\d{1,12})\.([A-Za-z0-9_-]{43})$/.exec(value) : null;
+  return match ? { exp: Number(match[1]), mac: match[2]! } : null;
+}
+
 /**
  * First 16 hex characters of the hash of the link password hash: binds the cookie to the current
  * password, so changing or removing it invalidates cookies already handed out.
@@ -95,11 +102,12 @@ export function isUnlocked(
   nowSec: number,
 ): boolean {
   if (transfer.passwordHash === null) return true;
-  const value = readCookie(req, DOWNLOAD_COOKIE);
-  const match = value ? /^(\d{1,12})\.([A-Za-z0-9_-]{43})$/.exec(value) : null;
-  if (!match) return false;
-  const exp = Number(match[1]);
-  return exp > nowSec && timingSafeEqualStrings(match[2]!, cookieMac(ctx, transfer, exp));
+  const cookie = parseSignedCookie(readCookie(req, DOWNLOAD_COOKIE));
+  return (
+    cookie !== null &&
+    cookie.exp > nowSec &&
+    timingSafeEqualStrings(cookie.mac, cookieMac(ctx, transfer, cookie.exp))
+  );
 }
 
 export function assertUnlocked(
@@ -111,4 +119,47 @@ export function assertUnlocked(
   if (!isUnlocked(ctx, req, transfer, nowSec)) {
     throw new AppError('PASSWORD_REQUIRED', 'Password required');
   }
+}
+
+// ---- Resume cookie ------------------------------------------------------------------------
+
+/** The `resume:` prefix keeps these MACs apart from the unlock cookie ones, made with the same key. */
+const resumeMac = (ctx: AppContext, transfer: TransferRow, fileId: string, exp: number): string =>
+  hmacBase64url(ctx.keys.downloadCookie, `resume:${transfer.id}:${fileId}:${exp}`);
+
+/**
+ * Sets the `es_dlr` cookie (`<exp>.<mac>`) after a counted download of one file, scoped to that
+ * file's path: later Range requests carrying it are resumes and do not count again.
+ */
+export function setResumeCookie(
+  ctx: AppContext,
+  res: Response,
+  transfer: TransferRow,
+  fileId: string,
+  nowSec: number,
+): void {
+  const exp = nowSec + TRANSFER_POLICY.resumeCookieSeconds;
+  setCookie(
+    res,
+    RESUME_COOKIE,
+    `${exp}.${resumeMac(ctx, transfer, fileId, exp)}`,
+    TRANSFER_POLICY.resumeCookieSeconds,
+    { path: `/api/downloads/${transfer.token}/files/${fileId}` },
+  );
+}
+
+/** True when the request carries a valid, unexpired resume cookie for this file. */
+export function hasResumeCookie(
+  ctx: AppContext,
+  req: Request,
+  transfer: TransferRow,
+  fileId: string,
+  nowSec: number,
+): boolean {
+  const cookie = parseSignedCookie(readCookie(req, RESUME_COOKIE));
+  return (
+    cookie !== null &&
+    cookie.exp > nowSec &&
+    timingSafeEqualStrings(cookie.mac, resumeMac(ctx, transfer, fileId, cookie.exp))
+  );
 }

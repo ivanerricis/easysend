@@ -9,8 +9,10 @@ import { createDecryptStream } from '../crypto/segments.js';
 import { transferFiles, users } from '../db/schema/index.js';
 import {
   assertUnlocked,
+  hasResumeCookie,
   isUnlocked,
   resolveTransfer,
+  setResumeCookie,
   setUnlockCookie,
 } from '../downloads/access.js';
 import { parseRange } from '../downloads/range.js';
@@ -176,13 +178,17 @@ export function downloadsRouter(ctx: AppContext): Router {
 
       // Built before counting (it is lazy, nothing is opened yet) so a failure does not cost a download.
       const source = decryptStream(file, partial);
+      // A request from byte 0 always counts; a later range is a free resume only with the resume
+      // cookie of a counted download of this file, otherwise `bytes=1-` would bypass the limit.
+      const counted =
+        !partial || partial.start === 0 || !hasResumeCookie(ctx, req, transfer, file.id, nowSec);
       try {
-        // Only a request that starts at byte 0 counts; resuming ranges are only logged.
-        if (!partial || partial.start === 0) claimDownload(ctx, transfer);
+        if (counted) claimDownload(ctx, transfer);
       } catch (error) {
         source.destroy();
         throw error;
       }
+      if (counted) setResumeCookie(ctx, res, transfer, file.id, nowSec);
       const counter = logDownloadOnClose(ctx, req, res, {
         transferId: transfer.id,
         fileId: file.id,

@@ -117,7 +117,7 @@ Regole:
 - Contratto API: registro degli endpoint in `packages/shared/src/contract`, trasformato in `docs/api.md` da uno script; `api:docs:check` in CI fallisce se il documento è vecchio.
 - Convenzioni API: timestamp in secondi Unix; errore standard `{ error: { code, message, requestId, details? } }` con codici stabili tradotti dal frontend; chi non è proprietario riceve 404, non 403; livelli di autenticazione `public | mfa-pending | session | admin | setup`.
 - Flusso del trasferimento: bozza con `POST /transfers`, upload tus con `transferId` nei metadati, poi `POST /transfers/:id/finalize` che attiva il trasferimento e invia le email.
-- Conteggio download: conta ogni richiesta (file o zip) che parte dal byte 0; le richieste Range successive non contano; il primo conteggio fa partire la notifica.
+- Conteggio download: conta ogni richiesta (file o zip) che parte dal byte 0; il primo conteggio fa partire la notifica. Un download di file conteggiato imposta il cookie di ripresa `es_dlr` = `exp.HMAC(resume:transferId:fileId:exp)` (chiave `download-cookie`, `Path=/api/downloads/<token>/files/<fileId>`, SameSite=Lax, 24 ore): una richiesta Range che non parte da 0 è gratuita solo con quel cookie valido, altrimenti conta (così `bytes=1-` non aggira il limite né la notifica). Chi riprende senza cookie (es. `curl -C -`) consuma un download a ogni ripresa.
 - Sblocco di un link con password: cookie firmato con `Path=/api/downloads/<token>`, durata 1 ora.
 - Immagini di branding: upload con corpo raw (png/jpeg/webp, controllo dei magic byte), senza multipart.
 - Health: percorso canonico `/api/health`, alias `/health` in nginx; l'healthcheck del container web usa una location statica.
