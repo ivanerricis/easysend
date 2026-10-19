@@ -29,9 +29,13 @@ jobs:
       # workflow_dispatch is allowed: run CI on the release branch so the required
       # checks (lint, typecheck, test, build) appear on the release PR.
       # Skipped when no release PR was created or updated.
+      # Step env is evaluated even when the step is skipped, so the PR JSON is
+      # passed raw and parsed in the script (fromJSON('') would fail the job).
       - name: Run CI on the release PR branch
         if: ${{ steps.rp.outputs.prs_created == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
-          HEAD_BRANCH: ${{ fromJSON(steps.rp.outputs.pr).headBranchName }}
-        run: gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$HEAD_BRANCH"
+          PR_JSON: ${{ steps.rp.outputs.pr }}
+        run: |
+          head_branch=$(jq -r '.headBranchName' <<< "$PR_JSON")
+          gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$head_branch"
