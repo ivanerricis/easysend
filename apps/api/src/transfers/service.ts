@@ -412,8 +412,9 @@ export function listTransfersPage(
 }
 
 /**
- * Sends the link email to every recipient of an email-mode transfer and stamps `notified_at` on
- * those that went out (the mailer never throws and answers false on failure). Returns how many
+ * Sends the link email to every recipient of an email-mode transfer and stamps the recipient's
+ * `notified_at` on those that went out (the transfer's own `notified_at` is left alone: it tracks
+ * the owner's first-download notice). The mailer never throws and answers false on failure. Returns how many
  * emails were sent.
  */
 export async function notifyRecipients(
@@ -455,12 +456,6 @@ export async function notifyRecipients(
       .where(eq(transferRecipients.id, recipient.id))
       .run();
   }
-  if (sent > 0) {
-    ctx.db
-      .update(transfers)
-      .set({ notifiedAt: nowSeconds(ctx.clock) })
-      .where(eq(transfers.id, row.id))
-      .run();
-  }
+  // `transfers.notified_at` is not touched: it means only "the owner got the first-download notice".
   return sent;
 }

@@ -1,0 +1,17 @@
+# Services for automated tests (see scripts/test-mailpit.mjs). Own project name (`easysend-test`)
+# and own ports, so it never clashes with the local stack. Phase 6 adds web and api for the E2E.
+
+services:
+  mailpit:
+    image: axllent/mailpit:v1.31.6
+    mem_limit: 128m
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - '127.0.0.1:${TEST_MAILPIT_SMTP_PORT:-11025}:1025'
+      - '127.0.0.1:${TEST_MAILPIT_UI_PORT:-18025}:8025'
+    healthcheck:
+      test: ['CMD', '/mailpit', 'readyz']
+      interval: 2s
+      timeout: 3s
+      retries: 15

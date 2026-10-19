@@ -1,7 +1,13 @@
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { eq } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vitest';
-import { downloadLogs, transferFiles, transfers } from '../src/db/schema/index.js';
+import {
+  downloadLogs,
+  transferFiles,
+  transferRecipients,
+  transfers,
+} from '../src/db/schema/index.js';
+import { notifyRecipients } from '../src/transfers/service.js';
 import { storagePath } from '../src/storage/paths.js';
 import { createTestApp, makeTempDir, type TestApp } from './helpers.js';
 import {
@@ -334,6 +340,49 @@ describe('GET /api/downloads/:token/files/:fileId', () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
       expect(t.mailbox.sent).toHaveLength(1);
       expect(countOf(t, fx.id).downloadCount).toBe(3);
+    });
+
+    it('still emails the owner after the recipients were notified (notified_at is the owner flag)', async () => {
+      const t = await setup();
+      const fx = await createTransferFixture(t, {
+        files: [{ name: 'a', size: 50 }],
+        title: 'Report',
+      });
+      t.ctx.db
+        .insert(transferRecipients)
+        .values({ transferId: fx.id, email: 'r@example.com' })
+        .run();
+      const row = countOf(t, fx.id);
+      expect(await notifyRecipients(t.ctx, row, null)).toBe(1);
+      expect(countOf(t, fx.id).notifiedAt).toBeNull();
+      expect(t.mailbox.sent).toHaveLength(1);
+
+      await binaryRequest(t.app, fileUrl(fx, 0));
+      await vi.waitFor(() => expect(t.mailbox.sent).toHaveLength(2));
+      expect(t.mailbox.last()?.to).toBe(fx.owner.email);
+      expect(t.mailbox.last('r@example.com')?.text).toContain(`/d/${fx.token}`);
+      expect(countOf(t, fx.id).notifiedAt).not.toBeNull();
+    });
+
+    it('retries the owner notice at the next download after a failed send', async () => {
+      const t = await setup();
+      const fx = await createTransferFixture(t, { files: [{ name: 'a', size: 50 }] });
+      t.mailbox.failWith = new Error('smtp down');
+      await binaryRequest(t.app, fileUrl(fx, 0));
+      await vi.waitFor(() => expect(countOf(t, fx.id).downloadCount).toBe(1));
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(t.mailbox.sent).toHaveLength(0);
+      expect(countOf(t, fx.id).notifiedAt).toBeNull();
+
+      t.mailbox.failWith = undefined;
+      await binaryRequest(t.app, fileUrl(fx, 0));
+      await vi.waitFor(() => expect(t.mailbox.sent).toHaveLength(1));
+      expect(t.mailbox.last()?.to).toBe(fx.owner.email);
+      await vi.waitFor(() => expect(countOf(t, fx.id).notifiedAt).not.toBeNull());
+
+      await binaryRequest(t.app, fileUrl(fx, 0));
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(t.mailbox.sent).toHaveLength(1);
     });
 
     it('logs the bytes really sent, for full and partial requests, without the raw IP', async () => {

@@ -3,13 +3,17 @@ import type { Locale, SmtpSettings } from '@easysend/shared';
 import { AUTH_POLICY } from '../auth/policy.js';
 import type { AppConfig } from '../config.js';
 import type { Logger } from '../logger.js';
-import { DEFAULT_INSTANCE_NAME, type SettingsRepo } from '../settings/repo.js';
+import type { SettingsRepo } from '../settings/repo.js';
+import { readEmailLogo } from '../branding/store.js';
+import { LOGO_CID } from './components.js';
 import {
-  firstDownloadMessage,
-  passwordResetMessage,
-  transferLinkMessage,
-  welcomeMessage,
-} from './messages.js';
+  firstDownloadEmail,
+  passwordResetEmail,
+  smtpTestEmail,
+  transferLinkEmail,
+  welcomeEmail,
+} from './content.js';
+import { DEFAULT_EMAIL_LOGO } from './default-logo.js';
 
 export interface MailAttachment {
   filename: string;
@@ -60,7 +64,7 @@ export interface TransferNotice {
 }
 
 export interface Mailer {
-  /** Sends a plain-text email. Resolves true when sent, false otherwise; never throws. */
+  /** Sends an email. Resolves true when sent, false otherwise; never throws. */
   send(mail: OutgoingMail): Promise<boolean>;
   /** Link `PUBLIC_URL/reset-password?token=...`. `locale` null falls back to the instance default. */
   sendPasswordReset(input: { to: string; locale: Locale | null; token: string }): Promise<boolean>;
@@ -152,11 +156,17 @@ function safeError(error: unknown): Record<string, unknown> {
 export function createMailer(deps: {
   config: Pick<
     AppConfig,
-    'mode' | 'publicUrl' | 'smtpDevHost' | 'smtpDevPort' | 'passwordResetTtlMinutes' | 'timezone'
+    | 'mode'
+    | 'publicUrl'
+    | 'smtpDevHost'
+    | 'smtpDevPort'
+    | 'passwordResetTtlMinutes'
+    | 'timezone'
+    | 'brandingDir'
   >;
   /** Current public URL (env, setting or local default). Default: `config.publicUrl`. */
   publicUrl?: () => string | undefined;
-  settingsRepo: Pick<SettingsRepo, 'get' | 'getDefaultLocale' | 'getInstanceName'>;
+  settingsRepo: Pick<SettingsRepo, 'get' | 'getDefaultLocale' | 'getAppearance'>;
   logger: Logger;
   transport?: MailTransport;
 }): Mailer {
@@ -222,77 +232,107 @@ export function createMailer(deps: {
 
   const localeOf = (locale: Locale | null): Locale => locale ?? settingsRepo.getDefaultLocale();
 
+  /** The logo of every email: the uploaded PNG, else the built-in one. Inline (`cid:logo`). */
+  async function logoAttachment(): Promise<MailAttachment> {
+    const custom = await readEmailLogo({ settings: settingsRepo, config });
+    return {
+      filename: 'logo.png',
+      content: custom?.content ?? DEFAULT_EMAIL_LOGO.content,
+      contentType: 'image/png',
+      cid: LOGO_CID,
+    };
+  }
+
+  /** Sends a built email with its HTML part and the inline logo. */
+  async function sendContent(
+    to: string,
+    content: { subject: string; text: string; html: string },
+  ): Promise<boolean> {
+    const { subject, text, html } = content;
+    return send({ to, subject, text, html, attachments: [await logoAttachment()] });
+  }
+
   return {
     send,
 
     async sendPasswordReset({ to, locale, token }) {
       const link = buildLink('/reset-password', token);
       if (!link) return false;
-      const content = passwordResetMessage({
-        locale: localeOf(locale),
-        link,
-        instanceName: settingsRepo.getInstanceName() || DEFAULT_INSTANCE_NAME,
-        ttlMinutes: config.passwordResetTtlMinutes,
-      });
-      return send({ to, ...content });
+      return sendContent(
+        to,
+        passwordResetEmail({
+          locale: localeOf(locale),
+          appearance: settingsRepo.getAppearance(),
+          link,
+          ttlMinutes: config.passwordResetTtlMinutes,
+        }),
+      );
     },
 
     async sendWelcome({ to, locale, token }) {
       const link = buildLink('/welcome', token);
       if (!link) return false;
-      const content = welcomeMessage({
-        locale: localeOf(locale),
-        link,
-        instanceName: settingsRepo.getInstanceName() || DEFAULT_INSTANCE_NAME,
-        ttlHours: Math.round(AUTH_POLICY.welcomeTokenSeconds / 3600),
-      });
-      return send({ to, ...content });
+      return sendContent(
+        to,
+        welcomeEmail({
+          locale: localeOf(locale),
+          appearance: settingsRepo.getAppearance(),
+          link,
+          ttlHours: Math.round(AUTH_POLICY.welcomeTokenSeconds / 3600),
+        }),
+      );
     },
 
     async sendTransferLink({ to, transfer }) {
       const link = buildUrl(`/d/${transfer.token}`);
       if (!link) return false;
-      const content = transferLinkMessage({
-        locale: settingsRepo.getDefaultLocale(),
-        link,
-        instanceName: settingsRepo.getInstanceName() || DEFAULT_INSTANCE_NAME,
-        senderName: transfer.senderName,
-        title: transfer.title,
-        message: transfer.message,
-        expiresAt: transfer.expiresAt,
-        fileCount: transfer.fileCount,
-        totalBytes: transfer.totalBytes,
-        timezone: config.timezone,
-      });
-      return send({ to, ...content });
+      return sendContent(
+        to,
+        transferLinkEmail({
+          locale: settingsRepo.getDefaultLocale(),
+          appearance: settingsRepo.getAppearance(),
+          link,
+          senderName: transfer.senderName,
+          title: transfer.title,
+          message: transfer.message,
+          expiresAt: transfer.expiresAt,
+          fileCount: transfer.fileCount,
+          totalBytes: transfer.totalBytes,
+          timezone: config.timezone,
+        }),
+      );
     },
 
     async sendFirstDownload({ to, locale, transferId, title, downloadedAt }) {
       const link = buildUrl(`/transfers/${transferId}`);
       if (!link) return false;
-      const content = firstDownloadMessage({
-        locale: localeOf(locale),
-        instanceName: settingsRepo.getInstanceName() || DEFAULT_INSTANCE_NAME,
-        title,
-        link,
-        downloadedAt,
-        timezone: config.timezone,
-      });
-      return send({ to, ...content });
+      return sendContent(
+        to,
+        firstDownloadEmail({
+          locale: localeOf(locale),
+          appearance: settingsRepo.getAppearance(),
+          title,
+          link,
+          downloadedAt,
+          timezone: config.timezone,
+        }),
+      );
     },
 
     async sendTest(smtp, to, locale) {
       const transport = deps.transport ?? createSmtpTransport(smtp, smtp.password, TEST_TIMEOUT_MS);
       try {
-        const name = settingsRepo.getInstanceName() || DEFAULT_INSTANCE_NAME;
-        const it = localeOf(locale) === 'it';
+        const { subject, text, html } = smtpTestEmail({
+          locale: localeOf(locale),
+          appearance: settingsRepo.getAppearance(),
+        });
         await transport.sendMail({
           from: formatFrom(smtp),
           to,
-          subject: it ? `${name}: email di prova` : `${name}: test email`,
-          text: it
-            ? `Questa è un'email di prova inviata da ${name}. Se la leggi, l'SMTP funziona.`
-            : `This is a test email sent by ${name}. If you can read it, SMTP works.`,
+          subject,
+          text,
+          html,
+          attachments: [await logoAttachment()],
         });
         return { ok: true };
       } catch (error) {
