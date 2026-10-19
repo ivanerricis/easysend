@@ -81,6 +81,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm test
+      - run: pnpm test:mailpit
 
   build:
     name: build

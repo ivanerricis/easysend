@@ -15,6 +15,14 @@ import { createSettingsRepo } from '../src/settings/repo.js';
 import { makeTempDir, silentLogger } from './helpers.js';
 
 const PLAINTEXT = 'secret file content for rotation';
+const PENDING_ADMIN = {
+  email: 'admin@example.com',
+  displayName: null,
+  passwordHash: 'hash',
+  totpSecret: 'JBSWY3DPEHPK3PXP',
+  createdAt: 1_700_000_000,
+};
+
 const SMTP = {
   host: 'smtp.example.com',
   port: 587,
@@ -67,11 +75,13 @@ async function fixture(
       })
       .returning({ id: users.id })
       .get();
-    createSettingsRepo({
+    const oldRepo = createSettingsRepo({
       db: handle.db,
-      keys: { smtp: deriveKey(oldKey, 'smtp') },
+      keys: { smtp: deriveKey(oldKey, 'smtp'), totp: deriveKey(oldKey, 'totp') },
       clock: () => Date.now(),
-    }).set('smtp', { ...SMTP });
+    });
+    oldRepo.set('smtp', { ...SMTP });
+    oldRepo.set('setup_admin_pending', PENDING_ADMIN);
 
     const transfer = handle.db
       .insert(transfers)
@@ -130,13 +140,14 @@ async function readBack(f: Fixture, newKey: Buffer) {
     }
     const repo = createSettingsRepo({
       db: handle.db,
-      keys: { smtp: deriveKey(newKey, 'smtp') },
+      keys: { smtp: deriveKey(newKey, 'smtp'), totp: deriveKey(newKey, 'totp') },
       clock: () => Date.now(),
     });
     return {
       plaintext: Buffer.concat(chunks).toString(),
       totp: decryptSecret(deriveKey(newKey, 'totp'), 'totp', user.totpSecretEnc!),
       smtp: repo.get('smtp'),
+      pendingAdmin: repo.get('setup_admin_pending'),
       audits: handle.db
         .select()
         .from(auditLog)
@@ -158,7 +169,7 @@ describe('rotate-key CLI', () => {
 
     expect(result?.files).toEqual({ rotated: 1, alreadyRotated: 0 });
     expect(result?.totpSecrets).toEqual({ rotated: 1, alreadyRotated: 0 });
-    expect(result?.settings).toEqual({ rotated: 1, alreadyRotated: 0 });
+    expect(result?.settings).toEqual({ rotated: 2, alreadyRotated: 0 });
 
     const secrets = path.join(f.dir, 'secrets');
     const newKey = keyIn(path.join(secrets, 'app.key'));
@@ -170,6 +181,7 @@ describe('rotate-key CLI', () => {
     expect(back.plaintext).toBe(PLAINTEXT);
     expect(back.totp).toBe('JBSWY3DPEHPK3PXP');
     expect(back.smtp?.password).toBe(SMTP.password);
+    expect(back.pendingAdmin).toEqual(PENDING_ADMIN);
     expect(back.audits).toHaveLength(1);
 
     expect(result?.backupPath && existsSync(result.backupPath)).toBe(true);
@@ -196,7 +208,7 @@ describe('rotate-key CLI', () => {
     });
     expect(again?.files).toEqual({ rotated: 0, alreadyRotated: 1 });
     expect(again?.totpSecrets).toEqual({ rotated: 0, alreadyRotated: 1 });
-    expect(again?.settings).toEqual({ rotated: 0, alreadyRotated: 1 });
+    expect(again?.settings).toEqual({ rotated: 0, alreadyRotated: 2 });
     expect((await readBack(f, newKey)).plaintext).toBe(PLAINTEXT);
   });
 

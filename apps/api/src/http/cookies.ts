@@ -3,6 +3,7 @@ import type { RequestHandler, Response } from 'express';
 
 export const SESSION_COOKIE = 'es_session';
 export const CSRF_COOKIE = 'es_csrf';
+export const SETUP_COOKIE = 'es_setup';
 
 /** Parses the `Cookie` header into `req.cookies` (empty object when absent). Read with `readCookie`. */
 export const cookieParser: RequestHandler = (req, _res, next) => {

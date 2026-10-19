@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { firstDownloadMessage, formatBytes, transferLinkMessage } from '../src/mail/messages.js';
+import { DEFAULT_APPEARANCE } from '@easysend/shared';
+import { firstDownloadEmail, formatBytes, transferLinkEmail } from '../src/mail/content.js';
 import { createTestApp } from './helpers.js';
 
 const EXPIRES_AT = Date.UTC(2030, 0, 15, 22, 30) / 1000; // 23:30 in Europe/Rome
@@ -69,10 +70,10 @@ describe('transfer emails', () => {
   });
 
   it('never contains the sender email or a password', () => {
-    const { text, subject } = transferLinkMessage({
+    const { text, subject, html } = transferLinkEmail({
       locale: 'en',
       link: 'https://x.test/d/abc',
-      instanceName: 'EasySend',
+      appearance: DEFAULT_APPEARANCE,
       senderName: null,
       title: null,
       message: null,
@@ -81,7 +82,7 @@ describe('transfer emails', () => {
       totalBytes: 10,
       timezone: 'Europe/Rome',
     });
-    expect(`${subject}\n${text}`).not.toMatch(/@/);
+    expect([subject, text, html].join('|')).not.toMatch(/@/);
   });
 
   it('is not sent when PUBLIC_URL is missing', async () => {
@@ -113,11 +114,11 @@ describe('transfer emails', () => {
     expect(it.text).toContain('prima volta il 15 gennaio 2030');
   });
 
-  it('firstDownloadMessage strips line breaks from the title in both languages', () => {
+  it('firstDownloadEmail strips line breaks from the title in both languages', () => {
     for (const locale of ['it', 'en'] as const) {
-      const { subject } = firstDownloadMessage({
+      const { subject } = firstDownloadEmail({
         locale,
-        instanceName: 'EasySend',
+        appearance: DEFAULT_APPEARANCE,
         title: 'a\nb\r\nc',
         link: 'https://x.test/transfers/1',
         downloadedAt: EXPIRES_AT,

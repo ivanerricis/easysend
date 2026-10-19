@@ -11,7 +11,10 @@ import type { Logger } from './logger.js';
 import { createMailer, type MailTransport, type Mailer } from './mail/mailer.js';
 import type { Secrets } from './secrets.js';
 import { createSettingsRepo, type SettingsRepo } from './settings/repo.js';
+import { createSmtpVerification, type SmtpVerification } from './settings/smtp-verification.js';
 import { statfsDiskSpace, type DiskSpace } from './storage/disk.js';
+import { createSetupCodeService, type SetupCodeService } from './setup/code.js';
+import { createSetupLimiters, type SetupLimiters } from './setup/limiters.js';
 import { createTransferLimiters, type TransferLimiters } from './transfers/limiters.js';
 import { createUploadWorker, type UploadWorker } from './uploads/worker.js';
 
@@ -31,6 +34,8 @@ export interface AppDeps {
   mailTransport?: MailTransport;
   /** Free-space probe of the storage disk. Default: `fs.statfs`. Tests fake a full disk with it. */
   diskSpace?: DiskSpace;
+  /** `fetch` used for the Cloudflare API. Default: `globalThis.fetch`. Tests inject a fake. */
+  cloudflareFetch?: typeof fetch;
 }
 
 /** Everything a route needs, built once per app. Route factories receive it: no global state. */
@@ -45,13 +50,25 @@ export interface AppContext {
   passwordHasher: PasswordHasher;
   settings: SettingsRepo;
   mailer: Mailer;
+  /** Remembers the last SMTP configuration that passed a test email (wizard and admin panel). */
+  smtpVerification: SmtpVerification;
+  /** `fetch` for the Cloudflare API (injectable for tests). */
+  cloudflareFetch: typeof fetch;
   sessions: SessionService;
   csrf: CsrfService;
   limiters: AuthLimiters;
   transferLimiters: TransferLimiters;
+  setupLimiters: SetupLimiters;
+  /** One-time code that authorises the first-run wizard (in memory, printed in the logs). */
+  setupCode: SetupCodeService;
   diskSpace: DiskSpace;
   /** Background queue that hashes and encrypts finished uploads (one per app). */
   uploadWorker: UploadWorker;
+  /**
+   * Public base URL: env `PUBLIC_URL`, else the `public_url` setting (wizard), else the local-mode
+   * default. Undefined in production before the wizard. Read per call: it can change at runtime.
+   */
+  publicUrl(): string | undefined;
   /** Real client address (see `createClientIpResolver`). Never log it: use `ipHashOf`. */
   clientIp: ClientIpResolver;
   /** `ip_hash` value for the audit log and sessions. */
@@ -65,11 +82,14 @@ export function createContext(deps: AppDeps): AppContext {
   const db = deps.db.db;
   const clientIp = createClientIpResolver(config);
   const settings = createSettingsRepo({ db, keys, clock });
+  const publicUrl = (): string | undefined =>
+    config.publicUrlEnv ?? settings.get('public_url') ?? config.publicUrl;
   const mailer =
     deps.mailer ??
     createMailer({
       config,
       settingsRepo: settings,
+      publicUrl,
       logger,
       ...(deps.mailTransport ? { transport: deps.mailTransport } : {}),
     });
@@ -85,11 +105,20 @@ export function createContext(deps: AppDeps): AppContext {
     passwordHasher: deps.passwordHasher ?? createPasswordHasher(),
     settings,
     mailer,
+    smtpVerification: createSmtpVerification(clock),
+    cloudflareFetch: deps.cloudflareFetch ?? globalThis.fetch,
     sessions: createSessionService({ db, clock, clientIp, ipHashKey: keys.ipHash }),
-    csrf: createCsrf({ config, csrfKey: keys.csrf }),
+    csrf: createCsrf({ publicUrl, csrfKey: keys.csrf }),
     limiters: createAuthLimiters(),
     transferLimiters: createTransferLimiters(),
+    setupLimiters: createSetupLimiters(),
+    setupCode: createSetupCodeService({
+      clock,
+      ttlMinutes: config.setupCodeTtlMinutes,
+      logger,
+    }),
     diskSpace: deps.diskSpace ?? statfsDiskSpace,
+    publicUrl,
     clientIp,
     ipHashOf: (req: Parameters<ClientIpResolver>[0]) => ipHash(keys.ipHash, clientIp(req)),
   } as AppContext;

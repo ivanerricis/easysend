@@ -26,6 +26,17 @@ export const AUDIT_ACTIONS = [
   'transfer.file_deleted',
   'transfer.resent',
   'system.key_rotated',
+  'setup.admin_created',
+  'setup.smtp_saved',
+  'setup.general_saved',
+  'setup.completed',
+  'settings.general_updated',
+  'settings.smtp_updated',
+  'settings.appearance_updated',
+  'settings.appearance_reset',
+  'settings.asset_updated',
+  'settings.asset_deleted',
+  'tunnel.configured',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -33,7 +44,7 @@ export interface AuditEntry {
   /** User who performed the action; null for anonymous actions (failed login, reset request). */
   actorId: string | null;
   action: AuditAction;
-  targetType?: 'user' | 'session' | 'transfer';
+  targetType?: 'user' | 'session' | 'transfer' | 'settings';
   targetId?: string;
   /** JSON-serializable and free of sensitive data: never passwords, codes, tokens or emails of unknown users. */
   metadata?: Record<string, unknown>;

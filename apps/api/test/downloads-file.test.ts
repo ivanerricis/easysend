@@ -1,7 +1,13 @@
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { eq } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vitest';
-import { downloadLogs, transferFiles, transfers } from '../src/db/schema/index.js';
+import {
+  downloadLogs,
+  transferFiles,
+  transferRecipients,
+  transfers,
+} from '../src/db/schema/index.js';
+import { notifyRecipients } from '../src/transfers/service.js';
 import { storagePath } from '../src/storage/paths.js';
 import { createTestApp, makeTempDir, type TestApp } from './helpers.js';
 import {
@@ -19,6 +25,9 @@ const indexOfSize = (size: number) => FIXTURE_SIZES.indexOf(size as (typeof FIXT
 
 const countOf = (t: TestApp, id: string) =>
   t.ctx.db.select().from(transfers).where(eq(transfers.id, id)).get()!;
+/** `es_dlr=<value>` from a response, ready for the `cookie` option of `binaryRequest`. */
+const resumeCookieOf = (res: { headers: { 'set-cookie'?: string[] } }) =>
+  String(res.headers['set-cookie']?.[0]).split(';')[0]!;
 const logsOf = (t: TestApp, id: string) =>
   t.ctx.db.select().from(downloadLogs).where(eq(downloadLogs.transferId, id)).all();
 
@@ -198,7 +207,7 @@ describe('GET /api/downloads/:token/files/:fileId', () => {
   });
 
   describe('counting and logs', () => {
-    it('counts a full download and a Range from 0, not a Range from a later byte or HEAD', async () => {
+    it('counts a full download and a Range from 0, not HEAD', async () => {
       const t = await setup();
       const fx = await createTransferFixture(t);
       const url = fileUrl(fx, indexOfSize(200_000));
@@ -207,26 +216,94 @@ describe('GET /api/downloads/:token/files/:fileId', () => {
       expect(countOf(t, fx.id).downloadCount).toBe(1);
       await binaryRequest(t.app, url, { headers: { Range: 'bytes=0-99' } });
       expect(countOf(t, fx.id).downloadCount).toBe(2);
-      await binaryRequest(t.app, url, { headers: { Range: 'bytes=100-199' } });
-      await binaryRequest(t.app, url, { headers: { Range: 'bytes=-50' } });
       await binaryRequest(t.app, url, { method: 'head' });
       expect(countOf(t, fx.id).downloadCount).toBe(2);
       expect(countOf(t, fx.id).firstDownloadedAt).not.toBeNull();
     });
 
-    it('refuses full and Range requests once the limit is reached', async () => {
+    it('counts a Range from a later byte without the resume cookie', async () => {
+      const t = await setup();
+      const fx = await createTransferFixture(t);
+      const url = fileUrl(fx, indexOfSize(200_000));
+
+      const res = await binaryRequest(t.app, url, { headers: { Range: 'bytes=1-' } });
+      expect(res.status).toBe(206);
+      expect(countOf(t, fx.id).downloadCount).toBe(1);
+      await binaryRequest(t.app, url, { headers: { Range: 'bytes=-50' } });
+      expect(countOf(t, fx.id).downloadCount).toBe(2);
+      await vi.waitFor(() => expect(t.mailbox.sent).toHaveLength(1));
+    });
+
+    it('sets the resume cookie on a counted download, scoped to the file', async () => {
+      const t = await setup();
+      const fx = await createTransferFixture(t);
+      const res = await binaryRequest(t.app, fileUrl(fx, 0));
+      const header = String(res.headers['set-cookie']?.[0]);
+      expect(header).toMatch(/^es_dlr=\d+\.[A-Za-z0-9_-]{43};/);
+      expect(header).toContain(`Path=${fileUrl(fx, 0)}`);
+      expect(header).toContain('Max-Age=86400');
+      expect(header).toContain('HttpOnly');
+      expect(header).toContain('Secure');
+      expect(header).toContain('SameSite=Lax');
+    });
+
+    it('lets a later Range with the resume cookie through for free, without a new cookie', async () => {
+      const t = await setup();
+      const fx = await createTransferFixture(t);
+      const big = indexOfSize(200_000);
+      const url = fileUrl(fx, big);
+      const cookie = resumeCookieOf(await binaryRequest(t.app, url));
+      expect(countOf(t, fx.id).downloadCount).toBe(1);
+
+      const res = await binaryRequest(t.app, url, {
+        headers: { Range: 'bytes=100000-' },
+        cookie,
+      });
+      expect(res.status).toBe(206);
+      expect(res.body.equals(fx.files[big]!.content.subarray(100_000))).toBe(true);
+      expect(res.headers['set-cookie']).toBeUndefined();
+      expect(countOf(t, fx.id).downloadCount).toBe(1);
+
+      // A request from byte 0 counts even with the cookie.
+      await binaryRequest(t.app, url, { headers: { Range: 'bytes=0-' }, cookie });
+      expect(countOf(t, fx.id).downloadCount).toBe(2);
+    });
+
+    it('counts a later Range whose resume cookie is expired, tampered or for another file', async () => {
+      const t = await setup();
+      const fx = await createTransferFixture(t, { expiresInSeconds: 7 * 86_400 });
+      const big = indexOfSize(200_000);
+      const url = fileUrl(fx, big);
+      const cookie = resumeCookieOf(await binaryRequest(t.app, url));
+      const other = resumeCookieOf(await binaryRequest(t.app, fileUrl(fx, indexOfSize(65_536))));
+      expect(countOf(t, fx.id).downloadCount).toBe(2);
+
+      const [exp, mac] = cookie.slice('es_dlr='.length).split('.');
+      for (const value of [other, `es_dlr=${Number(exp) + 1000}.${mac}`, 'es_dlr=garbage']) {
+        await binaryRequest(t.app, url, { headers: { Range: 'bytes=10-' }, cookie: value });
+      }
+      expect(countOf(t, fx.id).downloadCount).toBe(5);
+
+      t.clock.advance(24 * 3600);
+      await binaryRequest(t.app, url, { headers: { Range: 'bytes=10-' }, cookie });
+      expect(countOf(t, fx.id).downloadCount).toBe(6);
+    });
+
+    it('refuses full and Range requests once the limit is reached, resume cookie or not', async () => {
       const t = await setup();
       const fx = await createTransferFixture(t, {
         files: [{ name: 'a', size: 1000 }],
         maxDownloads: 1,
       });
-      expect((await binaryRequest(t.app, fileUrl(fx, 0))).status).toBe(200);
+      const first = await binaryRequest(t.app, fileUrl(fx, 0));
+      expect(first.status).toBe(200);
+      const cookie = resumeCookieOf(first);
       for (const headers of [
         {} as Record<string, string>,
         { Range: 'bytes=0-9' },
         { Range: 'bytes=500-' },
       ]) {
-        const res = await binaryRequest(t.app, fileUrl(fx, 0), { headers });
+        const res = await binaryRequest(t.app, fileUrl(fx, 0), { headers, cookie });
         expect(res.status).toBe(410);
         expect(binaryErrorCode(res)).toBe('DOWNLOAD_LIMIT_REACHED');
       }
@@ -263,6 +340,49 @@ describe('GET /api/downloads/:token/files/:fileId', () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
       expect(t.mailbox.sent).toHaveLength(1);
       expect(countOf(t, fx.id).downloadCount).toBe(3);
+    });
+
+    it('still emails the owner after the recipients were notified (notified_at is the owner flag)', async () => {
+      const t = await setup();
+      const fx = await createTransferFixture(t, {
+        files: [{ name: 'a', size: 50 }],
+        title: 'Report',
+      });
+      t.ctx.db
+        .insert(transferRecipients)
+        .values({ transferId: fx.id, email: 'r@example.com' })
+        .run();
+      const row = countOf(t, fx.id);
+      expect(await notifyRecipients(t.ctx, row, null)).toBe(1);
+      expect(countOf(t, fx.id).notifiedAt).toBeNull();
+      expect(t.mailbox.sent).toHaveLength(1);
+
+      await binaryRequest(t.app, fileUrl(fx, 0));
+      await vi.waitFor(() => expect(t.mailbox.sent).toHaveLength(2));
+      expect(t.mailbox.last()?.to).toBe(fx.owner.email);
+      expect(t.mailbox.last('r@example.com')?.text).toContain(`/d/${fx.token}`);
+      expect(countOf(t, fx.id).notifiedAt).not.toBeNull();
+    });
+
+    it('retries the owner notice at the next download after a failed send', async () => {
+      const t = await setup();
+      const fx = await createTransferFixture(t, { files: [{ name: 'a', size: 50 }] });
+      t.mailbox.failWith = new Error('smtp down');
+      await binaryRequest(t.app, fileUrl(fx, 0));
+      await vi.waitFor(() => expect(countOf(t, fx.id).downloadCount).toBe(1));
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(t.mailbox.sent).toHaveLength(0);
+      expect(countOf(t, fx.id).notifiedAt).toBeNull();
+
+      t.mailbox.failWith = undefined;
+      await binaryRequest(t.app, fileUrl(fx, 0));
+      await vi.waitFor(() => expect(t.mailbox.sent).toHaveLength(1));
+      expect(t.mailbox.last()?.to).toBe(fx.owner.email);
+      await vi.waitFor(() => expect(countOf(t, fx.id).notifiedAt).not.toBeNull());
+
+      await binaryRequest(t.app, fileUrl(fx, 0));
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(t.mailbox.sent).toHaveLength(1);
     });
 
     it('logs the bytes really sent, for full and partial requests, without the raw IP', async () => {

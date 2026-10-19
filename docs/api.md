@@ -7,7 +7,7 @@
 ## Decisions to approve
 
 1. **Draft-first transfer flow**: `POST /api/transfers` creates a draft (`uploading`); files are uploaded with tus carrying `transferId`; `POST /api/transfers/:id/finalize` activates the transfer, sends the emails and returns the share URL.
-2. **Download counting**: Every file or zip request starting at byte 0 counts as one download; later `Range` requests of the same file do not. The first count triggers the sender notification.
+2. **Download counting**: Every file or zip request starting at byte 0 counts as one download. A counted file download sets the signed resume cookie `es_dlr` (`Path=/api/downloads/<token>/files/<fileId>`, valid 24 hours): a later `Range` request of that file carrying it is a free resume, without it the request counts. The first count triggers the sender notification.
 3. **Unix-second timestamps**: All timestamps in the API are integer Unix seconds, like the database; no conversion layer.
 4. **mfa-pending auth level**: Login is two-step: password first (open an `mfa-pending` session), then TOTP or recovery code. The same level covers forced 2FA enrolment for an admin whose 2FA was reset.
 5. **Unlock cookie scoped by path**: Unlocking a password-protected link sets the signed cookie `es_dl` with `Path=/api/downloads/<token>`, `SameSite=Strict`, valid 1 hour, so plain `<a href>` links work without scripting.
@@ -286,9 +286,13 @@ Start admin creation: returns the TOTP secret to enrol
 }
 ```
 
+**Errors**
+
+- `409` `CONFLICT`: The request conflicts with the current state of the resource.
+
 Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`, `409` `SETUP_ALREADY_COMPLETED`.
 
-**Notes:** Nothing is created yet: email, password hash and TOTP secret are kept as a pending enrolment (secret stored encrypted). The QR code is rendered by the client from `otpauthUri`; `secret` is the plain-text alternative. Calling it again replaces the pending enrolment. `displayName` is optional and trimmed.
+**Notes:** Nothing is created yet: email, password hash and TOTP secret are kept as a pending enrolment (secret stored encrypted). The QR code is rendered by the client from `otpauthUri`; `secret` is the plain-text alternative. Calling it again replaces the pending enrolment. `displayName` is optional and trimmed. `CONFLICT` when an admin already exists (for example one created locally with the CLI): the step is already done.
 
 ### `POST /api/setup/admin/verify`
 
@@ -2295,6 +2299,7 @@ Download one file (streamed, Range supported)
 **Request headers**
 
 - `Range`: optional, e.g. bytes=0-1048575 (single range)
+- `Cookie`: es_dlr (optional): resume cookie of a counted download of this file
 
 **Response `200`**
 
@@ -2302,6 +2307,7 @@ Binary content.
 
 Response headers:
 
+- `Set-Cookie`: es_dlr=<signed>; Path=/api/downloads/<token>/files/<fileId>; HttpOnly; Secure; SameSite=Lax; Max-Age=86400 (only when the request counts)
 - `Content-Type`: application/octet-stream
 - `Content-Disposition`: attachment; filename*=UTF-8''<original name>
 - `Content-Length`: plaintext size (partial size for 206)
@@ -2320,7 +2326,7 @@ Response headers:
 
 Also possible: `400` `VALIDATION_ERROR`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`.
 
-**Notes:** Answers 200 for a full response and 206 for a satisfiable `Range`. The file is decrypted on the fly in streaming with constant memory. Counting: a request starting at byte 0 counts as one download (see decisions); requests starting later do not. When the download limit is reached every request is refused, including Range requests (`DOWNLOAD_LIMIT_REACHED`). Files are always served as attachments with `application/octet-stream`.
+**Notes:** Answers 200 for a full response and 206 for a satisfiable `Range`. The file is decrypted on the fly in streaming with constant memory. Counting: a request starting at byte 0 counts as one download (see decisions); a request starting later is a free resume only with a valid `es_dlr` cookie for this file, otherwise it counts too. When the download limit is reached every request is refused, including Range requests (`DOWNLOAD_LIMIT_REACHED`). Files are always served as attachments with `application/octet-stream`.
 
 ### `GET /api/downloads/:token/zip`
 

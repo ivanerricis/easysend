@@ -13,14 +13,14 @@ const PENDING_OR_FULL = new Set(['auth.logout']);
  *
  * Usage: `router.post('/auth/login', ...endpointGuards(ctx.csrf, 'auth.login'), handler)`.
  * Rate limiting is added by the handler or with `rateLimit(...)` because keys differ per flow.
- * Level `setup` (phase 4) is not supported yet and throws when the chain is built.
+ * Level `setup` has its own chain (`setupEndpointGuards` in `setup/guard.ts`) and throws here.
  */
 export function endpointGuards(csrf: CsrfService, id: string): RequestHandler[] {
   const endpoint = getEndpoint(id);
   const chain: RequestHandler[] = [];
 
   if (endpoint.auth === 'setup') {
-    throw new Error(`Endpoint ${id}: the setup auth level is implemented in phase 4`);
+    throw new Error(`Endpoint ${id}: setup-level endpoints use setupEndpointGuards`);
   }
   if (endpoint.auth !== 'public') {
     const level: GuardLevel = PENDING_OR_FULL.has(id) ? 'any' : endpoint.auth;

@@ -120,3 +120,14 @@ export const appearanceStateResponseSchema = z.object({
   assets: brandingAssetsSchema,
 });
 export type AppearanceStateResponse = z.infer<typeof appearanceStateResponseSchema>;
+
+/** Appearance used until an admin saves one (also what "reset to default" restores). */
+export const DEFAULT_APPEARANCE: Appearance = {
+  instanceName: 'EasySend',
+  footer: '',
+  primaryColor: '#18181b',
+  accentColor: '#047857',
+  radius: 0,
+  font: 'ibm-plex-sans',
+  defaultTheme: 'system',
+};

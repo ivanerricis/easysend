@@ -17,6 +17,8 @@ export const TRANSFER_POLICY = {
   } satisfies Record<string, LimitPolicy>,
   /** Validity of the `es_dl` cookie that unlocks a password-protected link. */
   unlockCookieSeconds: HOUR,
+  /** Validity of the `es_dlr` cookie that makes later Range requests of a counted download free. */
+  resumeCookieSeconds: 24 * HOUR,
   /** Random bytes of a download token (43 base64url characters). */
   tokenBytes: 32,
 } as const;

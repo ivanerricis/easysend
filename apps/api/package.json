@@ -11,7 +11,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/cli/migrate.ts",
     "user:create-admin": "tsx src/cli/create-admin.ts",
-    "key:rotate": "tsx src/cli/rotate-key.ts"
+    "key:rotate": "tsx src/cli/rotate-key.ts",
+    "mail:preview": "tsx scripts/mail-preview.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "catalog:",
@@ -28,6 +29,9 @@
     "pino": "catalog:",
     "pino-http": "catalog:",
     "rate-limiter-flexible": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "sharp": "catalog:",
     "yazl": "catalog:",
     "zod": "catalog:"
   },
@@ -35,6 +39,8 @@
     "@easysend/shared": "workspace:*",
     "@types/better-sqlite3": "catalog:",
     "@types/express": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
     "@types/supertest": "catalog:",
     "@types/yauzl": "catalog:",
     "@types/yazl": "catalog:",

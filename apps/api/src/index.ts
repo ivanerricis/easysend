@@ -35,6 +35,12 @@ async function main(): Promise<void> {
   });
 
   const { app, ctx } = createAppWithContext({ config, db, logger, secrets });
+  if (!ctx.settings.isSetupCompleted()) {
+    // Required by the spec (also in local mode): the code proves the visitor can read the logs.
+    logger.warn(
+      `Setup code: ${ctx.setupCode.issue()} (valid ${config.setupCodeTtlMinutes} minutes). Open the app to start the setup wizard.`,
+    );
+  }
   // Uploads interrupted by a restart while being encrypted are queued again.
   await ctx.uploadWorker.recover();
   const cleanup = scheduleCleanup(ctx);

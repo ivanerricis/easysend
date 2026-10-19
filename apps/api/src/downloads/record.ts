@@ -10,8 +10,18 @@ import { unavailableError } from './access.js';
 
 const USER_AGENT_MAX = 512;
 
-/** Sends the first-download notice to the owner once; failures are logged (ids only), never thrown. */
-async function notifyOwner(ctx: AppContext, transfer: TransferRow, nowSec: number): Promise<void> {
+/**
+ * Sends the first-download notice to the owner. The claim on `notified_at` (meaning only "the
+ * owner was notified") is atomic, so parallel downloads send one email; when the send fails or the
+ * owner is gone the claim is released and the next download tries again. Never throws on a failed
+ * send; the caller logs unexpected errors.
+ */
+async function notifyOwner(
+  ctx: AppContext,
+  transfer: TransferRow,
+  downloadedAt: number,
+  nowSec: number,
+): Promise<void> {
   const claimed = ctx.db
     .update(transfers)
     .set({ notifiedAt: nowSec })
@@ -19,26 +29,37 @@ async function notifyOwner(ctx: AppContext, transfer: TransferRow, nowSec: numbe
     .returning({ id: transfers.id })
     .get();
   if (!claimed) return;
-  const owner = ctx.db
-    .select({ email: users.email, locale: users.locale })
-    .from(users)
-    .where(eq(users.id, transfer.ownerId))
-    .get();
-  if (!owner) return;
-  await ctx.mailer.sendFirstDownload({
-    to: owner.email,
-    locale: owner.locale,
-    transferId: transfer.id,
-    title: transfer.title,
-    downloadedAt: nowSec,
-  });
+  const release = (): void => {
+    ctx.db.update(transfers).set({ notifiedAt: null }).where(eq(transfers.id, transfer.id)).run();
+  };
+  try {
+    const owner = ctx.db
+      .select({ email: users.email, locale: users.locale })
+      .from(users)
+      .where(eq(users.id, transfer.ownerId))
+      .get();
+    const sent =
+      owner !== undefined &&
+      (await ctx.mailer.sendFirstDownload({
+        to: owner.email,
+        locale: owner.locale,
+        transferId: transfer.id,
+        title: transfer.title,
+        downloadedAt,
+      }));
+    if (!sent) release();
+  } catch (error) {
+    release();
+    throw error;
+  }
 }
 
 /**
  * Counts one download, atomically: the single UPDATE re-checks status, expiry and the limit, so
  * two requests racing for the last download cannot both succeed. When the transfer is no longer
- * available the matching error is thrown. The first download triggers the owner notification in
- * the background (not awaited, so it never delays the stream).
+ * available the matching error is thrown. While the owner has not been notified (`notified_at`
+ * empty) the download triggers the notice in the background (not awaited, so it never delays the
+ * stream); a failed notice is therefore retried at the next download.
  */
 export function claimDownload(ctx: AppContext, transfer: TransferRow): void {
   const nowSec = nowSeconds(ctx.clock);
@@ -56,17 +77,22 @@ export function claimDownload(ctx: AppContext, transfer: TransferRow): void {
         or(isNull(transfers.maxDownloads), lt(transfers.downloadCount, transfers.maxDownloads)),
       ),
     )
-    .returning({ downloadCount: transfers.downloadCount })
+    .returning({
+      notifiedAt: transfers.notifiedAt,
+      firstDownloadedAt: transfers.firstDownloadedAt,
+    })
     .get();
 
   if (!updated) {
     const current = ctx.db.select().from(transfers).where(eq(transfers.id, transfer.id)).get();
     throw (current && unavailableError(current, nowSec)) ?? new AppError('TRANSFER_NOT_FOUND');
   }
-  if (updated.downloadCount === 1) {
-    notifyOwner(ctx, transfer, nowSec).catch((error: unknown) => {
-      ctx.logger.warn({ transferId: transfer.id, err: error }, 'first download notice failed');
-    });
+  if (updated.notifiedAt === null) {
+    notifyOwner(ctx, transfer, updated.firstDownloadedAt ?? nowSec, nowSec).catch(
+      (error: unknown) => {
+        ctx.logger.warn({ transferId: transfer.id, err: error }, 'first download notice failed');
+      },
+    );
   }
 }
 

@@ -141,8 +141,9 @@ export const endpoints: readonly EndpointDef[] = [
     auth: 'setup',
     body: setupAdminRequestSchema,
     response: json(200, twoFactorSetupResponseSchema),
+    errors: ['CONFLICT'],
     notes:
-      'Nothing is created yet: email, password hash and TOTP secret are kept as a pending enrolment (secret stored encrypted). The QR code is rendered by the client from `otpauthUri`; `secret` is the plain-text alternative. Calling it again replaces the pending enrolment. `displayName` is optional and trimmed.',
+      'Nothing is created yet: email, password hash and TOTP secret are kept as a pending enrolment (secret stored encrypted). The QR code is rendered by the client from `otpauthUri`; `secret` is the plain-text alternative. Calling it again replaces the pending enrolment. `displayName` is optional and trimmed. `CONFLICT` when an admin already exists (for example one created locally with the CLI): the step is already done.',
   }),
   defineEndpoint({
     id: 'setup.adminVerify',
@@ -836,11 +837,16 @@ export const endpoints: readonly EndpointDef[] = [
     auth: 'public',
     rateLimit: 'download',
     params: downloadFileParamsSchema,
-    requestHeaders: { Range: 'optional, e.g. bytes=0-1048575 (single range)' },
+    requestHeaders: {
+      Range: 'optional, e.g. bytes=0-1048575 (single range)',
+      Cookie: 'es_dlr (optional): resume cookie of a counted download of this file',
+    },
     response: {
       status: 200,
       kind: 'binary',
       headers: {
+        'Set-Cookie':
+          'es_dlr=<signed>; Path=/api/downloads/<token>/files/<fileId>; HttpOnly; Secure; SameSite=Lax; Max-Age=86400 (only when the request counts)',
         'Content-Type': 'application/octet-stream',
         'Content-Disposition': "attachment; filename*=UTF-8''<original name>",
         'Content-Length': 'plaintext size (partial size for 206)',
@@ -858,7 +864,7 @@ export const endpoints: readonly EndpointDef[] = [
       'RANGE_NOT_SATISFIABLE',
     ],
     notes:
-      'Answers 200 for a full response and 206 for a satisfiable `Range`. The file is decrypted on the fly in streaming with constant memory. Counting: a request starting at byte 0 counts as one download (see decisions); requests starting later do not. When the download limit is reached every request is refused, including Range requests (`DOWNLOAD_LIMIT_REACHED`). Files are always served as attachments with `application/octet-stream`.',
+      'Answers 200 for a full response and 206 for a satisfiable `Range`. The file is decrypted on the fly in streaming with constant memory. Counting: a request starting at byte 0 counts as one download (see decisions); a request starting later is a free resume only with a valid `es_dlr` cookie for this file, otherwise it counts too. When the download limit is reached every request is refused, including Range requests (`DOWNLOAD_LIMIT_REACHED`). Files are always served as attachments with `application/octet-stream`.',
   }),
   defineEndpoint({
     id: 'downloads.zip',
