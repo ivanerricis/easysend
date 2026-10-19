@@ -79,6 +79,8 @@ Prerequisiti: Node 26 (versione in `.node-version`/`.nvmrc`, con fnm basta `fnm 
 | `pnpm local:down`     | Ferma lo stack locale, mantenendo i dati                                  |
 | `pnpm local:reset`    | Ferma lo stack e cancella i volumi locali                                 |
 | `pnpm user:create-admin -- --email <email>` | Solo con `APP_MODE=local`: crea un admin senza 2FA (al primo login lo configura). Nello stack Docker: `docker compose -p easysend-local exec api node dist/cli/create-admin.js --email <email>` |
+| `pnpm key:rotate [-- --new-key-file <file>]` | Ruota la chiave master (API ferma): ri-cifra chiavi dati dei file, secret TOTP e impostazioni cifrate, backup del DB prima. Nello stack Docker: `docker compose stop api && docker compose run --rm --no-deps api node dist/cli/rotate-key.js && docker compose up -d api` |
+| `node scripts/measure-transfer.mjs [--size-gb 5]` | Con lo stack locale avviato: upload tus, cifratura, download e zip di un file generato, con RAM dell'api campionata ogni secondo |
 
 Indirizzi in locale:
 - stack Docker: http://localhost:8080 (frontend), http://localhost:8080/api/health (health), http://localhost:8025 (Mailpit);
@@ -143,3 +145,15 @@ Regole:
 - Utenti eliminati: con `reassign` trasferimenti, upload e `used_bytes` passano all'altro utente; con `delete` le righe vengono rimosse e i file su disco li cancella il job di pulizia della fase 3. L'ultimo admin non si può degradare, disabilitare o eliminare; un admin non può eliminare se stesso.
 - Ogni risposta JSON passa da `sendJson`, che la valida con lo schema del contratto (anche in produzione): i campi non previsti, come `password_hash`, non escono mai.
 - Setup gate (`SETUP_REQUIRED`) rimandato alla fase 4 con il wizard.
+- Cifratura dei file asincrona: il PATCH tus finale risponde subito 204, l'upload passa a `processing` e un worker interno (uno alla volta) calcola SHA-256 e cifra; `finalize` risponde `UPLOAD_INCOMPLETE` finché c'è un upload `in_progress`/`processing`; un HEAD su un upload `processing`/`completed` risponde `Upload-Offset = Upload-Length`; dopo un riavvio il worker riprende gli upload `processing` e cancella i `*.part`.
+- Formato file cifrati v1: AES-256-GCM a segmenti da 64 KiB, record `ciphertext ‖ tag`, nonce = prefisso casuale 7 byte ‖ indice uint32 ‖ flag ultimo segmento (costruzione STREAM); chiave dati per file wrapped con la chiave `file` nel formato `v1:`.
+- Zip in streaming senza compressione (store, ZIP64 automatico) con `Content-Length` calcolato; un file aperto alla volta.
+- Limite di download stretto: raggiunto il limite si rifiutano anche le richieste Range (l'ultimo download consentito non si può riprendere).
+- Pagina pubblica di download: `PUBLIC_URL/d/<token>`, token di 32 byte base64url. Cookie di sblocco `es_dl` = `exp.HMAC(transferId:exp:impronta del password_hash)`: cambiare o togliere la password invalida i cookie.
+- `used_bytes` = somma delle dimensioni in chiaro dei file completati. Quota all'upload: `used_bytes + upload in_progress/processing + Upload-Length ≤ quota`; spazio: `libero − riserva ≥ 2 × dimensione`.
+- Scadenza: `finalize` la ricalcola da quel momento con la stessa durata scelta alla creazione.
+- Pulizia (ogni ora e all'avvio, mai due in parallelo): trasferimenti scaduti/revocati e bozze inattive eliminati da disco e DB (poi il link risponde `TRANSFER_NOT_FOUND`); upload scaduti; file orfani (storage più vecchi di 1 ora, tmp più vecchi del TTL); log oltre `LOG_RETENTION_DAYS`, token di reset e sessioni scadute; riallineamento di `used_bytes`. Gli upload `processing` non si toccano. Il job non scrive righe di audit, solo una riga di log riassuntiva. `CLEANUP_CRON` non valido blocca l'avvio.
+- Eliminazione dei file: prima le righe DB in transazione, poi `unlink` best-effort; i fallimenti li recupera la pulizia degli orfani. Eliminare un utente rimuove subito i file; gli upload in corso vengono annullati sia con `delete` sia con `reassign`.
+- Rate limit dei trasferimenti in `apps/api/src/transfers/policy.ts`: creazione e reinvio 30/ora per utente, download 600/10 min per IP, password dei link 10 errori/15 min per link+IP e 50/ora per link.
+- Rotazione della chiave master: con chiave da file la nuova va in `secrets/app.key` e la vecchia resta in `app.key.previous`; con `APP_SECRET_KEY` la nuova viene scritta in `secrets/app.key.new` e va copiata nella variabile. Idempotente; un `app.key.new` rimasto si riprende con `--new-key-file`. La chiave non viene mai stampata.
+- Dipendenze fase 3: `@tus/server`, `@tus/file-store`, `node-cron`, `yazl`; `yauzl` solo nei test. Non si usa `cleanUpExpiredUploads` di tus (cancellerebbe upload in elaborazione).

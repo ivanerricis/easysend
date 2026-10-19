@@ -1,4 +1,4 @@
-import { and, desc, asc, count, eq, sql, type SQL } from 'drizzle-orm';
+import { and, desc, asc, count, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import { Router, type Request } from 'express';
 import type {
   CreateUserRequest,
@@ -11,9 +11,17 @@ import { audit } from '../audit.js';
 import { nowSeconds } from '../clock.js';
 import type { AppContext } from '../context.js';
 import { randomToken, sha256Hex } from '../crypto/hash.js';
-import { passwordResetTokens, transfers, uploads, users } from '../db/schema/index.js';
+import {
+  passwordResetTokens,
+  transferFiles,
+  transfers,
+  uploads,
+  users,
+} from '../db/schema/index.js';
 import { endpointGuards } from '../http/endpoint-guards.js';
 import { AppError } from '../http/errors.js';
+import { isStorageName, storagePath, tusFilePaths } from '../storage/paths.js';
+import { removeFileQuietly } from '../storage/remove.js';
 import { sendJson, validBody, validParams, validQuery } from '../http/validate.js';
 import {
   clearTwoFactor,
@@ -21,6 +29,13 @@ import {
   normalizeEmail,
   toAdminUser,
 } from '../users/service.js';
+
+/** tus data and metadata files of an upload (nothing for ids that are not UUIDs). */
+const tusPaths = (config: AppContext['config'], uploadId: string): string[] => {
+  if (!isStorageName(uploadId)) return [];
+  const { data, info } = tusFilePaths(config, uploadId);
+  return [data, info];
+};
 
 /** Escapes LIKE wildcards so `q` is always a plain substring. */
 const likePattern = (q: string): string =>
@@ -202,57 +217,96 @@ export function adminUsersRouter(ctx: AppContext): Router {
     },
   );
 
-  router.delete('/admin/users/:id', ...endpointGuards(ctx.csrf, 'users.delete'), (req, res) => {
-    const { id } = validParams<{ id: string }>(req);
-    const query = validQuery<DeleteUserQuery>(req);
+  router.delete(
+    '/admin/users/:id',
+    ...endpointGuards(ctx.csrf, 'users.delete'),
+    async (req, res) => {
+      const { id } = validParams<{ id: string }>(req);
+      const query = validQuery<DeleteUserQuery>(req);
 
-    // The contract forbids deleting yourself (CONFLICT): an admin who wants to leave asks another
-    // admin, which also guarantees the request is never the one that removes the last admin.
-    if (id === req.auth!.user.id) {
-      throw new AppError('CONFLICT', 'You cannot delete your own account');
-    }
-
-    db.transaction((tx) => {
-      const target = findUser(id);
-      if (target.role === 'admin' && !target.disabled && countActiveAdmins(tx) <= 1) {
-        throw new AppError('LAST_ADMIN', 'Cannot delete the last active admin');
+      // The contract forbids deleting yourself (CONFLICT): an admin who wants to leave asks another
+      // admin, which also guarantees the request is never the one that removes the last admin.
+      if (id === req.auth!.user.id) {
+        throw new AppError('CONFLICT', 'You cannot delete your own account');
       }
 
-      if (query.transfers === 'reassign') {
-        const newOwnerId = query.reassignTo!;
-        if (newOwnerId === id) {
-          throw new AppError('VALIDATION_ERROR', 'reassignTo must be a different user');
+      // All database changes are one transaction. The files to unlink are only collected inside it
+      // and removed after the commit: a crash in between leaves orphan files (the cleanup job's
+      // orphan sweep removes them) but never rows that point at missing files.
+      const filesToRemove: string[] = [];
+      db.transaction((tx) => {
+        const target = findUser(id);
+        if (target.role === 'admin' && !target.disabled && countActiveAdmins(tx) <= 1) {
+          throw new AppError('LAST_ADMIN', 'Cannot delete the last active admin');
         }
-        findUser(newOwnerId); // USER_NOT_FOUND when it does not exist
-        tx.update(transfers).set({ ownerId: newOwnerId }).where(eq(transfers.ownerId, id)).run();
-        tx.update(uploads).set({ ownerId: newOwnerId }).where(eq(uploads.ownerId, id)).run();
-        tx.update(users)
-          .set({ usedBytes: sql`${users.usedBytes} + ${target.usedBytes}` })
-          .where(eq(users.id, newOwnerId))
-          .run();
-      } else {
-        // TODO(phase 3): the cleanup job removes the encrypted files of these transfers from disk
-        // and reconciles orphan files; here only the database rows go away.
-        tx.update(transfers).set({ status: 'deleted' }).where(eq(transfers.ownerId, id)).run();
-        tx.delete(uploads).where(eq(uploads.ownerId, id)).run();
-        tx.delete(transfers).where(eq(transfers.ownerId, id)).run();
-      }
 
-      // Sessions, recovery codes and reset tokens go with the user (ON DELETE CASCADE).
-      tx.delete(users).where(eq(users.id, id)).run();
-      audit(tx, {
-        ...auditBase(req),
-        action: 'admin.user_deleted',
-        targetType: 'user',
-        targetId: id,
-        metadata: {
-          transfers: query.transfers,
-          ...(query.transfers === 'reassign' ? { reassignTo: query.reassignTo } : {}),
-        },
+        // Uploads still receiving data lose their owner's intent: abort them (rows and tus files).
+        // `processing` uploads are being encrypted by the worker and are handled below.
+        const abortable = tx
+          .select({ id: uploads.id })
+          .from(uploads)
+          .where(and(eq(uploads.ownerId, id), inArray(uploads.status, ['in_progress', 'aborted'])))
+          .all();
+        for (const { id: uploadId } of abortable)
+          filesToRemove.push(...tusPaths(ctx.config, uploadId));
+        tx.delete(uploads)
+          .where(and(eq(uploads.ownerId, id), inArray(uploads.status, ['in_progress', 'aborted'])))
+          .run();
+
+        if (query.transfers === 'reassign') {
+          const newOwnerId = query.reassignTo!;
+          if (newOwnerId === id) {
+            throw new AppError('VALIDATION_ERROR', 'reassignTo must be a different user');
+          }
+          findUser(newOwnerId); // USER_NOT_FOUND when it does not exist
+          tx.update(transfers).set({ ownerId: newOwnerId }).where(eq(transfers.ownerId, id)).run();
+          tx.update(uploads).set({ ownerId: newOwnerId }).where(eq(uploads.ownerId, id)).run();
+          tx.update(users)
+            .set({ usedBytes: sql`${users.usedBytes} + ${target.usedBytes}` })
+            .where(eq(users.id, newOwnerId))
+            .run();
+        } else {
+          // Remaining uploads are `processing`: they go with their transfer (the worker skips an
+          // upload whose row vanished). Encrypted files and their tus leftovers are unlinked after
+          // the commit.
+          for (const row of tx
+            .select({ storageName: transferFiles.storageName })
+            .from(transferFiles)
+            .innerJoin(transfers, eq(transfers.id, transferFiles.transferId))
+            .where(eq(transfers.ownerId, id))
+            .all()) {
+            if (isStorageName(row.storageName)) {
+              filesToRemove.push(storagePath(ctx.config, row.storageName));
+            }
+          }
+          for (const row of tx
+            .select({ id: uploads.id })
+            .from(uploads)
+            .where(eq(uploads.ownerId, id))
+            .all()) {
+            filesToRemove.push(...tusPaths(ctx.config, row.id));
+          }
+          tx.delete(uploads).where(eq(uploads.ownerId, id)).run();
+          tx.delete(transfers).where(eq(transfers.ownerId, id)).run();
+        }
+
+        // Sessions, recovery codes and reset tokens go with the user (ON DELETE CASCADE).
+        tx.delete(users).where(eq(users.id, id)).run();
+        audit(tx, {
+          ...auditBase(req),
+          action: 'admin.user_deleted',
+          targetType: 'user',
+          targetId: id,
+          metadata: {
+            transfers: query.transfers,
+            ...(query.transfers === 'reassign' ? { reassignTo: query.reassignTo } : {}),
+          },
+        });
       });
-    });
-    res.status(204).end();
-  });
+      for (const file of filesToRemove) await removeFileQuietly(file, ctx.logger);
+      res.status(204).end();
+    },
+  );
 
   return router;
 }

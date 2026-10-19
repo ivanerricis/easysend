@@ -10,20 +10,25 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/cli/migrate.ts",
-    "user:create-admin": "tsx src/cli/create-admin.ts"
+    "user:create-admin": "tsx src/cli/create-admin.ts",
+    "key:rotate": "tsx src/cli/rotate-key.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "catalog:",
+    "@tus/file-store": "catalog:",
+    "@tus/server": "catalog:",
     "better-sqlite3": "catalog:",
     "cookie": "catalog:",
     "drizzle-orm": "catalog:",
     "express": "catalog:",
     "helmet": "catalog:",
+    "node-cron": "catalog:",
     "nodemailer": "catalog:",
     "otpauth": "catalog:",
     "pino": "catalog:",
     "pino-http": "catalog:",
     "rate-limiter-flexible": "catalog:",
+    "yazl": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
@@ -31,9 +36,12 @@
     "@types/better-sqlite3": "catalog:",
     "@types/express": "catalog:",
     "@types/supertest": "catalog:",
+    "@types/yauzl": "catalog:",
+    "@types/yazl": "catalog:",
     "drizzle-kit": "catalog:",
     "pino-pretty": "catalog:",
     "supertest": "catalog:",
-    "tsdown": "catalog:"
+    "tsdown": "catalog:",
+    "yauzl": "catalog:"
   }
 }

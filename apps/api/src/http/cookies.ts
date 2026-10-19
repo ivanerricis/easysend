@@ -11,12 +11,25 @@ export const cookieParser: RequestHandler = (req, _res, next) => {
   next();
 };
 
+export interface CookieOptions {
+  /** Default `/`. */
+  path?: string;
+  /** Default `lax`. */
+  sameSite?: 'lax' | 'strict';
+}
+
 /**
- * Sets an HttpOnly, Secure, SameSite=Lax cookie on Path=/. Secure is kept in local mode too:
- * browsers accept it on http://localhost (Safari does not, use Chrome or Firefox).
- * `append` keeps the other Set-Cookie headers of the response.
+ * Sets an HttpOnly, Secure cookie (SameSite=Lax and Path=/ unless `options` say otherwise).
+ * Secure is kept in local mode too: browsers accept it on http://localhost (Safari does not, use
+ * Chrome or Firefox). `append` keeps the other Set-Cookie headers of the response.
  */
-export function setCookie(res: Response, name: string, value: string, maxAgeSeconds: number): void {
+export function setCookie(
+  res: Response,
+  name: string,
+  value: string,
+  maxAgeSeconds: number,
+  options: CookieOptions = {},
+): void {
   res.append(
     'Set-Cookie',
     stringifySetCookie({
@@ -24,8 +37,8 @@ export function setCookie(res: Response, name: string, value: string, maxAgeSeco
       value,
       httpOnly: true,
       secure: true,
-      sameSite: 'lax',
-      path: '/',
+      sameSite: options.sameSite ?? 'lax',
+      path: options.path ?? '/',
       maxAge: Math.max(0, Math.floor(maxAgeSeconds)),
     }),
   );

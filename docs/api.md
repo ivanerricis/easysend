@@ -1429,7 +1429,7 @@ Create a draft transfer
     id: string (min 1, max 64)
     fileName: string (max 255)
     totalSize: integer (min 0)
-    status: "in_progress" | "completed" | "aborted"
+    status: "in_progress" | "processing" | "completed" | "aborted"
     expiresAt: integer (min 0)
   }>
 }
@@ -1437,7 +1437,7 @@ Create a draft transfer
 
 Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`.
 
-**Notes:** Creates the transfer in status `uploading` (a draft). Next: upload the files with tus passing `transferId` in the metadata, then call `finalize`. Rules: `mode=email` needs 1..20 unique `recipients`; `mode=link` forbids recipients. `expiresIn` is one of `3d`, `1w`, `1m`. The password is stored only as a strong hash. Drafts left without activity are removed with their incomplete uploads after 24 hours.
+**Notes:** Creates the transfer in status `uploading` (a draft). Next: upload the files with tus passing `transferId` in the metadata, then call `finalize`. Rules: `mode=email` needs 1..20 unique `recipients`; `mode=link` forbids recipients. `expiresIn` is one of `3d`, `1w`, `1m`. The password is stored only as a strong hash. Drafts left without activity for `INCOMPLETE_UPLOAD_TTL_HOURS` (default 24) are removed with their incomplete uploads by the cleanup job. Expired and revoked transfers are deleted (files and rows) by the hourly cleanup, after which the link answers `TRANSFER_NOT_FOUND`.
 
 ### `POST /api/transfers/:id/finalize`
 
@@ -1490,7 +1490,7 @@ Activate a draft: make the link valid and send the emails
     id: string (min 1, max 64)
     fileName: string (max 255)
     totalSize: integer (min 0)
-    status: "in_progress" | "completed" | "aborted"
+    status: "in_progress" | "processing" | "completed" | "aborted"
     expiresAt: integer (min 0)
   }>
 }
@@ -1606,7 +1606,7 @@ Transfer details with files, recipients and uploads
     id: string (min 1, max 64)
     fileName: string (max 255)
     totalSize: integer (min 0)
-    status: "in_progress" | "completed" | "aborted"
+    status: "in_progress" | "processing" | "completed" | "aborted"
     expiresAt: integer (min 0)
   }>
 }
@@ -1684,7 +1684,7 @@ Edit title, message, expiry, download limit or password
     id: string (min 1, max 64)
     fileName: string (max 255)
     totalSize: integer (min 0)
-    status: "in_progress" | "completed" | "aborted"
+    status: "in_progress" | "processing" | "completed" | "aborted"
     expiresAt: integer (min 0)
   }>
 }
@@ -1751,7 +1751,7 @@ Revoke the link
     id: string (min 1, max 64)
     fileName: string (max 255)
     totalSize: integer (min 0)
-    status: "in_progress" | "completed" | "aborted"
+    status: "in_progress" | "processing" | "completed" | "aborted"
     expiresAt: integer (min 0)
   }>
 }
@@ -1817,7 +1817,7 @@ Send the notification email again (email mode)
     id: string (min 1, max 64)
     fileName: string (max 255)
     totalSize: integer (min 0)
-    status: "in_progress" | "completed" | "aborted"
+    status: "in_progress" | "processing" | "completed" | "aborted"
     expiresAt: integer (min 0)
   }>
 }
@@ -2115,7 +2115,7 @@ Response headers:
 
 Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`.
 
-**Notes:** The PATCH carrying the last byte triggers hashing and encryption before answering (see the tus protocol section).
+**Notes:** The PATCH carrying the last byte answers 204 immediately; hashing and encryption run afterwards (upload status `processing`, see the tus protocol section).
 
 ### `DELETE /api/uploads/:id`
 
@@ -2152,7 +2152,8 @@ Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_IN
 - Upload creation (`POST`) sends `Upload-Length` and `Upload-Metadata`. Each metadata value is base64-encoded as required by tus; after decoding it must match the metadata schema below.
 - The file is always attached to a draft transfer created beforehand with `POST /api/transfers`: the `transferId` metadata key is mandatory.
 - Chunks are sent with `PATCH` and `Content-Type: application/offset+octet-stream`. The client chunk size comes from `GET /api/config` (`chunkSizeBytes`, default 25 MB, never above 50 MB because of the Cloudflare 100 MB request limit).
-- The response of the PATCH carrying the last byte is returned after SHA-256 and encryption complete (`onUploadFinish`). Clients that time out can poll `GET /api/transfers/:id`: the file appears in `files` and disappears from `uploads` once ready.
+- The PATCH carrying the last byte answers 204 immediately: SHA-256 and encryption run afterwards in a background queue and the upload status becomes `processing`. The file appears in the transfer `files` (and leaves `uploads`) once processed; poll `GET /api/transfers/:id`. `finalize` answers `UPLOAD_INCOMPLETE` while any upload is `in_progress` or `processing`.
+- A `HEAD` on an upload that is `processing` or `completed` answers `Upload-Offset` equal to `Upload-Length`, so clients do not restart it. If processing fails the upload becomes `aborted` and the file must be uploaded again.
 - Interrupted uploads resume with `HEAD` (reads `Upload-Offset`) followed by `PATCH` from that offset. Incomplete uploads expire after 24 hours (`Upload-Expires` header, `expiration` extension) and are cleaned up by the periodic job.
 - Only the owner of the draft transfer can create or continue an upload; uploads of other users answer 404.
 - A transfer accepts at most `limits.maxFilesPerTransfer` files (see `GET /api/config`): creating more answers 400 `VALIDATION_ERROR` with `details.limit`.
@@ -2319,7 +2320,7 @@ Response headers:
 
 Also possible: `400` `VALIDATION_ERROR`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`.
 
-**Notes:** Answers 200 for a full response and 206 for a satisfiable `Range`. The file is decrypted on the fly in streaming with constant memory. Counting: a request starting at byte 0 counts as one download (see decisions); requests starting later do not. Files are always served as attachments with `application/octet-stream`.
+**Notes:** Answers 200 for a full response and 206 for a satisfiable `Range`. The file is decrypted on the fly in streaming with constant memory. Counting: a request starting at byte 0 counts as one download (see decisions); requests starting later do not. When the download limit is reached every request is refused, including Range requests (`DOWNLOAD_LIMIT_REACHED`). Files are always served as attachments with `application/octet-stream`.
 
 ### `GET /api/downloads/:token/zip`
 
@@ -2351,6 +2352,7 @@ Response headers:
 
 - `Content-Type`: application/zip
 - `Content-Disposition`: attachment; filename*=UTF-8''<title or easysend>.zip
+- `Content-Length`: size of the zip (entries are stored, not compressed)
 
 **Errors**
 
@@ -2363,7 +2365,7 @@ Response headers:
 
 Also possible: `400` `VALIDATION_ERROR`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`.
 
-**Notes:** The zip is generated on the fly (decryption and compression in streaming, nothing written to disk, constant memory). `fileIds` is a comma-separated list of file ids; an unknown id answers `FILE_NOT_FOUND`. `Range` is not supported and `Content-Length` is not sent. One zip request counts as one download.
+**Notes:** The zip is generated on the fly (decryption in streaming, nothing written to disk, constant memory). Entries are stored without compression (ZIP64 when needed), so the total size is known in advance. `fileIds` is a comma-separated list of file ids; an unknown id answers `FILE_NOT_FOUND`. `Content-Length` is sent; `Range` is still not supported. One zip request counts as one download.
 
 ## Administration
 

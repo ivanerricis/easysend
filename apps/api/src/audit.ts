@@ -18,6 +18,14 @@ export const AUDIT_ACTIONS = [
   'admin.user_updated',
   'admin.user_deleted',
   'admin.2fa_reset',
+  'transfer.created',
+  'transfer.finalized',
+  'transfer.updated',
+  'transfer.revoked',
+  'transfer.deleted',
+  'transfer.file_deleted',
+  'transfer.resent',
+  'system.key_rotated',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

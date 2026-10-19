@@ -125,7 +125,10 @@ export const transferRecipientSchema = z.object({
 });
 export type TransferRecipient = z.infer<typeof transferRecipientSchema>;
 
-/** Upload still in progress (or aborted) attached to a draft transfer. */
+/**
+ * Upload attached to a draft transfer that is not a file yet: `in_progress` (receiving chunks),
+ * `processing` (all bytes received, hashing and encryption running) or `aborted`.
+ */
 export const transferUploadSchema = z.object({
   id: idSchema,
   fileName: z.string().max(FILENAME_MAX_LENGTH),
@@ -155,7 +158,7 @@ export type TransferSummary = z.infer<typeof transferSummarySchema>;
 
 export const transferDetailSchema = transferSummarySchema.extend({
   message: z.string().nullable(),
-  /** Public download URL. `null` while the transfer is still a draft (`uploading`). */
+  /** Public download URL `<PUBLIC_URL>/d/<token>`. `null` while the transfer is still a draft (`uploading`). */
   shareUrl: z.string().nullable(),
   firstDownloadedAt: unixSecondsSchema.nullable(),
   files: z.array(transferFileSchema),

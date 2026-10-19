@@ -553,7 +553,7 @@ export const endpoints: readonly EndpointDef[] = [
     body: createTransferRequestSchema,
     response: json(201, transferDetailSchema),
     notes:
-      'Creates the transfer in status `uploading` (a draft). Next: upload the files with tus passing `transferId` in the metadata, then call `finalize`. Rules: `mode=email` needs 1..20 unique `recipients`; `mode=link` forbids recipients. `expiresIn` is one of `3d`, `1w`, `1m`. The password is stored only as a strong hash. Drafts left without activity are removed with their incomplete uploads after 24 hours.',
+      'Creates the transfer in status `uploading` (a draft). Next: upload the files with tus passing `transferId` in the metadata, then call `finalize`. Rules: `mode=email` needs 1..20 unique `recipients`; `mode=link` forbids recipients. `expiresIn` is one of `3d`, `1w`, `1m`. The password is stored only as a strong hash. Drafts left without activity for `INCOMPLETE_UPLOAD_TTL_HOURS` (default 24) are removed with their incomplete uploads by the cleanup job. Expired and revoked transfers are deleted (files and rows) by the hourly cleanup, after which the link answers `TRANSFER_NOT_FOUND`.',
   }),
   defineEndpoint({
     id: 'transfers.finalize',
@@ -767,7 +767,7 @@ export const endpoints: readonly EndpointDef[] = [
     response: { status: 204, kind: 'tus', headers: { 'Upload-Offset': 'new offset' } },
     errors: ['NOT_FOUND', 'PAYLOAD_TOO_LARGE'],
     notes:
-      'The PATCH carrying the last byte triggers hashing and encryption before answering (see the tus protocol section).',
+      'The PATCH carrying the last byte answers 204 immediately; hashing and encryption run afterwards (upload status `processing`, see the tus protocol section).',
   }),
   defineEndpoint({
     id: 'uploads.delete',
@@ -858,7 +858,7 @@ export const endpoints: readonly EndpointDef[] = [
       'RANGE_NOT_SATISFIABLE',
     ],
     notes:
-      'Answers 200 for a full response and 206 for a satisfiable `Range`. The file is decrypted on the fly in streaming with constant memory. Counting: a request starting at byte 0 counts as one download (see decisions); requests starting later do not. Files are always served as attachments with `application/octet-stream`.',
+      'Answers 200 for a full response and 206 for a satisfiable `Range`. The file is decrypted on the fly in streaming with constant memory. Counting: a request starting at byte 0 counts as one download (see decisions); requests starting later do not. When the download limit is reached every request is refused, including Range requests (`DOWNLOAD_LIMIT_REACHED`). Files are always served as attachments with `application/octet-stream`.',
   }),
   defineEndpoint({
     id: 'downloads.zip',
@@ -876,6 +876,7 @@ export const endpoints: readonly EndpointDef[] = [
       headers: {
         'Content-Type': 'application/zip',
         'Content-Disposition': "attachment; filename*=UTF-8''<title or easysend>.zip",
+        'Content-Length': 'size of the zip (entries are stored, not compressed)',
       },
     },
     errors: [
@@ -887,7 +888,7 @@ export const endpoints: readonly EndpointDef[] = [
       'FILE_NOT_FOUND',
     ],
     notes:
-      'The zip is generated on the fly (decryption and compression in streaming, nothing written to disk, constant memory). `fileIds` is a comma-separated list of file ids; an unknown id answers `FILE_NOT_FOUND`. `Range` is not supported and `Content-Length` is not sent. One zip request counts as one download.',
+      'The zip is generated on the fly (decryption in streaming, nothing written to disk, constant memory). Entries are stored without compression (ZIP64 when needed), so the total size is known in advance. `fileIds` is a comma-separated list of file ids; an unknown id answers `FILE_NOT_FOUND`. `Content-Length` is sent; `Range` is still not supported. One zip request counts as one download.',
   }),
 
   // ---- admin ---------------------------------------------------------------

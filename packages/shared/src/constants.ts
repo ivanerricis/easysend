@@ -28,7 +28,7 @@ export type TransferStatus = (typeof TRANSFER_STATUSES)[number];
 export const TRANSFER_MODES = ['link', 'email'] as const;
 export type TransferMode = (typeof TRANSFER_MODES)[number];
 
-export const UPLOAD_STATUSES = ['in_progress', 'completed', 'aborted'] as const;
+export const UPLOAD_STATUSES = ['in_progress', 'processing', 'completed', 'aborted'] as const;
 export type UploadStatus = (typeof UPLOAD_STATUSES)[number];
 
 export const LOCALES = ['it', 'en'] as const;

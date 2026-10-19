@@ -21,17 +21,30 @@ import { loginAs } from './session-helpers.js';
  *   4. params / query / body validation                                  -> 400 VALIDATION_ERROR
  *   5. handler
  *
- * Phase 2 owns the endpoints tagged `auth`, `me` and `users` (this includes `GET /api/config`,
- * tagged `me`). The "scope" tests below fail when a route of ANY other endpoint starts to answer,
- * or when a phase-2 endpoint is not mounted, so nothing can be added without being covered here.
+ * Covered: the endpoints tagged `auth`, `me` and `users` (phase 2, this includes `GET /api/config`,
+ * tagged `me`), `transfers`, `uploads` and `downloads` (phase 3) plus `admin.storage`. The tus
+ * `HEAD`/`OPTIONS` endpoints are left to the tus tests. The "scope" tests below fail when a route
+ * of ANY other endpoint starts to answer, or when a covered endpoint is not mounted, so nothing
+ * can be added without being covered here.
  */
 
-const PHASE2_TAGS: ReadonlySet<string> = new Set(['auth', 'me', 'users']);
-/** Endpoints outside the phase-2 tags that are mounted (and covered by their own tests). */
+const COVERED_TAGS: ReadonlySet<string> = new Set([
+  'auth',
+  'me',
+  'users',
+  'transfers',
+  'uploads',
+  'downloads',
+]);
+const COVERED_IDS: ReadonlySet<string> = new Set(['admin.storage']);
+/** Endpoints outside the covered set that are mounted (and covered by their own tests). */
 const OTHER_IMPLEMENTED: ReadonlySet<string> = new Set(['health.check']);
+/** Unsafe endpoints without a CSRF token, each an explicit decision of the contract. */
+const UNSAFE_WITHOUT_CSRF = ['downloads.unlock'];
 
-/** Explicit list: adding a phase-2 endpoint to the registry forces an update of this test. */
-const EXPECTED_PHASE2_IDS = [
+/** Explicit list: adding a covered endpoint to the registry forces an update of this test. */
+const EXPECTED_IDS = [
+  'admin.storage',
   'auth.csrf',
   'auth.login',
   'auth.login2fa',
@@ -42,6 +55,10 @@ const EXPECTED_PHASE2_IDS = [
   'auth.passwordResetConfirm',
   'auth.passwordResetRequest',
   'auth.session',
+  'downloads.file',
+  'downloads.info',
+  'downloads.unlock',
+  'downloads.zip',
   'me.2faDisable',
   'me.2faEnable',
   'me.2faSetup',
@@ -50,6 +67,20 @@ const EXPECTED_PHASE2_IDS = [
   'me.password',
   'me.recoveryCodes',
   'me.update',
+  'transfers.adminList',
+  'transfers.create',
+  'transfers.delete',
+  'transfers.deleteFile',
+  'transfers.downloads',
+  'transfers.finalize',
+  'transfers.get',
+  'transfers.list',
+  'transfers.resend',
+  'transfers.revoke',
+  'transfers.update',
+  'uploads.create',
+  'uploads.delete',
+  'uploads.patch',
   'users.create',
   'users.delete',
   'users.get',
@@ -66,7 +97,8 @@ const isRequestMethod = (m: string): boolean =>
   ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(m);
 const isUnsafe = (e: EndpointDef): boolean => !SAFE_METHODS.includes(e.method);
 
-const phase2 = endpoints.filter((e) => PHASE2_TAGS.has(e.tag));
+const isCovered = (e: EndpointDef): boolean => COVERED_TAGS.has(e.tag) || COVERED_IDS.has(e.id);
+const covered = endpoints.filter((e) => isCovered(e) && isRequestMethod(e.method));
 
 /** Concrete URL: every `:param` gets a random id (the checks below never reach a handler). */
 const urlOf = (e: EndpointDef): string => e.path.replace(/:[A-Za-z0-9_]+/g, () => randomUUID());
@@ -130,20 +162,19 @@ const count = (n: number): void => {
 };
 
 describe('security matrix: scope', () => {
-  it('covers exactly the expected phase-2 endpoints', () => {
-    expect(phase2.map((e) => e.id).sort()).toEqual(EXPECTED_PHASE2_IDS);
-    for (const e of phase2) expect(isRequestMethod(e.method)).toBe(true);
+  it('covers exactly the expected endpoints', () => {
+    expect(covered.map((e) => e.id).sort()).toEqual(EXPECTED_IDS);
   });
 
-  it('every phase-2 endpoint is mounted and nothing else is (except the allowlist)', async () => {
+  it('every covered endpoint is mounted and nothing else is (except the allowlist)', async () => {
     const t = await createTestApp();
     const client = t.client();
     const wrong: string[] = [];
     for (const e of endpoints) {
-      if (!isRequestMethod(e.method)) continue; // HEAD/OPTIONS belong to the tus endpoints (phase 3)
+      if (!isRequestMethod(e.method)) continue; // tus HEAD/OPTIONS: see the tus tests
       const res = await send(client, e, { csrf: false });
       const mounted = !(res.status === 404 && errorCode(res) === 'NOT_FOUND');
-      const shouldBeMounted = PHASE2_TAGS.has(e.tag) || OTHER_IMPLEMENTED.has(e.id);
+      const shouldBeMounted = isCovered(e) || OTHER_IMPLEMENTED.has(e.id);
       if (mounted !== shouldBeMounted) {
         wrong.push(
           `${e.id}: ${mounted ? 'is mounted but not covered by this matrix' : 'is not mounted'}`,
@@ -158,7 +189,7 @@ describe('security matrix: authentication', () => {
   it('rejects every authenticated endpoint without a session (401, before CSRF and validation)', async () => {
     const t = await createTestApp();
     const f = await fixtures(t);
-    const list = phase2.filter((e) => e.auth !== 'public');
+    const list = covered.filter((e) => e.auth !== 'public');
     const failures = await forEach(list, async (e) => {
       // No credentials at all, no CSRF token, then a bogus CSRF token: always 401.
       const none = expectError(await send(f.anon(), e, { csrf: false }), 401, 'UNAUTHENTICATED');
@@ -172,7 +203,7 @@ describe('security matrix: authentication', () => {
   it('rejects session and admin endpoints with a pending (2FA not verified) session', async () => {
     const t = await createTestApp();
     const f = await fixtures(t);
-    const list = phase2.filter((e) => e.auth === 'session' || e.auth === 'admin');
+    const list = covered.filter((e) => e.auth === 'session' || e.auth === 'admin');
     const failures = await forEach(list, async (e) => {
       const who = e.auth === 'admin' ? f.adminPending() : f.userPending();
       // Valid CSRF token of the pending session: the level check must still refuse.
@@ -185,14 +216,14 @@ describe('security matrix: authentication', () => {
   it('rejects mfa-pending endpoints with a full session (except logout, which accepts both)', async () => {
     const t = await createTestApp();
     const f = await fixtures(t);
-    const list = phase2.filter((e) => e.auth === 'mfa-pending' && e.id !== 'auth.logout');
+    const list = covered.filter((e) => e.auth === 'mfa-pending' && e.id !== 'auth.logout');
     const failures = await forEach(list, async (e) =>
       expectError(await send(f.user(), e), 401, 'UNAUTHENTICATED'),
     );
     count(list.length);
     expect(failures).toEqual([]);
 
-    const logout = phase2.find((e) => e.id === 'auth.logout')!;
+    const logout = covered.find((e) => e.id === 'auth.logout')!;
     expect((await send(f.user(), logout)).status).toBe(204);
     expect((await send(f.userPending(), logout)).status).toBe(204);
     count(2);
@@ -201,7 +232,7 @@ describe('security matrix: authentication', () => {
   it('rejects admin endpoints for a normal user with a valid session and CSRF token (403)', async () => {
     const t = await createTestApp();
     const f = await fixtures(t);
-    const list = phase2.filter((e) => e.auth === 'admin');
+    const list = covered.filter((e) => e.auth === 'admin');
     const failures = await forEach(list, async (e) =>
       expectError(await send(f.user(), e), 403, 'FORBIDDEN'),
     );
@@ -212,24 +243,26 @@ describe('security matrix: authentication', () => {
   it('accepts the right credentials: fixtures are valid, so the negative checks mean something', async () => {
     const t = await createTestApp();
     const f = await fixtures(t);
-    const failures = await forEach(phase2, async (e) => {
+    const failures = await forEach(covered, async (e) => {
       if (e.id === 'auth.logout') return undefined;
       const res = await send(await properClient(f, e), e);
       return BLOCKED.has(errorCode(res))
         ? `valid credentials were refused with ${res.status} ${errorCode(res)}`
         : undefined;
     });
-    count(phase2.length);
+    count(covered.length);
     expect(failures).toEqual([]);
   });
 });
 
 describe('security matrix: CSRF', () => {
-  const unsafe = phase2.filter((e) => isUnsafe(e) && e.csrf);
+  const unsafe = covered.filter((e) => isUnsafe(e) && e.csrf);
 
   it('only unsafe endpoints require a token and the contract flags all of them', () => {
-    // A phase-2 unsafe endpoint with csrf:false would need an explicit decision here.
-    expect(phase2.filter((e) => isUnsafe(e) && !e.csrf).map((e) => e.id)).toEqual([]);
+    // An unsafe endpoint with csrf:false needs an explicit decision here.
+    expect(covered.filter((e) => isUnsafe(e) && !e.csrf).map((e) => e.id)).toEqual(
+      UNSAFE_WITHOUT_CSRF,
+    );
     expect(unsafe.length).toBeGreaterThan(0);
   });
 
@@ -265,7 +298,7 @@ describe('security matrix: CSRF', () => {
   it('rejects cross-site requests even with valid credentials and token', async () => {
     const t = await createTestApp();
     const f = await fixtures(t);
-    const failures = await forEach(phase2.filter(isUnsafe), async (e) => {
+    const failures = await forEach(covered.filter(isUnsafe), async (e) => {
       const evil = { headers: { Origin: 'https://evil.example' } };
       const site = { headers: { 'Sec-Fetch-Site': 'cross-site' } };
       const nullOrigin = { headers: { Origin: 'null' } };
@@ -279,28 +312,28 @@ describe('security matrix: CSRF', () => {
       }
       return undefined;
     });
-    count(phase2.filter(isUnsafe).length * 3);
+    count(covered.filter(isUnsafe).length * 3);
     expect(failures).toEqual([]);
   });
 
   it('rejects cross-site requests before authentication, so anonymous probes learn nothing', async () => {
     const t = await createTestApp();
     const f = await fixtures(t);
-    const failures = await forEach(phase2.filter(isUnsafe), async (e) =>
+    const failures = await forEach(covered.filter(isUnsafe), async (e) =>
       expectError(
         await send(f.anon(), e, { csrf: false, headers: { Origin: 'https://evil.example' } }),
         403,
         'CSRF_INVALID',
       ),
     );
-    count(phase2.filter(isUnsafe).length);
+    count(covered.filter(isUnsafe).length);
     expect(failures).toEqual([]);
   });
 
   it('does not let a safe method change state or demand a token', async () => {
     const t = await createTestApp();
     const f = await fixtures(t);
-    const safe = phase2.filter((e) => !isUnsafe(e));
+    const safe = covered.filter((e) => !isUnsafe(e));
     const failures = await forEach(safe, async (e) => {
       const res = await send(await properClient(f, e), e, {
         csrf: false,

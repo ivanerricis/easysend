@@ -9,8 +9,11 @@ import { requestId } from './http/request-id.js';
 import type { Logger } from './logger.js';
 import { adminUsersRouter } from './routes/admin-users.js';
 import { authRouter } from './routes/auth.js';
+import { downloadsRouter } from './routes/downloads.js';
 import { healthRouter } from './routes/health.js';
 import { meRouter } from './routes/me.js';
+import { transfersRouter } from './routes/transfers.js';
+import { uploadsRouter } from './uploads/tus.js';
 
 export type { AppDeps } from './context.js';
 
@@ -65,8 +68,9 @@ export function createAppWithContext(deps: AppDeps): { app: Express; ctx: AppCon
   app.use(helmet());
   if (config.mode === 'local') app.use(localHostWarning(config, logger));
 
-  // Phase 3: mount the tus handler here with app.use('/api/uploads', ...), BEFORE the body
-  // parsers below, because tus must read the raw request stream.
+  // tus must read the raw request stream, so it is mounted BEFORE the body parsers below. Its
+  // router adds its own cookie parsing, cross-site check, session and CSRF handling.
+  app.use(uploadsRouter(ctx));
 
   app.use(express.json({ limit: '1mb' }));
 
@@ -77,8 +81,14 @@ export function createAppWithContext(deps: AppDeps): { app: Express; ctx: AppCon
   app.use('/api', ctx.csrf.rejectCrossSite);
   app.use(ctx.sessions.loadSession);
 
-  // Empty for now: WP2/WP3 fill these routers so this file stays untouched.
-  app.use('/api', authRouter(ctx), meRouter(ctx), adminUsersRouter(ctx));
+  app.use(
+    '/api',
+    authRouter(ctx),
+    meRouter(ctx),
+    adminUsersRouter(ctx),
+    transfersRouter(ctx),
+    downloadsRouter(ctx),
+  );
 
   app.use(notFoundHandler);
   app.use(createErrorHandler(logger));
