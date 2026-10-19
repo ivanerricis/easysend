@@ -22,8 +22,9 @@ import { loginAs } from './session-helpers.js';
  *   5. handler
  *
  * Covered: the endpoints tagged `auth`, `me` and `users` (phase 2, this includes `GET /api/config`,
- * tagged `me`), `transfers`, `uploads` and `downloads` (phase 3) plus `admin.storage`. The tus
- * `HEAD`/`OPTIONS` endpoints are left to the tus tests. The "scope" tests below fail when a route
+ * tagged `me`), `transfers`, `uploads` and `downloads` (phase 3) plus `admin.storage`, `settings`
+ * and `admin.tunnel*` (phase 4). The `setup` endpoints need an app whose setup is not completed:
+ * they have their own block at the end. The tus `HEAD`/`OPTIONS` endpoints are left to the tus tests. The "scope" tests below fail when a route
  * of ANY other endpoint starts to answer, or when a covered endpoint is not mounted, so nothing
  * can be added without being covered here.
  */
@@ -35,16 +36,24 @@ const COVERED_TAGS: ReadonlySet<string> = new Set([
   'transfers',
   'uploads',
   'downloads',
+  'settings',
 ]);
-const COVERED_IDS: ReadonlySet<string> = new Set(['admin.storage']);
+const COVERED_IDS: ReadonlySet<string> = new Set([
+  'admin.storage',
+  'admin.tunnelGet',
+  'admin.tunnelSet',
+]);
+const isSetup = (e: EndpointDef): boolean => e.tag === 'setup';
 /** Endpoints outside the covered set that are mounted (and covered by their own tests). */
-const OTHER_IMPLEMENTED: ReadonlySet<string> = new Set(['health.check']);
+const isOtherImplemented = (e: EndpointDef): boolean => e.id === 'health.check' || isSetup(e);
 /** Unsafe endpoints without a CSRF token, each an explicit decision of the contract. */
 const UNSAFE_WITHOUT_CSRF = ['downloads.unlock'];
 
 /** Explicit list: adding a covered endpoint to the registry forces an update of this test. */
 const EXPECTED_IDS = [
   'admin.storage',
+  'admin.tunnelGet',
+  'admin.tunnelSet',
   'auth.csrf',
   'auth.login',
   'auth.login2fa',
@@ -67,6 +76,16 @@ const EXPECTED_IDS = [
   'me.password',
   'me.recoveryCodes',
   'me.update',
+  'settings.adminGet',
+  'settings.adminUpdate',
+  'settings.appearanceReset',
+  'settings.appearanceUpdate',
+  'settings.asset',
+  'settings.assetDelete',
+  'settings.assetUpload',
+  'settings.public',
+  'settings.smtpSave',
+  'settings.smtpTest',
   'transfers.adminList',
   'transfers.create',
   'transfers.delete',
@@ -174,7 +193,7 @@ describe('security matrix: scope', () => {
       if (!isRequestMethod(e.method)) continue; // tus HEAD/OPTIONS: see the tus tests
       const res = await send(client, e, { csrf: false });
       const mounted = !(res.status === 404 && errorCode(res) === 'NOT_FOUND');
-      const shouldBeMounted = isCovered(e) || OTHER_IMPLEMENTED.has(e.id);
+      const shouldBeMounted = isCovered(e) || isOtherImplemented(e);
       if (mounted !== shouldBeMounted) {
         wrong.push(
           `${e.id}: ${mounted ? 'is mounted but not covered by this matrix' : 'is not mounted'}`,
@@ -345,6 +364,82 @@ describe('security matrix: CSRF', () => {
         : undefined;
     });
     count(safe.length);
+    expect(failures).toEqual([]);
+  });
+});
+
+describe('security matrix: setup wizard', () => {
+  const setupList = endpoints.filter((e) => isSetup(e) && e.auth === 'setup');
+  const unsafeSetup = setupList.filter((e) => isUnsafe(e) && e.csrf);
+
+  /** Pre-login client that entered the setup code (holds the `es_setup` cookie). */
+  async function unlocked(t: TestApp): Promise<TestClient> {
+    const client = await csrfClient(t);
+    const res = await client.post('/api/setup/code', { body: { code: t.ctx.setupCode.issue() } });
+    expect(res.status).toBe(200);
+    return client;
+  }
+
+  it('flags every unsafe setup endpoint for CSRF', () => {
+    expect(setupList.filter((e) => isUnsafe(e) && !e.csrf).map((e) => e.id)).toEqual([]);
+    expect(unsafeSetup.length).toBeGreaterThan(0);
+  });
+
+  it('rejects every setup endpoint without the setup cookie (401)', async () => {
+    const t = await createTestApp({ setupCompleted: false });
+    const failures = await forEach(setupList, async (e) =>
+      expectError(await send(await csrfClient(t), e), 401, 'UNAUTHENTICATED'),
+    );
+    count(setupList.length);
+    expect(failures).toEqual([]);
+  });
+
+  it('rejects a missing or wrong CSRF token and cross-site requests with the setup cookie', async () => {
+    const t = await createTestApp({ setupCompleted: false });
+    const client = await unlocked(t);
+    const failures = await forEach(unsafeSetup, async (e) => {
+      for (const options of [
+        { csrf: false as const },
+        { csrf: 'wrong-token' },
+        { headers: { Origin: 'https://evil.example' } },
+        { headers: { 'Sec-Fetch-Site': 'cross-site' } },
+      ]) {
+        const problem = expectError(await send(client, e, options), 403, 'CSRF_INVALID');
+        if (problem) return `${problem} (${JSON.stringify(options)})`;
+      }
+      return undefined;
+    });
+    count(unsafeSetup.length * 4);
+    expect(failures).toEqual([]);
+  });
+
+  it('accepts the setup cookie with a valid token (not refused for who/how it was sent)', async () => {
+    const t = await createTestApp({ setupCompleted: false });
+    const client = await unlocked(t);
+    const failures = await forEach(setupList, async (e) => {
+      const res = await send(client, e);
+      return BLOCKED.has(errorCode(res))
+        ? `valid setup credentials were refused with ${res.status} ${errorCode(res)}`
+        : undefined;
+    });
+    count(setupList.length);
+    expect(failures).toEqual([]);
+  });
+
+  it('answers SETUP_ALREADY_COMPLETED to every setup endpoint once the setup is done', async () => {
+    const t = await createTestApp({ setupCompleted: false });
+    const client = await unlocked(t);
+    t.ctx.settings.set('setup_completed', true);
+    const list = endpoints.filter((e) => isSetup(e) && e.id !== 'setup.status');
+    const failures = await forEach(list, async (e) =>
+      // setup.code is public and validates its body first: send a well-formed one.
+      expectError(
+        await send(client, e, e.id === 'setup.code' ? { body: { code: 'ABCD-EFGH-JKLM' } } : {}),
+        409,
+        'SETUP_ALREADY_COMPLETED',
+      ),
+    );
+    count(list.length);
     expect(failures).toEqual([]);
   });
 });
