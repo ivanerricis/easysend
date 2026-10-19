@@ -1,9 +1,8 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access -- response bodies are loosely typed (see TestResponse) */
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { CHUNK_SIZE_MB, EXPIRY_OPTIONS } from '@easysend/shared';
 import { users } from '../src/db/schema/index.js';
-import { createTestApp } from './helpers.js';
+import { bodyAs, errorCode, createTestApp } from './helpers.js';
 import { loginAs } from './session-helpers.js';
 
 describe('GET /api/me', () => {
@@ -20,7 +19,7 @@ describe('GET /api/me', () => {
       await pending.get('/api/config'),
     ]) {
       expect(res.status).toBe(401);
-      expect(res.body.error.code).toBe('UNAUTHENTICATED');
+      expect(errorCode(res)).toBe('UNAUTHENTICATED');
     }
   });
 
@@ -61,10 +60,14 @@ describe('GET /api/me', () => {
     const t = await createTestApp();
     const user = await t.createUser({ locale: null });
     const client = loginAs(t, user);
-    expect((await client.get('/api/me')).body.user.locale).toBe('it');
+    expect(bodyAs<{ user: { locale: string } }>(await client.get('/api/me')).user.locale).toBe(
+      'it',
+    );
 
     t.ctx.settings.set('general', { diskReserveMb: 0, chunkSizeMb: 25, defaultLocale: 'en' });
-    expect((await client.get('/api/me')).body.user.locale).toBe('en');
+    expect(bodyAs<{ user: { locale: string } }>(await client.get('/api/me')).user.locale).toBe(
+      'en',
+    );
   });
 });
 
@@ -101,7 +104,7 @@ describe('PATCH /api/me', () => {
     expect((await client.patch('/api/me', { body: { locale: 'xx' } })).status).toBe(400);
     const noCsrf = await client.patch('/api/me', { body: { locale: 'en' }, csrf: false });
     expect(noCsrf.status).toBe(403);
-    expect(noCsrf.body.error.code).toBe('CSRF_INVALID');
+    expect(errorCode(noCsrf)).toBe('CSRF_INVALID');
   });
 });
 
@@ -113,7 +116,9 @@ describe('GET /api/config', () => {
     expect(res.body.chunkSizeBytes).toBe(30 * 1024 * 1024);
     expect(res.body.maxChunkSizeBytes).toBe(CHUNK_SIZE_MB.max * 1024 * 1024);
     expect(res.body.expiryOptions).toContainEqual({ key: '3d', seconds: EXPIRY_OPTIONS['3d'] });
-    expect(res.body.limits.passwordMinLength).toBe(12);
+    expect(bodyAs<{ limits: { passwordMinLength: number } }>(res).limits.passwordMinLength).toBe(
+      12,
+    );
   });
 
   it('prefers the chunk size stored in the general settings', async () => {

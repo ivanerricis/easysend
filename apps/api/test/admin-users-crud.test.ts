@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call -- response bodies are loosely typed (see TestResponse) */
 import { eq } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vitest';
 import { AUTH_POLICY } from '../src/auth/policy.js';
@@ -11,7 +10,10 @@ import {
   transfers,
   users,
 } from '../src/db/schema/index.js';
-import { createTestApp, type TestApp } from './helpers.js';
+import { bodyAs, errorCode, createTestApp, type TestApp, type TestResponse } from './helpers.js';
+
+const items = (res: TestResponse) =>
+  bodyAs<{ items: Array<{ id: string; email: string }> }>(res).items;
 import { loginAs } from './session-helpers.js';
 
 async function adminSetup() {
@@ -41,7 +43,7 @@ describe('permissions on /api/admin/users*', () => {
     for (const [method, url, body] of calls) {
       const options = body === undefined ? {} : { body };
       const denied = await regular.request(method as 'get', url, options);
-      expect([method, url, denied.status, denied.body.error?.code]).toEqual([
+      expect([method, url, denied.status, errorCode(denied)]).toEqual([
         method,
         url,
         403,
@@ -82,7 +84,7 @@ describe('GET /api/admin/users', () => {
     const all = await client.get('/api/admin/users');
     expect(all.status).toBe(200);
     expect(all.body).toMatchObject({ total: 3, page: 1, pageSize: 20 });
-    const aliceItem = all.body.items.find((u: { id: string }) => u.id === alice.id);
+    const aliceItem = items(all).find((u) => u.id === alice.id);
     expect(aliceItem).toMatchObject({
       usedBytes: 99,
       quotaBytes: 1000,
@@ -92,16 +94,14 @@ describe('GET /api/admin/users', () => {
     expect(JSON.stringify(all.body)).not.toMatch(/passwordHash|totpSecret/);
 
     const byEmail = await client.get('/api/admin/users?q=BOB.sm');
-    expect(byEmail.body.items.map((u: { email: string }) => u.email)).toEqual([
-      'Bob.Smith@example.com',
-    ]);
+    expect(items(byEmail).map((u) => u.email)).toEqual(['Bob.Smith@example.com']);
     const byName = await client.get('/api/admin/users?q=special');
-    expect(byName.body.items.map((u: { id: string }) => u.id)).toEqual([alice.id]);
+    expect(items(byName).map((u) => u.id)).toEqual([alice.id]);
     // LIKE wildcards are plain characters.
     expect((await client.get('/api/admin/users?q=%25')).body.total).toBe(0);
 
     const admins = await client.get('/api/admin/users?role=admin');
-    expect(admins.body.items.map((u: { id: string }) => u.id)).toEqual([admin.id]);
+    expect(items(admins).map((u) => u.id)).toEqual([admin.id]);
 
     const page2 = await client.get('/api/admin/users?pageSize=2&page=2');
     expect(page2.body).toMatchObject({ total: 3, page: 2, pageSize: 2 });
@@ -137,7 +137,11 @@ describe('POST /api/admin/users', () => {
     expect(auditRows(t, 'admin.user_created')).toHaveLength(1);
 
     // The new user can use the password.
-    const created = t.db.db.select().from(users).where(eq(users.id, res.body.id)).get()!;
+    const created = t.db.db
+      .select()
+      .from(users)
+      .where(eq(users.id, bodyAs<{ id: string }>(res).id))
+      .get()!;
     expect(await t.ctx.passwordHasher.verify(created.passwordHash, 'long-enough-password')).toBe(
       true,
     );
@@ -149,7 +153,7 @@ describe('POST /api/admin/users', () => {
       body: { email: 'ADMIN@example.com', password: 'long-enough-password' },
     });
     expect(res.status).toBe(409);
-    expect(res.body.error.code).toBe('EMAIL_ALREADY_EXISTS');
+    expect(errorCode(res)).toBe('EMAIL_ALREADY_EXISTS');
   });
 
   it('without a password stores a 72 h token and sends a welcome email with a working link', async () => {
@@ -168,7 +172,7 @@ describe('POST /api/admin/users', () => {
     const stored = t.db.db
       .select()
       .from(passwordResetTokens)
-      .where(eq(passwordResetTokens.userId, res.body.id))
+      .where(eq(passwordResetTokens.userId, bodyAs<{ id: string }>(res).id))
       .all();
     expect(stored).toHaveLength(1);
     expect(stored[0]!.tokenHash).toBe(sha256Hex(token));
@@ -200,7 +204,7 @@ describe('GET /api/admin/users/:id', () => {
     expect(ok.body.id).toBe(user.id);
     const missing = await client.get('/api/admin/users/does-not-exist');
     expect(missing.status).toBe(404);
-    expect(missing.body.error.code).toBe('USER_NOT_FOUND');
+    expect(errorCode(missing)).toBe('USER_NOT_FOUND');
   });
 });
 
@@ -254,11 +258,11 @@ describe('PATCH /api/admin/users/:id', () => {
     const { t, client, admin } = await adminSetup();
     const demote = await client.patch(`/api/admin/users/${admin.id}`, { body: { role: 'user' } });
     expect(demote.status).toBe(409);
-    expect(demote.body.error.code).toBe('LAST_ADMIN');
+    expect(errorCode(demote)).toBe('LAST_ADMIN');
     const disable = await client.patch(`/api/admin/users/${admin.id}`, {
       body: { disabled: true },
     });
-    expect(disable.body.error.code).toBe('LAST_ADMIN');
+    expect(errorCode(disable)).toBe('LAST_ADMIN');
     expect(t.db.db.select().from(users).where(eq(users.id, admin.id)).get()).toMatchObject({
       role: 'admin',
       disabled: false,
@@ -269,7 +273,7 @@ describe('PATCH /api/admin/users/:id', () => {
     const stillLast = await client.patch(`/api/admin/users/${admin.id}`, {
       body: { role: 'user' },
     });
-    expect(stillLast.body.error.code).toBe('LAST_ADMIN');
+    expect(errorCode(stillLast)).toBe('LAST_ADMIN');
 
     await client.patch(`/api/admin/users/${second.id}`, { body: { disabled: false } });
     const ok = await client.patch(`/api/admin/users/${admin.id}`, { body: { role: 'user' } });
@@ -279,7 +283,7 @@ describe('PATCH /api/admin/users/:id', () => {
   it('answers USER_NOT_FOUND and validates the body', async () => {
     const { client, admin } = await adminSetup();
     const missing = await client.patch('/api/admin/users/nope', { body: { quotaBytes: 1 } });
-    expect(missing.body.error.code).toBe('USER_NOT_FOUND');
+    expect(errorCode(missing)).toBe('USER_NOT_FOUND');
     expect((await client.patch(`/api/admin/users/${admin.id}`, { body: {} })).status).toBe(400);
     expect(
       (await client.patch(`/api/admin/users/${admin.id}`, { body: { quotaBytes: -1 } })).status,
@@ -311,6 +315,6 @@ describe('POST /api/admin/users/:id/reset-2fa', () => {
     expect(auditRows(t, 'admin.2fa_reset')).toHaveLength(1);
 
     const missing = await client.post('/api/admin/users/nope/reset-2fa');
-    expect(missing.body.error.code).toBe('USER_NOT_FOUND');
+    expect(errorCode(missing)).toBe('USER_NOT_FOUND');
   });
 });

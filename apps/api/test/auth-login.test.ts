@@ -10,7 +10,9 @@ import {
   errorCode,
   userOf,
 } from './auth-flow.js';
-import { createTestApp } from './helpers.js';
+import { bodyAs, createTestApp, type TestResponse } from './helpers.js';
+
+const errorBody = (res: TestResponse) => bodyAs<{ error: Record<string, unknown> }>(res).error;
 
 describe('GET /api/auth/csrf', () => {
   it('issues a pre-login token with its cookie and keeps it stable', async () => {
@@ -94,7 +96,7 @@ describe('POST /api/auth/login', () => {
     expect(wrong.status).toBe(401);
     expect(unknown.status).toBe(401);
     expect(errorCode(wrong)).toBe('INVALID_CREDENTIALS');
-    expect({ ...unknown.body.error, requestId: 0 }).toEqual({ ...wrong.body.error, requestId: 0 });
+    expect({ ...errorBody(unknown), requestId: 0 }).toEqual({ ...errorBody(wrong), requestId: 0 });
     expect(dummy).toHaveBeenCalledTimes(1);
     expect(sessionCookie(client)).toBeUndefined();
   });

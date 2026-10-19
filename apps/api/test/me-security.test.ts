@@ -1,9 +1,8 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument -- response bodies are loosely typed (see TestResponse) */
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { generateTotpCode } from '../src/auth/totp.js';
 import { auditLog, recoveryCodes, sessions, users } from '../src/db/schema/index.js';
-import { createTestApp, type TestApp, type TestUser } from './helpers.js';
+import { bodyAs, errorCode, createTestApp, type TestApp, type TestUser } from './helpers.js';
 import { loginAs } from './session-helpers.js';
 
 const row = (t: TestApp, id: string) => t.db.db.select().from(users).where(eq(users.id, id)).get()!;
@@ -54,11 +53,11 @@ describe('POST /api/me/password', () => {
     for (let i = 0; i < 4; i++) {
       const res = await attempt('wrong-password-123');
       expect(res.status).toBe(403);
-      expect(res.body.error.code).toBe('PASSWORD_INCORRECT');
+      expect(errorCode(res)).toBe('PASSWORD_INCORRECT');
     }
     const locked = await attempt('wrong-password-123');
     expect(locked.status).toBe(429);
-    expect(locked.body.error.code).toBe('ACCOUNT_LOCKED');
+    expect(errorCode(locked)).toBe('ACCOUNT_LOCKED');
     expect(Number(locked.headers['retry-after'])).toBeGreaterThan(0);
 
     // Even the right password is refused while locked, and nothing changed.
@@ -98,19 +97,22 @@ describe('2FA enrolment', () => {
 
     const bad = await client.post('/api/me/2fa/enable', { body: { code: '000000' } });
     expect(bad.status).toBe(401);
-    expect(bad.body.error.code).toBe('INVALID_TOTP_CODE');
+    expect(errorCode(bad)).toBe('INVALID_TOTP_CODE');
     expect(row(t, user.id).totpEnabled).toBe(false);
 
     const enable = await client.post('/api/me/2fa/enable', {
-      body: { code: generateTotpCode(setup.body.secret, t.clock()) },
+      body: { code: generateTotpCode(bodyAs<{ secret: string }>(setup).secret, t.clock()) },
     });
     expect(enable.status).toBe(200);
-    expect(enable.body.recoveryCodes).toHaveLength(10);
-    expect(new Set(enable.body.recoveryCodes).size).toBe(10);
+    const recoveryCodes = bodyAs<{ recoveryCodes: string[] }>(enable).recoveryCodes;
+    expect(recoveryCodes).toHaveLength(10);
+    expect(new Set(recoveryCodes).size).toBe(10);
     expect(row(t, user.id).totpEnabled).toBe(true);
     expect(row(t, user.id).totpLastCounter).not.toBeNull();
     expect(codesOf(t, user.id)).toHaveLength(10);
-    expect((await client.get('/api/me')).body.user.totpEnabled).toBe(true);
+    expect(
+      bodyAs<{ user: { totpEnabled: boolean } }>(await client.get('/api/me')).user.totpEnabled,
+    ).toBe(true);
     expect(actions(t)).toContain('auth.2fa_enabled');
   });
 
@@ -119,26 +121,26 @@ describe('2FA enrolment', () => {
     const fresh = loginAs(t, await t.createUser());
     const noPending = await fresh.post('/api/me/2fa/enable', { body: { code: '123456' } });
     expect(noPending.status).toBe(409);
-    expect(noPending.body.error.code).toBe('CONFLICT');
+    expect(errorCode(noPending)).toBe('CONFLICT');
 
     const enabled = await t.createUser({ totp: true });
     const client = loginAs(t, enabled);
-    expect((await client.post('/api/me/2fa/setup')).body.error.code).toBe('CONFLICT');
+    expect(errorCode(await client.post('/api/me/2fa/setup'))).toBe('CONFLICT');
     const again = await client.post('/api/me/2fa/enable', { body: { code: code(t, enabled) } });
-    expect(again.body.error.code).toBe('CONFLICT');
+    expect(errorCode(again)).toBe('CONFLICT');
   });
 
   it('rejects a replayed code at enable time', async () => {
     const t = await createTestApp();
     const user = await t.createUser();
     const client = loginAs(t, user);
-    const { secret } = (await client.post('/api/me/2fa/setup')).body;
+    const { secret } = bodyAs<{ secret: string }>(await client.post('/api/me/2fa/setup'));
     const otp = generateTotpCode(secret, t.clock());
     expect((await client.post('/api/me/2fa/enable', { body: { code: otp } })).status).toBe(200);
     // Back to the pending state with the counter already consumed.
     t.db.db.update(users).set({ totpEnabled: false }).where(eq(users.id, user.id)).run();
     const replay = await client.post('/api/me/2fa/enable', { body: { code: otp } });
-    expect(replay.body.error.code).toBe('INVALID_TOTP_CODE');
+    expect(errorCode(replay)).toBe('INVALID_TOTP_CODE');
   });
 });
 
@@ -174,7 +176,7 @@ describe('POST /api/me/2fa/disable', () => {
       body: { password: admin.password, code: code(t, admin) },
     });
     expect(res.status).toBe(403);
-    expect(res.body.error.code).toBe('TWO_FACTOR_REQUIRED');
+    expect(errorCode(res)).toBe('TWO_FACTOR_REQUIRED');
     expect(row(t, admin.id).totpEnabled).toBe(true);
   });
 
@@ -185,11 +187,11 @@ describe('POST /api/me/2fa/disable', () => {
     const wrongPassword = await client.post('/api/me/2fa/disable', {
       body: { password: 'not-the-password', code: code(t, user) },
     });
-    expect(wrongPassword.body.error.code).toBe('PASSWORD_INCORRECT');
+    expect(errorCode(wrongPassword)).toBe('PASSWORD_INCORRECT');
     const wrongCode = await client.post('/api/me/2fa/disable', {
       body: { password: user.password, code: '000000' },
     });
-    expect(wrongCode.body.error.code).toBe('INVALID_TOTP_CODE');
+    expect(errorCode(wrongCode)).toBe('INVALID_TOTP_CODE');
     expect(row(t, user.id).totpEnabled).toBe(true);
   });
 
@@ -200,7 +202,7 @@ describe('POST /api/me/2fa/disable', () => {
     const body = { password: user.password, code: code(t, user) };
     expect((await client.post('/api/me/2fa/recovery-codes', { body })).status).toBe(200);
     const replay = await client.post('/api/me/2fa/disable', { body });
-    expect(replay.body.error.code).toBe('INVALID_TOTP_CODE');
+    expect(errorCode(replay)).toBe('INVALID_TOTP_CODE');
 
     let last;
     for (let i = 0; i < 4; i++) {
@@ -209,7 +211,7 @@ describe('POST /api/me/2fa/disable', () => {
       });
     }
     expect(last?.status).toBe(429);
-    expect(last?.body.error.code).toBe('ACCOUNT_LOCKED');
+    expect(last && errorCode(last)).toBe('ACCOUNT_LOCKED');
     expect(Number(last?.headers['retry-after'])).toBeGreaterThan(0);
   });
 
@@ -219,7 +221,7 @@ describe('POST /api/me/2fa/disable', () => {
     const res = await loginAs(t, user).post('/api/me/2fa/disable', {
       body: { password: user.password, code: '123456' },
     });
-    expect(res.body.error.code).toBe('CONFLICT');
+    expect(errorCode(res)).toBe('CONFLICT');
   });
 });
 
@@ -253,17 +255,17 @@ describe('POST /api/me/2fa/recovery-codes', () => {
     const none = await loginAs(t, plain).post('/api/me/2fa/recovery-codes', {
       body: { password: plain.password, code: '123456' },
     });
-    expect(none.body.error.code).toBe('CONFLICT');
+    expect(errorCode(none)).toBe('CONFLICT');
 
     const user = await t.createUser({ totp: true });
     const client = loginAs(t, user);
     const badPassword = await client.post('/api/me/2fa/recovery-codes', {
       body: { password: 'wrong-password-1', code: code(t, user) },
     });
-    expect(badPassword.body.error.code).toBe('PASSWORD_INCORRECT');
+    expect(errorCode(badPassword)).toBe('PASSWORD_INCORRECT');
     const badCode = await client.post('/api/me/2fa/recovery-codes', {
       body: { password: user.password, code: '000000' },
     });
-    expect(badCode.body.error.code).toBe('INVALID_TOTP_CODE');
+    expect(errorCode(badCode)).toBe('INVALID_TOTP_CODE');
   });
 });

@@ -1,8 +1,7 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access -- response bodies are loosely typed (see TestResponse) */
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { auditLog, sessions, transfers, uploads, users } from '../src/db/schema/index.js';
-import { createTestApp, type TestApp } from './helpers.js';
+import { errorCode, createTestApp, type TestApp } from './helpers.js';
 import { loginAs } from './session-helpers.js';
 
 async function setup() {
@@ -97,13 +96,13 @@ describe('DELETE /api/admin/users/:id', () => {
       `/api/admin/users/${doomed.id}?transfers=reassign&reassignTo=nobody`,
     );
     expect(missingTarget.status).toBe(404);
-    expect(missingTarget.body.error.code).toBe('USER_NOT_FOUND');
+    expect(errorCode(missingTarget)).toBe('USER_NOT_FOUND');
 
     const sameUser = await client.delete(
       `/api/admin/users/${doomed.id}?transfers=reassign&reassignTo=${doomed.id}`,
     );
     expect(sameUser.status).toBe(400);
-    expect(sameUser.body.error.code).toBe('VALIDATION_ERROR');
+    expect(errorCode(sameUser)).toBe('VALIDATION_ERROR');
 
     const noTarget = await client.delete(`/api/admin/users/${doomed.id}?transfers=reassign`);
     expect(noTarget.status).toBe(400);
@@ -118,7 +117,7 @@ describe('DELETE /api/admin/users/:id', () => {
     await t.createUser({ role: 'admin' });
     const res = await client.delete(`/api/admin/users/${admin.id}?transfers=delete`);
     expect(res.status).toBe(409);
-    expect(res.body.error.code).toBe('CONFLICT');
+    expect(errorCode(res)).toBe('CONFLICT');
     expect(t.db.db.select().from(users).where(eq(users.id, admin.id)).get()).toBeDefined();
   });
 
@@ -134,6 +133,6 @@ describe('DELETE /api/admin/users/:id', () => {
     const { client } = await setup();
     const res = await client.delete('/api/admin/users/nope?transfers=delete');
     expect(res.status).toBe(404);
-    expect(res.body.error.code).toBe('USER_NOT_FOUND');
+    expect(errorCode(res)).toBe('USER_NOT_FOUND');
   });
 });

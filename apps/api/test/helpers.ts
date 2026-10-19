@@ -115,11 +115,21 @@ export class RecordingTransport implements MailTransport {
 type Method = 'get' | 'post' | 'put' | 'patch' | 'delete';
 
 /**
- * Supertest response with a loosely typed JSON body: tests read fields directly and assert on them.
- * (The body is `any` in supertest; keeping it as an index signature avoids per-line casts.)
+ * Supertest response whose JSON body is `Record<string, unknown>` (supertest types it `any`).
+ * Top-level fields can be compared directly; for anything nested use `bodyAs<T>(res)` or
+ * `errorCode(res)`, which keep the lint rules on unsafe access satisfied.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type TestResponse = Omit<supertest.Response, 'body'> & { body: Record<string, any> };
+export type TestResponse = Omit<supertest.Response, 'body'> & { body: Record<string, unknown> };
+
+/** The body typed as `T`. The caller states the shape it expects; the assertion is the test. */
+export function bodyAs<T>(res: TestResponse): T {
+  return res.body as T;
+}
+
+/** Error code of a standard error body (`{ error: { code } }`), or '' when there is none. */
+export function errorCode(res: TestResponse): string {
+  return bodyAs<{ error?: { code?: string } }>(res).error?.code ?? '';
+}
 
 export interface RequestOptions {
   body?: unknown;

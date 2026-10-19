@@ -5,14 +5,23 @@ import { generateRecoveryCodes, hashRecoveryCode } from '../src/auth/recovery-co
 import { generateTotpCode } from '../src/auth/totp.js';
 import { SESSION_COOKIE } from '../src/http/cookies.js';
 import { recoveryCodes } from '../src/db/schema/index.js';
-import type { TestApp, TestClient, TestResponse, TestUser } from './helpers.js';
+import {
+  bodyAs,
+  errorCode,
+  type TestApp,
+  type TestClient,
+  type TestResponse,
+  type TestUser,
+} from './helpers.js';
+
+export { errorCode };
 
 /** A client that already holds a pre-login CSRF token. */
 export async function csrfClient(t: TestApp): Promise<TestClient> {
   const client = t.client();
   const res = await client.get('/api/auth/csrf');
   expect(res.status).toBe(200);
-  client.csrfToken = res.body.csrfToken as string;
+  client.csrfToken = bodyAs<{ csrfToken: string }>(res).csrfToken;
   return client;
 }
 
@@ -36,10 +45,10 @@ export async function loginAs(
   expect(res.status).toBe(200);
   expect(res.body.status).toBe(expected);
   if (res.body.csrfToken) {
-    c.csrfToken = res.body.csrfToken as string;
+    c.csrfToken = bodyAs<{ csrfToken: string }>(res).csrfToken;
   } else {
     // Pending session: the client asks for the token bound to it.
-    c.csrfToken = (await c.get('/api/auth/csrf')).body.csrfToken as string;
+    c.csrfToken = bodyAs<{ csrfToken: string }>(await c.get('/api/auth/csrf')).csrfToken;
   }
   return { client: c, res };
 }
@@ -51,7 +60,7 @@ export async function loginWithTotp(t: TestApp, user: TestUser, client?: TestCli
     body: { code: generateTotpCode(user.totpSecret as string, t.clock()) },
   });
   expect(res.status).toBe(200);
-  c.csrfToken = res.body.csrfToken as string;
+  c.csrfToken = bodyAs<{ csrfToken: string }>(res).csrfToken;
   return { client: c, res };
 }
 
@@ -90,11 +99,5 @@ export const auditActions = (t: TestApp): string[] =>
 export const sessionCookie = (client: TestClient): string | undefined =>
   client.cookie(SESSION_COOKIE);
 
-/** Error code of a standard error body (`{ error: { code } }`), typed so lint stays happy. */
-export const errorCode = (res: TestResponse): string => {
-  const error = res.body.error as { code?: string } | undefined;
-  return error?.code ?? '';
-};
-
 /** The `user` field of a response body, typed. */
-export const userOf = (res: TestResponse): User => res.body.user as User;
+export const userOf = (res: TestResponse): User => bodyAs<{ user: User }>(res).user;
