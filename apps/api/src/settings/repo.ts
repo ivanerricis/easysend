@@ -33,7 +33,7 @@ export interface SettingValues {
 export type SettingKey = keyof SettingValues;
 
 /** Keys whose whole JSON value is encrypted at rest (`is_encrypted = 1`), with the key purpose. */
-const ENCRYPTED_KEYS: Partial<Record<SettingKey, KeyPurpose>> = { smtp: 'smtp' };
+export const ENCRYPTED_KEYS: Partial<Record<SettingKey, KeyPurpose>> = { smtp: 'smtp' };
 
 export const DEFAULT_LOCALE: Locale = 'it';
 export const DEFAULT_INSTANCE_NAME = 'EasySend';

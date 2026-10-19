@@ -5,6 +5,7 @@ export default defineConfig({
     index: 'src/index.ts',
     'cli/migrate': 'src/cli/migrate.ts',
     'cli/create-admin': 'src/cli/create-admin.ts',
+    'cli/rotate-key': 'src/cli/rotate-key.ts',
   },
   format: 'esm',
   platform: 'node',
