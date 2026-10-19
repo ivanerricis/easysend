@@ -33,6 +33,11 @@ catalog:
   '@types/express': 5.0.6
   '@types/supertest': 7.2.1
   '@types/better-sqlite3': 9.6.0
+  '@node-rs/argon2': 2.2.2
+  otpauth: 9.5.2
+  rate-limiter-flexible: 11.2.3
+  cookie: 2.0.1
+  nodemailer: 10.1.7
   # web
   class-variance-authority: 0.7.1
   cn: 0.5.0
@@ -60,6 +65,7 @@ catalog:
 # shadcn 4.22.1 is younger than the minimum release age
 minimumReleaseAgeExclude:
   - shadcn@4.22.1
+  - nodemailer@10.1.7
 
 # eslint-plugin-jsx-a11y 6.10.2 declares peer eslint up to ^9 but works with ESLint 10
 peerDependencyRules:
