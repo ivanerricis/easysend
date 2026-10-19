@@ -4,7 +4,12 @@ import { AUTH_POLICY } from '../auth/policy.js';
 import type { AppConfig } from '../config.js';
 import type { Logger } from '../logger.js';
 import { DEFAULT_INSTANCE_NAME, type SettingsRepo } from '../settings/repo.js';
-import { passwordResetMessage, welcomeMessage } from './messages.js';
+import {
+  firstDownloadMessage,
+  passwordResetMessage,
+  transferLinkMessage,
+  welcomeMessage,
+} from './messages.js';
 
 export interface MailMessage {
   from: string;
@@ -25,6 +30,20 @@ export interface OutgoingMail {
   text: string;
 }
 
+/** What the notification email to a recipient says about a transfer. */
+export interface TransferNotice {
+  /** The download token: the link is `PUBLIC_URL/d/<token>`. */
+  token: string;
+  title: string | null;
+  message: string | null;
+  /** Display name of the sender, null to use the instance name. */
+  senderName: string | null;
+  /** Unix seconds. */
+  expiresAt: number;
+  fileCount: number;
+  totalBytes: number;
+}
+
 export interface Mailer {
   /** Sends a plain-text email. Resolves true when sent, false otherwise; never throws. */
   send(mail: OutgoingMail): Promise<boolean>;
@@ -32,6 +51,17 @@ export interface Mailer {
   sendPasswordReset(input: { to: string; locale: Locale | null; token: string }): Promise<boolean>;
   /** Link `PUBLIC_URL/welcome?token=...`, valid `AUTH_POLICY.welcomeTokenSeconds`. */
   sendWelcome(input: { to: string; locale: Locale | null; token: string }): Promise<boolean>;
+  /** Link `PUBLIC_URL/d/<token>` to a recipient, in the instance default language. */
+  sendTransferLink(input: { to: string; transfer: TransferNotice }): Promise<boolean>;
+  /** Tells the owner (in their language, null = instance default) that the transfer was downloaded. */
+  sendFirstDownload(input: {
+    to: string;
+    locale: Locale | null;
+    transferId: string;
+    title: string | null;
+    /** Unix seconds. */
+    downloadedAt: number;
+  }): Promise<boolean>;
 }
 
 const LOCAL_FROM = 'EasySend <no-reply@localhost>';
@@ -83,7 +113,7 @@ function safeError(error: unknown): Record<string, unknown> {
 export function createMailer(deps: {
   config: Pick<
     AppConfig,
-    'mode' | 'publicUrl' | 'smtpDevHost' | 'smtpDevPort' | 'passwordResetTtlMinutes'
+    'mode' | 'publicUrl' | 'smtpDevHost' | 'smtpDevPort' | 'passwordResetTtlMinutes' | 'timezone'
   >;
   settingsRepo: Pick<SettingsRepo, 'get' | 'getDefaultLocale' | 'getInstanceName'>;
   logger: Logger;
@@ -138,6 +168,14 @@ export function createMailer(deps: {
     return url.toString();
   }
 
+  function buildUrl(pathname: string): string | undefined {
+    if (!config.publicUrl) {
+      logger.error('email not sent: PUBLIC_URL is not set, cannot build the link');
+      return undefined;
+    }
+    return new URL(pathname, config.publicUrl).toString();
+  }
+
   const localeOf = (locale: Locale | null): Locale => locale ?? settingsRepo.getDefaultLocale();
 
   return {
@@ -163,6 +201,38 @@ export function createMailer(deps: {
         link,
         instanceName: settingsRepo.getInstanceName() || DEFAULT_INSTANCE_NAME,
         ttlHours: Math.round(AUTH_POLICY.welcomeTokenSeconds / 3600),
+      });
+      return send({ to, ...content });
+    },
+
+    async sendTransferLink({ to, transfer }) {
+      const link = buildUrl(`/d/${transfer.token}`);
+      if (!link) return false;
+      const content = transferLinkMessage({
+        locale: settingsRepo.getDefaultLocale(),
+        link,
+        instanceName: settingsRepo.getInstanceName() || DEFAULT_INSTANCE_NAME,
+        senderName: transfer.senderName,
+        title: transfer.title,
+        message: transfer.message,
+        expiresAt: transfer.expiresAt,
+        fileCount: transfer.fileCount,
+        totalBytes: transfer.totalBytes,
+        timezone: config.timezone,
+      });
+      return send({ to, ...content });
+    },
+
+    async sendFirstDownload({ to, locale, transferId, title, downloadedAt }) {
+      const link = buildUrl(`/transfers/${transferId}`);
+      if (!link) return false;
+      const content = firstDownloadMessage({
+        locale: localeOf(locale),
+        instanceName: settingsRepo.getInstanceName() || DEFAULT_INSTANCE_NAME,
+        title,
+        link,
+        downloadedAt,
+        timezone: config.timezone,
       });
       return send({ to, ...content });
     },

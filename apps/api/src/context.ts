@@ -11,6 +11,8 @@ import type { Logger } from './logger.js';
 import { createMailer, type MailTransport, type Mailer } from './mail/mailer.js';
 import type { Secrets } from './secrets.js';
 import { createSettingsRepo, type SettingsRepo } from './settings/repo.js';
+import { statfsDiskSpace, type DiskSpace } from './storage/disk.js';
+import { createTransferLimiters, type TransferLimiters } from './transfers/limiters.js';
 
 /** What the application is built from. Everything but the first four is optional (defaults for production). */
 export interface AppDeps {
@@ -26,6 +28,8 @@ export interface AppDeps {
   mailer?: Mailer;
   /** Replaces the SMTP connection of the default mailer (tests record messages with it). */
   mailTransport?: MailTransport;
+  /** Free-space probe of the storage disk. Default: `fs.statfs`. Tests fake a full disk with it. */
+  diskSpace?: DiskSpace;
 }
 
 /** Everything a route needs, built once per app. Route factories receive it: no global state. */
@@ -43,6 +47,8 @@ export interface AppContext {
   sessions: SessionService;
   csrf: CsrfService;
   limiters: AuthLimiters;
+  transferLimiters: TransferLimiters;
+  diskSpace: DiskSpace;
   /** Real client address (see `createClientIpResolver`). Never log it: use `ipHashOf`. */
   clientIp: ClientIpResolver;
   /** `ip_hash` value for the audit log and sessions. */
@@ -78,6 +84,8 @@ export function createContext(deps: AppDeps): AppContext {
     sessions: createSessionService({ db, clock, clientIp, ipHashKey: keys.ipHash }),
     csrf: createCsrf({ config, csrfKey: keys.csrf }),
     limiters: createAuthLimiters(),
+    transferLimiters: createTransferLimiters(),
+    diskSpace: deps.diskSpace ?? statfsDiskSpace,
     clientIp,
     ipHashOf: (req) => ipHash(keys.ipHash, clientIp(req)),
   };
