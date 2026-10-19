@@ -1,5 +1,11 @@
-import { and, asc, count, eq, inArray, sql } from 'drizzle-orm';
-import type { TransferDetail, TransferStatus, TransferSummary, UserRole } from '@easysend/shared';
+import { and, asc, count, desc, eq, gt, inArray, lte, or, sql, type SQL } from 'drizzle-orm';
+import type {
+  TransferDetail,
+  TransferMode,
+  TransferStatus,
+  TransferSummary,
+  UserRole,
+} from '@easysend/shared';
 import { audit } from '../audit.js';
 import { nowSeconds } from '../clock.js';
 import type { AppContext } from '../context.js';
@@ -345,4 +351,116 @@ export function recomputeUsedBytes(db: Db): number {
     )
   `);
   return result.changes;
+}
+
+/** Escapes `%`, `_` and the escape character itself for a `LIKE ... ESCAPE '\'` pattern. */
+export const escapeLike = (text: string): string => text.replace(/[\\%_]/g, (c) => `\\${c}`);
+
+export interface TransferListFilter {
+  /** Restrict to one owner (the user's own list, or the admin's `ownerId` filter). */
+  ownerId?: string | undefined;
+  /** Effective status: `expired` also matches `active` rows past their expiry. */
+  status?: TransferStatus | undefined;
+  mode?: TransferMode | undefined;
+  /** Substring of the title or of a recipient email. */
+  q?: string | undefined;
+  page: number;
+  pageSize: number;
+}
+
+function statusCondition(status: TransferStatus, nowSec: number): SQL | undefined {
+  if (status === 'active') {
+    return and(eq(transfers.status, 'active'), gt(transfers.expiresAt, nowSec));
+  }
+  if (status === 'expired') {
+    return or(
+      eq(transfers.status, 'expired'),
+      and(eq(transfers.status, 'active'), lte(transfers.expiresAt, nowSec)),
+    );
+  }
+  return eq(transfers.status, status);
+}
+
+/** One page of transfers, newest first, with the total number of matches. */
+export function listTransfersPage(
+  ctx: Pick<AppContext, 'db'>,
+  filter: TransferListFilter,
+  nowSec: number,
+): { items: TransferSummary[]; total: number } {
+  const pattern = filter.q ? `%${escapeLike(filter.q)}%` : undefined;
+  const where = and(
+    filter.ownerId ? eq(transfers.ownerId, filter.ownerId) : undefined,
+    filter.status ? statusCondition(filter.status, nowSec) : undefined,
+    filter.mode ? eq(transfers.mode, filter.mode) : undefined,
+    pattern
+      ? or(
+          sql`${transfers.title} LIKE ${pattern} ESCAPE '\\'`,
+          sql`EXISTS (SELECT 1 FROM ${transferRecipients} WHERE ${transferRecipients.transferId} = ${transfers.id} AND ${transferRecipients.email} LIKE ${pattern} ESCAPE '\\')`,
+        )
+      : undefined,
+  );
+  const total = ctx.db.select({ n: count() }).from(transfers).where(where).get()!.n;
+  const rows = ctx.db
+    .select()
+    .from(transfers)
+    .where(where)
+    .orderBy(desc(transfers.createdAt), desc(transfers.id))
+    .limit(filter.pageSize)
+    .offset((filter.page - 1) * filter.pageSize)
+    .all();
+  return { items: rows.map((row) => toTransferSummary(ctx, row, nowSec)), total };
+}
+
+/**
+ * Sends the link email to every recipient of an email-mode transfer and stamps `notified_at` on
+ * those that went out (the mailer never throws and answers false on failure). Returns how many
+ * emails were sent.
+ */
+export async function notifyRecipients(
+  ctx: Pick<AppContext, 'db' | 'mailer' | 'clock'>,
+  row: TransferRow,
+  senderName: string | null,
+): Promise<number> {
+  const files = ctx.db
+    .select({ n: count(), bytes: sql<number>`coalesce(sum(${transferFiles.sizeBytes}), 0)` })
+    .from(transferFiles)
+    .where(eq(transferFiles.transferId, row.id))
+    .get()!;
+  const recipients = ctx.db
+    .select()
+    .from(transferRecipients)
+    .where(eq(transferRecipients.transferId, row.id))
+    .orderBy(asc(transferRecipients.email))
+    .all();
+
+  let sent = 0;
+  for (const recipient of recipients) {
+    const ok = await ctx.mailer.sendTransferLink({
+      to: recipient.email,
+      transfer: {
+        token: row.token,
+        title: row.title,
+        message: row.message,
+        senderName,
+        expiresAt: row.expiresAt,
+        fileCount: files.n,
+        totalBytes: files.bytes,
+      },
+    });
+    if (!ok) continue;
+    sent += 1;
+    ctx.db
+      .update(transferRecipients)
+      .set({ notifiedAt: nowSeconds(ctx.clock) })
+      .where(eq(transferRecipients.id, recipient.id))
+      .run();
+  }
+  if (sent > 0) {
+    ctx.db
+      .update(transfers)
+      .set({ notifiedAt: nowSeconds(ctx.clock) })
+      .where(eq(transfers.id, row.id))
+      .run();
+  }
+  return sent;
 }
