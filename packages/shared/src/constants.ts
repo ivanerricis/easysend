@@ -49,6 +49,7 @@ export const TITLE_MAX_LENGTH = 120;
 export const MESSAGE_MAX_LENGTH = 2000;
 export const FILENAME_MAX_LENGTH = 255;
 export const INSTANCE_NAME_MAX_LENGTH = 60;
+export const DISPLAY_NAME_MAX_LENGTH = 80;
 export const FOOTER_MAX_LENGTH = 200;
 export const MAX_RECIPIENTS = 20;
 export const MAX_FILES_PER_TRANSFER = 100;

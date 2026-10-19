@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   CHUNK_SIZE_MB,
+  DISPLAY_NAME_MAX_LENGTH,
   EXPIRY_KEYS,
   EXPIRY_OPTIONS,
   FILENAME_MAX_LENGTH,
@@ -29,6 +30,9 @@ export const userRoleSchema = z.enum(USER_ROLES);
 export const localeSchema = z.enum(LOCALES);
 export const themePreferenceSchema = z.enum(THEME_PREFERENCES);
 
+/** Optional name shown to download recipients instead of the email; surrounding spaces are trimmed. */
+export const displayNameSchema = z.string().trim().min(1).max(DISPLAY_NAME_MAX_LENGTH);
+
 /** New password: length bounds only (no composition rules). */
 export const passwordSchema = z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH);
 
@@ -42,6 +46,8 @@ export const recoveryCodeSchema = z.string().min(8).max(32);
 export const userSchema = z.object({
   id: idSchema,
   email: emailSchema,
+  /** Shown on the public download page; `null` when not set. */
+  displayName: displayNameSchema.nullable(),
   role: z.enum(USER_ROLES),
   locale: localeSchema,
   themePreference: themePreferenceSchema.nullable(),
@@ -63,6 +69,8 @@ export type MeResponse = z.infer<typeof meResponseSchema>;
 export const updateMeRequestSchema = z
   .object({
     locale: localeSchema.optional(),
+    /** `null` clears the display name. */
+    displayName: displayNameSchema.nullable().optional(),
     /** `null` clears the personal override and falls back to the instance default. */
     themePreference: themePreferenceSchema.nullable().optional(),
   })
@@ -149,6 +157,7 @@ export type ListUsersResponse = z.infer<typeof listUsersResponseSchema>;
 
 export const createUserRequestSchema = z.object({
   email: emailSchema,
+  displayName: displayNameSchema.optional(),
   role: z.enum(USER_ROLES).default('user'),
   /** When omitted, the user receives a welcome email with a link to set their password. */
   password: passwordSchema.optional(),
@@ -164,6 +173,8 @@ export const updateUserRequestSchema = z
     quotaBytes: byteSizeSchema.nullable().optional(),
     disabled: z.boolean().optional(),
     locale: localeSchema.optional(),
+    /** `null` clears the display name. */
+    displayName: displayNameSchema.nullable().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'At least one field is required' });
 export type UpdateUserRequest = z.infer<typeof updateUserRequestSchema>;

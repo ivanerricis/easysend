@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { FILENAME_MAX_LENGTH, PASSWORD_MAX_LENGTH } from '../constants.js';
 import { byteSizeSchema, idSchema, unixSecondsSchema } from './common.js';
 import { maxDownloadsSchema } from './transfers.js';
+import { displayNameSchema } from './users.js';
 
 /** Random, long and non-guessable link token. */
 export const downloadTokenSchema = z.string().min(20).max(128);
@@ -32,8 +33,8 @@ export const downloadInfoResponseSchema = z.discriminatedUnion('locked', [
     locked: z.literal(false),
     title: z.string().nullable(),
     message: z.string().nullable(),
-    /** Sender display name: the part of the owner's email before the `@`. */
-    sender: z.string(),
+    /** The owner's display name; `null` when not set (the client shows the instance name). */
+    senderName: displayNameSchema.nullable(),
     files: z.array(downloadFileSchema),
     totalBytes: byteSizeSchema,
     expiresAt: unixSecondsSchema,

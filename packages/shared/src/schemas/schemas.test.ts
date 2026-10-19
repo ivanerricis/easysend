@@ -4,7 +4,15 @@ import { downloadInfoResponseSchema } from './downloads.js';
 import { appearanceSchema } from './settings.js';
 import { createTransferRequestSchema, updateTransferRequestSchema } from './transfers.js';
 import { tusUploadMetadataSchema } from './uploads.js';
-import { deleteUserQuerySchema } from './users.js';
+import {
+  createUserRequestSchema,
+  deleteUserQuerySchema,
+  displayNameSchema,
+  updateMeRequestSchema,
+  updateUserRequestSchema,
+  userSchema,
+} from './users.js';
+import { setupAdminRequestSchema } from './setup.js';
 
 describe('createTransferRequestSchema', () => {
   it('accepts a link transfer', () => {
@@ -123,5 +131,73 @@ describe('download and tus schemas', () => {
       true,
     );
     expect(tusUploadMetadataSchema.safeParse({ filename: 'a.zip' }).success).toBe(false);
+  });
+});
+
+describe('display name', () => {
+  it('trims and bounds the value', () => {
+    expect(displayNameSchema.parse('  Ada Lovelace  ')).toBe('Ada Lovelace');
+    expect(displayNameSchema.safeParse('').success).toBe(false);
+    expect(displayNameSchema.safeParse('   ').success).toBe(false);
+    expect(displayNameSchema.safeParse('a'.repeat(80)).success).toBe(true);
+    expect(displayNameSchema.safeParse('a'.repeat(81)).success).toBe(false);
+  });
+
+  it('clears the name with null in PATCH /api/me and the admin update', () => {
+    expect(updateMeRequestSchema.safeParse({ displayName: null }).success).toBe(true);
+    expect(updateMeRequestSchema.safeParse({ displayName: 'Ada' }).success).toBe(true);
+    expect(updateMeRequestSchema.safeParse({ displayName: 'a'.repeat(81) }).success).toBe(false);
+    expect(updateMeRequestSchema.safeParse({ displayName: '' }).success).toBe(false);
+    expect(updateUserRequestSchema.safeParse({ displayName: null }).success).toBe(true);
+    expect(updateUserRequestSchema.safeParse({ displayName: 'a'.repeat(81) }).success).toBe(false);
+  });
+
+  it('is optional when creating users and the admin', () => {
+    expect(createUserRequestSchema.safeParse({ email: 'a@b.it' }).success).toBe(true);
+    expect(createUserRequestSchema.safeParse({ email: 'a@b.it', displayName: 'Ada' }).success).toBe(
+      true,
+    );
+    expect(
+      setupAdminRequestSchema.safeParse({ email: 'a@b.it', password: 'x'.repeat(12) }).success,
+    ).toBe(true);
+    expect(
+      setupAdminRequestSchema.safeParse({
+        email: 'a@b.it',
+        password: 'x'.repeat(12),
+        displayName: 'a'.repeat(81),
+      }).success,
+    ).toBe(false);
+  });
+
+  it('is required (nullable) in the user representation', () => {
+    const base = {
+      id: 'u1',
+      email: 'a@b.it',
+      role: 'user',
+      locale: 'it',
+      themePreference: null,
+      totpEnabled: false,
+      createdAt: 1,
+      lastLoginAt: null,
+    };
+    expect(userSchema.safeParse({ ...base, displayName: null }).success).toBe(true);
+    expect(userSchema.safeParse({ ...base, displayName: 'Ada' }).success).toBe(true);
+    expect(userSchema.safeParse(base).success).toBe(false);
+  });
+
+  it('exposes senderName instead of sender in the download info', () => {
+    const info = {
+      locked: false,
+      title: null,
+      message: null,
+      files: [],
+      totalBytes: 0,
+      expiresAt: 1,
+      downloadCount: 0,
+      maxDownloads: null,
+    };
+    expect(downloadInfoResponseSchema.safeParse({ ...info, senderName: null }).success).toBe(true);
+    expect(downloadInfoResponseSchema.safeParse({ ...info, senderName: 'Ada' }).success).toBe(true);
+    expect(downloadInfoResponseSchema.safeParse({ ...info, sender: 'ada' }).success).toBe(false);
   });
 });

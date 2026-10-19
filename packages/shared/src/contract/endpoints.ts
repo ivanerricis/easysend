@@ -142,7 +142,7 @@ export const endpoints: readonly EndpointDef[] = [
     body: setupAdminRequestSchema,
     response: json(200, twoFactorSetupResponseSchema),
     notes:
-      'Nothing is created yet: email, password hash and TOTP secret are kept as a pending enrolment (secret stored encrypted). The QR code is rendered by the client from `otpauthUri`; `secret` is the plain-text alternative. Calling it again replaces the pending enrolment.',
+      'Nothing is created yet: email, password hash and TOTP secret are kept as a pending enrolment (secret stored encrypted). The QR code is rendered by the client from `otpauthUri`; `secret` is the plain-text alternative. Calling it again replaces the pending enrolment. `displayName` is optional and trimmed.',
   }),
   defineEndpoint({
     id: 'setup.adminVerify',
@@ -382,11 +382,12 @@ export const endpoints: readonly EndpointDef[] = [
     tag: 'me',
     method: 'PATCH',
     path: '/api/me',
-    summary: 'Update language and theme preference',
+    summary: 'Update display name, language and theme preference',
     auth: 'session',
     body: updateMeRequestSchema,
     response: json(200, meResponseSchema),
-    notes: 'At least one field is required.',
+    notes:
+      'At least one field is required. `displayName` is trimmed (1 to 80 characters); `null` clears it.',
   }),
   defineEndpoint({
     id: 'me.password',
@@ -480,7 +481,7 @@ export const endpoints: readonly EndpointDef[] = [
     response: json(201, adminUserSchema),
     errors: ['EMAIL_ALREADY_EXISTS'],
     notes:
-      'If `password` is omitted the user receives a welcome email with a one-time link to set it. There is no public registration.',
+      'If `password` is omitted the user receives a welcome email with a one-time link to set it. `displayName` is optional and trimmed. There is no public registration.',
   }),
   defineEndpoint({
     id: 'users.get',
@@ -498,14 +499,14 @@ export const endpoints: readonly EndpointDef[] = [
     tag: 'users',
     method: 'PATCH',
     path: '/api/admin/users/:id',
-    summary: 'Change role, quota, disabled flag or language',
+    summary: 'Change role, quota, disabled flag, language or display name',
     auth: 'admin',
     params: idParamsSchema,
     body: updateUserRequestSchema,
     response: json(200, adminUserSchema),
     errors: ['USER_NOT_FOUND', 'LAST_ADMIN'],
     notes:
-      'The quota is changed only here: `quotaBytes: null` removes it. Demoting or disabling the last active admin answers `LAST_ADMIN`. Disabling a user destroys their sessions. At least one field is required.',
+      'The quota is changed only here: `quotaBytes: null` removes it. Demoting or disabling the last active admin answers `LAST_ADMIN`. Disabling a user destroys their sessions. `displayName` is trimmed; `null` clears it. At least one field is required.',
   }),
   defineEndpoint({
     id: 'users.reset2fa',
@@ -794,7 +795,7 @@ export const endpoints: readonly EndpointDef[] = [
       'DOWNLOAD_LIMIT_REACHED',
     ],
     notes:
-      'No account is needed. Password-protected links answer `{ locked: true }` (no file names, sizes or sender) until unlocked with a valid `es_dl` cookie. Expiry is checked on every request.',
+      'No account is needed. Password-protected links answer `{ locked: true }` (no file names, sizes or sender) until unlocked with a valid `es_dl` cookie. Expiry is checked on every request. When `senderName` is null the client shows the instance name (from `GET /api/public/settings`). The owner email is never exposed.',
   }),
   defineEndpoint({
     id: 'downloads.unlock',

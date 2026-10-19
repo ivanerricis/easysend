@@ -118,7 +118,7 @@ export const CONTRACT_DECISIONS: readonly ContractDecision[] = [
   },
   {
     title: 'Sender shown on the download page',
-    text: 'Users have no display name, so the public download page shows `sender` as the part of the owner email before `@`. Alternative: show only the instance name, or add an optional display name to users.',
+    text: 'Users have an optional display name (`displayName`, 1 to 80 characters), editable by the user and by admins. The public download page returns it as `senderName`; when it is not set the client shows the instance name. The owner email is never exposed.',
   },
   {
     title: 'Admins use the normal transfer endpoints',

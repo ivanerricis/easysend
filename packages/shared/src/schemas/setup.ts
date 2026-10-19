@@ -1,7 +1,13 @@
 import { z } from 'zod';
 import { APP_MODES } from '../constants.js';
 import { emailSchema } from './common.js';
-import { recoveryCodeSchema, passwordSchema, totpCodeSchema, userSchema } from './users.js';
+import {
+  displayNameSchema,
+  recoveryCodeSchema,
+  passwordSchema,
+  totpCodeSchema,
+  userSchema,
+} from './users.js';
 import { csrfTokenSchema } from './auth.js';
 import { appearanceSchema, generalSettingsSchema, smtpSettingsPublicSchema } from './settings.js';
 
@@ -27,6 +33,7 @@ export type SetupCodeRequest = z.infer<typeof setupCodeRequestSchema>;
 // ---- Admin account -----------------------------------------------------------
 export const setupAdminRequestSchema = z.object({
   email: emailSchema,
+  displayName: displayNameSchema.optional(),
   password: passwordSchema,
 });
 export type SetupAdminRequest = z.infer<typeof setupAdminRequestSchema>;
