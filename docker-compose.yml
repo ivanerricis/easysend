@@ -1,0 +1,93 @@
+# Production stack. Deploy with this file only (plus .env); the override file is for local builds.
+# .env.example sets COMPOSE_FILE=docker-compose.yml so docker-compose.override.yml is never auto-loaded.
+
+x-common: &common
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  api:
+    <<: *common
+    image: ghcr.io/ivanerricis/easysend-api:${APP_VERSION:?set APP_VERSION in .env}
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: 768m
+    cpus: 1.0
+    environment:
+      APP_VERSION: ${APP_VERSION}
+      APP_MODE: ${APP_MODE:-production}
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      TZ: ${TZ:-Europe/Rome}
+      NODE_ENV: production
+      PORT: 3000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      TRUST_PROXY: ${TRUST_PROXY:-2}
+      DATA_DIR: /data
+      DB_PATH: ${DB_PATH:-/data/db/app.sqlite}
+      STORAGE_DIR: ${STORAGE_DIR:-/data/storage}
+      TMP_UPLOAD_DIR: ${TMP_UPLOAD_DIR:-/data/tmp}
+      BRANDING_DIR: ${BRANDING_DIR:-/data/branding}
+      SHARED_DIR: /shared
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      SETUP_CODE_TTL_MINUTES: ${SETUP_CODE_TTL_MINUTES:-60}
+      PASSWORD_RESET_TTL_MINUTES: ${PASSWORD_RESET_TTL_MINUTES:-30}
+      LOG_RETENTION_DAYS: ${LOG_RETENTION_DAYS:-90}
+      INCOMPLETE_UPLOAD_TTL_HOURS: ${INCOMPLETE_UPLOAD_TTL_HOURS:-24}
+      CLEANUP_CRON: ${CLEANUP_CRON:-0 * * * *}
+      DEFAULT_DISK_RESERVE_MB: ${DEFAULT_DISK_RESERVE_MB:-1024}
+      DEFAULT_CHUNK_SIZE_MB: ${DEFAULT_CHUNK_SIZE_MB:-25}
+      NODE_OPTIONS: --max-old-space-size=384
+    volumes:
+      - easysend-data:/data
+      - easysend-shared:/shared
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:3000/api/health']
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  web:
+    <<: *common
+    image: ghcr.io/ivanerricis/easysend-web:${APP_VERSION:?set APP_VERSION in .env}
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: 128m
+    cpus: 0.5
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      # Loopback by default: reach the setup wizard through an SSH tunnel before Cloudflare is set up.
+      - '${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8080}:8080'
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:8080/nginx-health']
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+
+  cloudflared:
+    <<: *common
+    image: ghcr.io/ivanerricis/easysend-cloudflared:${APP_VERSION:?set APP_VERSION in .env}
+    profiles: [tunnel]
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: 128m
+    cpus: 0.5
+    environment:
+      SHARED_DIR: /shared
+    volumes:
+      - easysend-shared:/shared:ro
+
+volumes:
+  easysend-data:
+  easysend-shared:

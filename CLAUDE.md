@@ -57,7 +57,37 @@ docs/              SPEC.md, FASI.md, api.md
 - Accessibilità WCAG 2.2 AA.
 
 ## Comandi
-Definiscili nella fase 1 e scrivili qui (install, dev, lint, typecheck, test, test:e2e, build, db:migrate).
+Prerequisiti: Node 26 (versione in `.node-version`/`.nvmrc`, con fnm basta `fnm use`), pnpm 12.14.0 (campo `packageManager`), Docker Desktop avviato per `local:*`.
+
+| Comando               | Cosa fa                                                                   |
+| --------------------- | ------------------------------------------------------------------------- |
+| `pnpm install`        | Installa le dipendenze di tutto il monorepo                               |
+| `pnpm dev`            | Avvia api (tsx watch) e Vite fuori da Docker, più Mailpit in un container |
+| `pnpm lint`           | ESLint su tutto il repository, zero warning                               |
+| `pnpm format`         | Formatta con Prettier                                                     |
+| `pnpm format:check`   | Controlla la formattazione senza modificare i file                        |
+| `pnpm typecheck`      | `tsc --noEmit` in ogni pacchetto                                          |
+| `pnpm test`           | Test Vitest di tutti i pacchetti                                          |
+| `pnpm test:e2e`       | Test Playwright (arrivano nella fase 6)                                   |
+| `pnpm build`          | Build di shared, api e web                                                |
+| `pnpm db:generate`    | Genera la migrazione Drizzle dallo schema                                 |
+| `pnpm db:migrate`     | Applica le migrazioni al database                                         |
+| `pnpm db:check`       | Fallisce se lo schema e le migrazioni committate non coincidono           |
+| `pnpm api:docs`       | Rigenera `docs/api.md` dal registro del contratto                         |
+| `pnpm api:docs:check` | Fallisce se `docs/api.md` non è aggiornato                                |
+| `pnpm local:up`       | Costruisce e avvia lo stack locale in Docker (web, api, Mailpit)          |
+| `pnpm local:down`     | Ferma lo stack locale, mantenendo i dati                                  |
+| `pnpm local:reset`    | Ferma lo stack e cancella i volumi locali                                 |
+
+Indirizzi in locale:
+- stack Docker: http://localhost:8080 (frontend), http://localhost:8080/api/health (health), http://localhost:8025 (Mailpit);
+- `pnpm dev`: http://localhost:5173 (Vite con proxy verso l'api).
+
+Se altri progetti occupano le porte predefinite, si cambiano in `.env.local`: `LOCAL_WEB_PORT`, `MAILPIT_UI_PORT`, `MAILPIT_SMTP_PORT`, `DEV_API_PORT`, `DEV_WEB_PORT`.
+
+Regole:
+- dopo ogni modifica al contratto (`packages/shared/src/contract` o gli schemi) lancia `pnpm api:docs` e committa `docs/api.md`;
+- dopo ogni modifica allo schema Drizzle lancia `pnpm db:generate` e committa la migrazione.
 
 ## Decisioni
 - Database: SQLite WAL.
@@ -77,3 +107,27 @@ Definiscili nella fase 1 e scrivili qui (install, dev, lint, typecheck, test, te
 - La PR di release creata con GITHUB_TOKEN non avvia la CI: il workflow di release-please la lancia con `workflow_dispatch` sul branch della PR (niente bypass, niente PAT).
 - Lingua su GitHub: template, issue ed etichette in inglese; riepiloghi di fase nelle PR in italiano.
 - Il progetto resta in `C:\` su Windows (non in WSL2); nel README va la nota di SPEC 11-bis.
+- Node 26 gestito con fnm, pnpm 12.14.0 in `packageManager`. Lint con ESLint 10 (flat) più Prettier.
+- TypeScript fissato alla 6.0.x: typescript-eslint non accetta ancora TS 7 (Dependabot ignora `typescript >=6.1`).
+- `packages/shared` è consumato come sorgente TypeScript (nessun build); l'API lo include nel bundle con tsdown, quindi è una devDependency dell'API.
+- Versioni condivise nel `catalog:` di `pnpm-workspace.yaml`.
+- Contratto API: registro degli endpoint in `packages/shared/src/contract`, trasformato in `docs/api.md` da uno script; `api:docs:check` in CI fallisce se il documento è vecchio.
+- Convenzioni API: timestamp in secondi Unix; errore standard `{ error: { code, message, requestId, details? } }` con codici stabili tradotti dal frontend; chi non è proprietario riceve 404, non 403; livelli di autenticazione `public | mfa-pending | session | admin | setup`.
+- Flusso del trasferimento: bozza con `POST /transfers`, upload tus con `transferId` nei metadati, poi `POST /transfers/:id/finalize` che attiva il trasferimento e invia le email.
+- Conteggio download: conta ogni richiesta (file o zip) che parte dal byte 0; le richieste Range successive non contano; il primo conteggio fa partire la notifica.
+- Sblocco di un link con password: cookie firmato con `Path=/api/downloads/<token>`, durata 1 ora.
+- Immagini di branding: upload con corpo raw (png/jpeg/webp, controllo dei magic byte), senza multipart.
+- Health: percorso canonico `/api/health`, alias `/health` in nginx; l'healthcheck del container web usa una location statica.
+- IP reale: in produzione l'API usa `CF-Connecting-IP`; in locale `req.ip` con `trust proxy` (1 in locale, 2 in produzione). Implementazione nella fase 2.
+- nginx: immagine ufficiale `nginx:1.30.6-alpine3.24`, utente non-root, porta 8080, `proxy_pass` con variabile e `resolver 127.0.0.11` per risolvere di nuovo l'IP dell'API dopo un riavvio.
+- cloudflared: immagine wrapper (alpine + binario statico + `entrypoint.sh` che attende il token), terza immagine GHCR `easysend-cloudflared`.
+- Produzione: porta web pubblicata solo su 127.0.0.1 dell'LXC; `.env.example` imposta `COMPOSE_FILE=docker-compose.yml` per non caricare mai l'override di build.
+- Limiti di memoria: api 768m (`--max-old-space-size=384`), web 128m, cloudflared 128m; in locale Mailpit aggiunge 128m.
+- Migrazioni all'avvio: prima di ogni migrazione in sospeso su un DB non vuoto si fa un backup con `sqlite.backup()`, conservando gli ultimi 5.
+- Stack DB: drizzle-orm 0.45 stabile con better-sqlite3 (binari precompilati musl); niente `node:sqlite`.
+- Script multipiattaforma in `scripts/*.mjs`; `pnpm dev` è uno script Node, senza `concurrently`.
+- release-please: `extra-files` aggiorna `version` nel `package.json` root.
+- Direzione visiva "Netto e tecnico": shadcn `radix-lyra`, base `zinc`, raggio 0, IBM Plex Sans/Mono incluse nell'app (fontsource, niente Google Fonts), accento smeraldo verificato AA (`#047857` nel tema chiaro, emerald-400 nello scuro).
+- UI responsive mobile-first: nessuno scroll orizzontale da 320px, controlli di almeno 44x44px, viewport senza blocco dello zoom; verifica a 375, 768, 1024 e 1440px.
+- Toast con shadcn `sonner` dalla fase 5, collegato al nostro `ThemeProvider` (senza `next-themes`). Si usano per feedback transitori (link copiato, impostazioni salvate, trasferimento creato/revocato/eliminato, email di prova, upload completato, errori di azioni non legate a un campo); non per errori di validazione dei form (inline), errori bloccanti di pagina, né informazioni da conservare (codici di recupero, link appena creato). Accessibilità: `aria-live` (polite per i successi, assertive per gli errori), almeno 5 secondi, pausa su hover/focus, chiudibili da tastiera, in basso al centro su schermi stretti.
+- Mittente sulla pagina di download: nome visualizzato facoltativo dell'utente (`display_name`, max 80 caratteri, modificabile dall'utente e dall'admin); se manca, la pagina mostra il nome dell'istanza. L'email del mittente non viene mai esposta.

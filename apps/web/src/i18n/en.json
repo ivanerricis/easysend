@@ -1,0 +1,34 @@
+{
+  "app": {
+    "name": "EasySend",
+    "skipToContent": "Skip to main content"
+  },
+  "header": {
+    "language": "Language",
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System"
+  },
+  "home": {
+    "title": "Transfer large files",
+    "description": "Self-hosted app to send large files with a link. This is the phase 1 placeholder page."
+  },
+  "status": {
+    "title": "API status",
+    "loading": "Checking…",
+    "ok": "Operational",
+    "error": "Unable to reach the API.",
+    "retry": "Retry",
+    "version": "Version",
+    "mode": "Mode",
+    "modeLocal": "local",
+    "modeProduction": "production",
+    "database": "Database",
+    "dbOk": "ok",
+    "dbError": "error"
+  },
+  "footer": {
+    "text": "EasySend, free software under the MIT license."
+  }
+}
