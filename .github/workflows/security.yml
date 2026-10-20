@@ -77,7 +77,9 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
-      - run: pnpm audit --prod --audit-level high
+      # All dependencies, not only --prod: the API bundles its JS dependencies, which are
+      # therefore devDependencies. Unfixable advisories are listed in pnpm-workspace.yaml.
+      - run: pnpm audit --audit-level high
 
   codeql:
     name: codeql (${{ matrix.language }})

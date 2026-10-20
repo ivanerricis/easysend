@@ -6,6 +6,12 @@ packages:
 allowBuilds:
   esbuild: true
 
+# Advisories without a fixed version that never reach the images:
+# GHSA-vfj7-8cjw-p6xm (braces) comes in through the shadcn CLI, used only at build time.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-vfj7-8cjw-p6xm
+
 catalog:
   # tooling
   '@eslint/js': 10.0.1
