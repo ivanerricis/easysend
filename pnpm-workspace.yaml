@@ -82,10 +82,10 @@ catalog:
   '@playwright/test': 1.64.1
   '@axe-core/playwright': 4.13.0
 
-# shadcn 4.22.1 is younger than the minimum release age
-minimumReleaseAgeExclude:
-  - shadcn@4.22.1
-  - nodemailer@10.1.7
+# Redis lockers of @tus/server and @tus/file-store: optional, never used (file store only).
+ignoredOptionalDependencies:
+  - '@redis/client'
+  - ioredis
 
 # eslint-plugin-jsx-a11y 6.10.2 declares peer eslint up to ^9 but works with ESLint 10
 peerDependencyRules:
