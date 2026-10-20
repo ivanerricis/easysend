@@ -1,4 +1,4 @@
-import type { ConfigResponse } from '@easysend/shared';
+import { LINK_PASSWORD_MIN_LENGTH, type ConfigResponse } from '@easysend/shared';
 import { X } from 'lucide-react';
 import { Controller, useWatch, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -250,7 +250,7 @@ export function OptionsFields({ form, config, disabled }: OptionsFieldsProps) {
         control={control}
         name="password"
         label={t('transfers.new.password')}
-        description={t('transfers.new.passwordHint', { min: limits.passwordMinLength })}
+        description={t('transfers.new.passwordHint', { min: LINK_PASSWORD_MIN_LENGTH })}
         optional
       >
         {({ field, controlProps }) => (

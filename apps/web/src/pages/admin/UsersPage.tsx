@@ -170,7 +170,7 @@ export default function UsersPage() {
                 return (
                   <DataRow key={user.id}>
                     <DataCell label={t('admin.users.columns.user')}>
-                      <div className="min-w-0 text-right break-words lg:text-left">
+                      <div className="min-w-0 text-right break-words lg:min-w-52 lg:text-left">
                         <p className="font-medium break-all">{user.email}</p>
                         {user.displayName ? (
                           <p className="text-muted-foreground text-xs">{user.displayName}</p>

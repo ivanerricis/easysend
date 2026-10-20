@@ -205,7 +205,7 @@ export default function TransferDetailPage() {
       <div className="max-w-4xl space-y-8">
         <div className="flex flex-wrap items-center gap-3">
           <StatusBadge status={transfer.status} />
-          <Button asChild variant="link" className="px-0">
+          <Button asChild variant="link" className="px-0 underline underline-offset-4">
             <Link to="/transfers">{t('transfers.detail.backToList')}</Link>
           </Button>
         </div>
