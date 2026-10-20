@@ -280,6 +280,7 @@
       "defaultThemeHelp": "Ogni utente può scegliere il proprio dal profilo."
     },
     "fonts": {
+      "plus-jakarta-sans": "Plus Jakarta Sans (predefinito)",
       "ibm-plex-sans": "IBM Plex Sans",
       "system": "Carattere di sistema"
     },

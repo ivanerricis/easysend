@@ -7,8 +7,19 @@ import { contrastRatio, readableTextColor } from '@easysend/shared';
  * images that carry information. User-controlled text goes in as React children, which escapes it.
  */
 
-export const FONT_STACK =
-  "'IBM Plex Sans', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+const FONT_STACKS: Record<Appearance['font'], string> = {
+  'plus-jakarta-sans': "'Plus Jakarta Sans', 'Segoe UI', Helvetica, Arial, sans-serif",
+  'ibm-plex-sans':
+    "'IBM Plex Sans', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+  system: "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+};
+
+/** Font stack of the instance font; clients without the web font fall back to the system ones. */
+export function fontStack(appearance: Appearance): string {
+  return FONT_STACKS[appearance.font];
+}
+
+export const MONO_STACK = "'JetBrains Mono', ui-monospace, Consolas, monospace";
 
 /** Zinc neutrals of the app. #18181b on #fff is 17:1, #52525b on #fff 7.7:1, on #f4f4f5 7:1. */
 export const COLORS = {
@@ -87,7 +98,7 @@ export function EmailLayout({
           ...reset,
           backgroundColor: COLORS.page,
           color: COLORS.text,
-          fontFamily: FONT_STACK,
+          fontFamily: fontStack(appearance),
           fontSize: 16,
           lineHeight: 1.5,
         }}
@@ -303,7 +314,7 @@ export function Button({
                 display: 'inline-block',
                 padding: '14px 28px',
                 color: readableTextColor(background),
-                fontFamily: FONT_STACK,
+                fontFamily: fontStack(appearance),
                 fontSize: 16,
                 fontWeight: 600,
                 lineHeight: '20px',

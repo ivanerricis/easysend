@@ -2491,7 +2491,7 @@ Public settings: appearance, branding images, setup state
     primaryColor: string (pattern /^#[0-9a-fA-F]{6}$/)
     accentColor: string (pattern /^#[0-9a-fA-F]{6}$/)
     radius: number (min 0, max 2)
-    font: "ibm-plex-sans" | "system"
+    font: "plus-jakarta-sans" | "ibm-plex-sans" | "system"
     defaultTheme: "light" | "dark" | "system"
   }
   assets: {
@@ -2723,7 +2723,7 @@ Replace the appearance settings
   primaryColor: string (pattern /^#[0-9a-fA-F]{6}$/)
   accentColor: string (pattern /^#[0-9a-fA-F]{6}$/)
   radius: number (min 0, max 2)
-  font: "ibm-plex-sans" | "system"
+  font: "plus-jakarta-sans" | "ibm-plex-sans" | "system"
   defaultTheme: "light" | "dark" | "system"
 }
 ```
@@ -2738,7 +2738,7 @@ Replace the appearance settings
     primaryColor: string (pattern /^#[0-9a-fA-F]{6}$/)
     accentColor: string (pattern /^#[0-9a-fA-F]{6}$/)
     radius: number (min 0, max 2)
-    font: "ibm-plex-sans" | "system"
+    font: "plus-jakarta-sans" | "ibm-plex-sans" | "system"
     defaultTheme: "light" | "dark" | "system"
   }
   assets: {
@@ -2786,7 +2786,7 @@ Restore the default appearance
     primaryColor: string (pattern /^#[0-9a-fA-F]{6}$/)
     accentColor: string (pattern /^#[0-9a-fA-F]{6}$/)
     radius: number (min 0, max 2)
-    font: "ibm-plex-sans" | "system"
+    font: "plus-jakarta-sans" | "ibm-plex-sans" | "system"
     defaultTheme: "light" | "dark" | "system"
   }
   assets: {

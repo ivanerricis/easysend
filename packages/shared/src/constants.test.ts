@@ -21,8 +21,8 @@ describe('constants', () => {
     expect(CHUNK_SIZE_MB.max).toBeLessThanOrEqual(50);
   });
 
-  it('uses IBM Plex Sans as the default font', () => {
-    expect(DEFAULT_FONT).toBe('ibm-plex-sans');
+  it('uses Plus Jakarta Sans as the default font', () => {
+    expect(DEFAULT_FONT).toBe('plus-jakarta-sans');
     expect(AVAILABLE_FONTS[0]).toBe(DEFAULT_FONT);
   });
 

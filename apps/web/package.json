@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@easysend/shared": "workspace:*",
-    "@fontsource/ibm-plex-mono": "catalog:",
+    "@fontsource-variable/jetbrains-mono": "catalog:",
+    "@fontsource-variable/plus-jakarta-sans": "catalog:",
     "@fontsource/ibm-plex-sans": "catalog:",
     "@hookform/resolvers": "catalog:",
     "@tanstack/react-query": "catalog:",

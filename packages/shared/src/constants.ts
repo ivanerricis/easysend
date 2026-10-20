@@ -68,9 +68,9 @@ export type AllowedImageType = (typeof ALLOWED_IMAGE_TYPES)[number];
 
 // ---- Appearance ------------------------------------------------------------
 /** Fonts bundled with the app (no external font services). The first is the default. */
-export const AVAILABLE_FONTS = ['ibm-plex-sans', 'system'] as const;
+export const AVAILABLE_FONTS = ['plus-jakarta-sans', 'ibm-plex-sans', 'system'] as const;
 export type AvailableFont = (typeof AVAILABLE_FONTS)[number];
-export const DEFAULT_FONT: AvailableFont = 'ibm-plex-sans';
+export const DEFAULT_FONT: AvailableFont = 'plus-jakarta-sans';
 
 // ---- Pagination ------------------------------------------------------------
 export const PAGE_SIZE_DEFAULT = 20;

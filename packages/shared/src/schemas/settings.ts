@@ -4,6 +4,7 @@ import {
   AVAILABLE_FONTS,
   BRANDING_ASSET_KINDS,
   CHUNK_SIZE_MB,
+  DEFAULT_FONT,
   FOOTER_MAX_LENGTH,
   INSTANCE_NAME_MAX_LENGTH,
   THEME_PREFERENCES,
@@ -128,6 +129,6 @@ export const DEFAULT_APPEARANCE: Appearance = {
   primaryColor: '#18181b',
   accentColor: '#047857',
   radius: 0,
-  font: 'ibm-plex-sans',
+  font: DEFAULT_FONT,
   defaultTheme: 'system',
 };
