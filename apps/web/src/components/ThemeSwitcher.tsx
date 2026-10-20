@@ -1,39 +1,54 @@
 import { Monitor, Moon, Sun } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { THEME_PREFERENCES, useTheme, type ThemePreference } from '@/theme/theme-context';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useTheme, type ThemePreference } from '@/theme/theme-context';
 
 const ICONS = { light: Sun, dark: Moon, system: Monitor } as const;
-const LABEL_KEYS = {
-  light: 'header.themeLight',
-  dark: 'header.themeDark',
-  system: 'header.themeSystem',
-} as const satisfies Record<ThemePreference, string>;
 
+/** Value of the radio group: a theme, or 'instance' when following the instance default. */
+export type ThemeChoice = ThemePreference | 'instance';
+
+/** Compact theme menu for public pages: a 44px button that opens light / dark / system / default. */
 export function ThemeSwitcher() {
   const { t } = useTranslation();
-  const { theme, setTheme } = useTheme();
+  const { theme, source, setTheme } = useTheme();
+  const current: ThemeChoice = source === 'instance' ? 'instance' : theme;
+  const Icon = ICONS[theme];
 
   return (
-    <div role="group" aria-label={t('header.theme')} className="flex items-center gap-1">
-      {THEME_PREFERENCES.map((option) => {
-        const Icon = ICONS[option];
-        const label = t(LABEL_KEYS[option]);
-        return (
-          <Button
-            key={option}
-            type="button"
-            variant={theme === option ? 'default' : 'outline'}
-            className="size-11"
-            aria-pressed={theme === option}
-            aria-label={label}
-            title={label}
-            onClick={() => setTheme(option)}
-          >
-            <Icon aria-hidden="true" className="size-5" />
-          </Button>
-        );
-      })}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label={`${t('common.theme.label')}: ${t(`common.theme.${theme}`)}`}
+        >
+          <Icon aria-hidden="true" className="size-5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuRadioGroup
+          value={current}
+          onValueChange={(value) =>
+            setTheme(value === 'instance' ? null : (value as ThemePreference))
+          }
+        >
+          <DropdownMenuRadioItem value="light">{t('common.theme.light')}</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="dark">{t('common.theme.dark')}</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="system">{t('common.theme.system')}</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="instance">
+            {t('common.theme.instance')}
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

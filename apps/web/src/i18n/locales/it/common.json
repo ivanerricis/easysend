@@ -1,0 +1,148 @@
+{
+  "appName": "EasySend",
+  "skipToContent": "Vai al contenuto principale",
+  "notifications": "Notifiche",
+  "toggleSidebar": "Apri o chiudi il menu",
+  "navigation": "Navigazione",
+  "navigationDescription": "Menu di navigazione dell'applicazione.",
+  "themeSaveFailed": "Impossibile salvare il tema nel profilo.",
+  "languageSaveFailed": "Impossibile salvare la lingua nel profilo.",
+  "nav": {
+    "main": "Navigazione principale",
+    "send": "Invia",
+    "transfers": "Trasferimenti",
+    "admin": "Amministrazione",
+    "users": "Utenti",
+    "allTransfers": "Tutti i trasferimenti",
+    "storage": "Spazio",
+    "settings": "Impostazioni",
+    "appearance": "Aspetto",
+    "profile": "Profilo"
+  },
+  "userMenu": {
+    "label": "Menu utente",
+    "profile": "Profilo",
+    "theme": "Tema",
+    "language": "Lingua",
+    "logout": "Esci",
+    "loggingOut": "Uscita in corso…"
+  },
+  "theme": {
+    "label": "Tema",
+    "light": "Chiaro",
+    "dark": "Scuro",
+    "system": "Sistema",
+    "instance": "Predefinito dell'istanza"
+  },
+  "language": {
+    "label": "Lingua"
+  },
+  "actions": {
+    "save": "Salva",
+    "saving": "Salvataggio…",
+    "cancel": "Annulla",
+    "close": "Chiudi",
+    "confirm": "Conferma",
+    "delete": "Elimina",
+    "edit": "Modifica",
+    "retry": "Riprova",
+    "back": "Indietro",
+    "next": "Avanti",
+    "continue": "Continua",
+    "copy": "Copia",
+    "copied": "Copiato",
+    "copyFailed": "Copia non riuscita: seleziona il testo e copialo a mano.",
+    "download": "Scarica",
+    "send": "Invia",
+    "create": "Crea",
+    "remove": "Rimuovi",
+    "revoke": "Revoca",
+    "resend": "Reinvia",
+    "search": "Cerca",
+    "clear": "Cancella",
+    "add": "Aggiungi",
+    "apply": "Applica",
+    "reset": "Ripristina",
+    "details": "Dettagli",
+    "open": "Apri",
+    "refresh": "Aggiorna",
+    "working": "Operazione in corso…"
+  },
+  "status": {
+    "uploading": "In caricamento",
+    "active": "Attivo",
+    "revoked": "Revocato",
+    "expired": "Scaduto",
+    "deleted": "Eliminato"
+  },
+  "units": {
+    "files_one": "{{count}} file",
+    "files_other": "{{count}} file",
+    "recipients_one": "{{count}} destinatario",
+    "recipients_other": "{{count}} destinatari",
+    "downloads_one": "{{count}} download",
+    "downloads_other": "{{count}} download",
+    "results_one": "{{count}} risultato",
+    "results_other": "{{count}} risultati"
+  },
+  "states": {
+    "loading": "Caricamento in corso…",
+    "loadingPage": "Caricamento della pagina…",
+    "emptyTitle": "Non c'è ancora nulla qui",
+    "errorTitle": "Qualcosa è andato storto",
+    "requestId": "Codice richiesta",
+    "requestIdHint": "Comunicalo all'amministratore se il problema continua."
+  },
+  "pagination": {
+    "label": "Paginazione",
+    "previous": "Pagina precedente",
+    "next": "Pagina successiva",
+    "page": "Pagina {{page}}",
+    "pageOf": "Pagina {{page}} di {{pages}}",
+    "total_one": "{{count}} elemento",
+    "total_other": "{{count}} elementi"
+  },
+  "notFound": {
+    "title": "Pagina non trovata",
+    "description": "L'indirizzo che hai aperto non esiste o non è più disponibile.",
+    "home": "Torna alla home"
+  },
+  "quota": {
+    "label": "Spazio usato",
+    "usedOf": "{{used}} di {{quota}}",
+    "unlimited": "{{used}} usati, senza limite",
+    "full": "Spazio quasi esaurito"
+  },
+  "form": {
+    "errorSummaryTitle": "Controlla i campi indicati",
+    "required": "obbligatorio",
+    "optional": "facoltativo"
+  },
+  "password": {
+    "show": "Mostra la password",
+    "hide": "Nascondi la password"
+  },
+  "otp": {
+    "label": "Codice a 6 cifre",
+    "hint": "Inserisci il codice generato dalla tua app di autenticazione."
+  },
+  "qr": {
+    "label": "Codice QR da scansionare con la tua app di autenticazione"
+  },
+  "recoveryCodes": {
+    "title": "Codici di recupero",
+    "description": "Ogni codice si usa una sola volta se perdi l'accesso all'app di autenticazione. Non verranno mostrati di nuovo.",
+    "copyAll": "Copia tutti",
+    "download": "Scarica .txt",
+    "confirm": "Ho salvato i codici di recupero in un posto sicuro",
+    "fileName": "codici-di-recupero-easysend.txt",
+    "fileHeader": "Codici di recupero EasySend"
+  },
+  "confirmDialog": {
+    "confirm": "Conferma",
+    "cancel": "Annulla"
+  },
+  "route": {
+    "titleSuffix": "{{title}} · {{name}}"
+  }
+}

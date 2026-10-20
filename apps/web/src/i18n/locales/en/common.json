@@ -1,0 +1,148 @@
+{
+  "appName": "EasySend",
+  "skipToContent": "Skip to main content",
+  "notifications": "Notifications",
+  "toggleSidebar": "Toggle menu",
+  "navigation": "Navigation",
+  "navigationDescription": "Application navigation menu.",
+  "themeSaveFailed": "Could not save the theme to your profile.",
+  "languageSaveFailed": "Could not save the language to your profile.",
+  "nav": {
+    "main": "Main navigation",
+    "send": "Send",
+    "transfers": "Transfers",
+    "admin": "Administration",
+    "users": "Users",
+    "allTransfers": "All transfers",
+    "storage": "Storage",
+    "settings": "Settings",
+    "appearance": "Appearance",
+    "profile": "Profile"
+  },
+  "userMenu": {
+    "label": "User menu",
+    "profile": "Profile",
+    "theme": "Theme",
+    "language": "Language",
+    "logout": "Sign out",
+    "loggingOut": "Signing out…"
+  },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "instance": "Instance default"
+  },
+  "language": {
+    "label": "Language"
+  },
+  "actions": {
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "close": "Close",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "retry": "Retry",
+    "back": "Back",
+    "next": "Next",
+    "continue": "Continue",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyFailed": "Copy failed: select the text and copy it manually.",
+    "download": "Download",
+    "send": "Send",
+    "create": "Create",
+    "remove": "Remove",
+    "revoke": "Revoke",
+    "resend": "Resend",
+    "search": "Search",
+    "clear": "Clear",
+    "add": "Add",
+    "apply": "Apply",
+    "reset": "Reset",
+    "details": "Details",
+    "open": "Open",
+    "refresh": "Refresh",
+    "working": "Working…"
+  },
+  "status": {
+    "uploading": "Uploading",
+    "active": "Active",
+    "revoked": "Revoked",
+    "expired": "Expired",
+    "deleted": "Deleted"
+  },
+  "units": {
+    "files_one": "{{count}} file",
+    "files_other": "{{count}} files",
+    "recipients_one": "{{count}} recipient",
+    "recipients_other": "{{count}} recipients",
+    "downloads_one": "{{count}} download",
+    "downloads_other": "{{count}} downloads",
+    "results_one": "{{count}} result",
+    "results_other": "{{count}} results"
+  },
+  "states": {
+    "loading": "Loading…",
+    "loadingPage": "Loading page…",
+    "emptyTitle": "Nothing here yet",
+    "errorTitle": "Something went wrong",
+    "requestId": "Request ID",
+    "requestIdHint": "Share it with the administrator if the problem persists."
+  },
+  "pagination": {
+    "label": "Pagination",
+    "previous": "Previous page",
+    "next": "Next page",
+    "page": "Page {{page}}",
+    "pageOf": "Page {{page}} of {{pages}}",
+    "total_one": "{{count}} item",
+    "total_other": "{{count}} items"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The address you opened does not exist or is no longer available.",
+    "home": "Back to home"
+  },
+  "quota": {
+    "label": "Storage used",
+    "usedOf": "{{used}} of {{quota}}",
+    "unlimited": "{{used}} used, no limit",
+    "full": "Storage almost full"
+  },
+  "form": {
+    "errorSummaryTitle": "Please check the fields below",
+    "required": "required",
+    "optional": "optional"
+  },
+  "password": {
+    "show": "Show password",
+    "hide": "Hide password"
+  },
+  "otp": {
+    "label": "6-digit code",
+    "hint": "Enter the code from your authenticator app."
+  },
+  "qr": {
+    "label": "QR code to scan with your authenticator app"
+  },
+  "recoveryCodes": {
+    "title": "Recovery codes",
+    "description": "Each code can be used once if you lose access to your authenticator app. They will not be shown again.",
+    "copyAll": "Copy all",
+    "download": "Download .txt",
+    "confirm": "I have saved the recovery codes in a safe place",
+    "fileName": "easysend-recovery-codes.txt",
+    "fileHeader": "EasySend recovery codes"
+  },
+  "confirmDialog": {
+    "confirm": "Confirm",
+    "cancel": "Cancel"
+  },
+  "route": {
+    "titleSuffix": "{{title}} · {{name}}"
+  }
+}
