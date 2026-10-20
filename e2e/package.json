@@ -1,0 +1,16 @@
+{
+  "name": "@easysend/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "catalog:",
+    "@playwright/test": "catalog:",
+    "@types/node": "catalog:",
+    "otpauth": "catalog:",
+    "typescript": "catalog:"
+  }
+}

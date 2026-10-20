@@ -19,3 +19,5 @@ Thumbs.db
 .idea/
 .vscode/
 .claude/settings.local.json
+e2e/.output/
+e2e/playwright-report/

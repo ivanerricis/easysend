@@ -13,6 +13,8 @@ export default tseslint.config(
       '.local-data/**',
       'apps/api/drizzle/**',
       'docs/**',
+      'e2e/.output/**',
+      'e2e/playwright-report/**',
     ],
   },
   js.configs.recommended,
@@ -36,6 +38,10 @@ export default tseslint.config(
   {
     files: ['apps/api/**/*.{ts,tsx}', 'packages/shared/**/*.ts'],
     languageOptions: { globals: globals.node },
+  },
+  {
+    files: ['e2e/**/*.ts'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
   {
     files: ['apps/web/**/*.{ts,tsx}'],
