@@ -22,6 +22,8 @@ const boolish = z
 const positiveInt = z.coerce.number().int().positive();
 const nonNegativeInt = z.coerce.number().int().nonnegative();
 
+const DEFAULT_UPDATE_CHECK_URL =
+  'https://api.github.com/repos/ivanerricis/easysend/releases/latest';
 const DEFAULT_CLOUDFLARE_API_BASE = 'https://api.cloudflare.com/client/v4';
 
 const envSchema = z.object({
@@ -56,6 +58,8 @@ const envSchema = z.object({
   APP_VERSION: z.string().min(1).optional(),
   // Automated tests only (the E2E stack points it at a fake server). Never set in production.
   CLOUDFLARE_API_BASE: z.url().default(DEFAULT_CLOUDFLARE_API_BASE),
+  // Where the admin update notice looks for the latest release (GitHub API format).
+  UPDATE_CHECK_URL: z.url().default(DEFAULT_UPDATE_CHECK_URL),
 });
 
 export interface AppConfig {
@@ -90,6 +94,8 @@ export interface AppConfig {
   smtpDevPort: number | undefined;
   /** Cloudflare API base URL without a trailing slash (only tests override it). */
   cloudflareApiBase: string;
+  /** URL of the latest-release document (GitHub API format) used by the update notice. */
+  updateCheckUrl: string;
   version: string;
 }
 
@@ -135,6 +141,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     secretsDir: path.join(dataDir, 'secrets'),
     sharedDir: e.SHARED_DIR,
     cloudflareApiBase: e.CLOUDFLARE_API_BASE.replace(/\/+$/, ''),
+    updateCheckUrl: e.UPDATE_CHECK_URL,
     setupCodeTtlMinutes: e.SETUP_CODE_TTL_MINUTES,
     passwordResetTtlMinutes: e.PASSWORD_RESET_TTL_MINUTES,
     logRetentionDays: e.LOG_RETENTION_DAYS,

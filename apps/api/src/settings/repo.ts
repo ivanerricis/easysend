@@ -95,6 +95,10 @@ export interface SettingValues {
   setup_admin_pending: SetupAdminPending;
   branding_assets: BrandingAssetsSetting;
 }
+/** What `set` accepts: `general` may omit fields that have a default (e.g. `updateCheck`). */
+export type SettingInputs = Omit<SettingValues, 'general'> & {
+  general: z.input<typeof generalSettingsSchema>;
+};
 export type SettingKey = keyof SettingValues;
 
 /** Keys whose whole JSON value is encrypted at rest (`is_encrypted = 1`), with the key purpose. */
@@ -109,7 +113,7 @@ export const DEFAULT_INSTANCE_NAME = 'EasySend';
 export interface SettingsRepo {
   /** Typed read. Undefined when missing or when the stored value no longer matches its schema. */
   get<K extends SettingKey>(key: K): SettingValues[K] | undefined;
-  set<K extends SettingKey>(key: K, value: SettingValues[K]): void;
+  set<K extends SettingKey>(key: K, value: SettingInputs[K]): void;
   delete(key: SettingKey): void;
   /** Instance default language (`general.defaultLocale`), `it` when unset. */
   getDefaultLocale(): Locale;

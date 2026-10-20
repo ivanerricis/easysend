@@ -144,5 +144,9 @@
   },
   "route": {
     "titleSuffix": "{{title}} · {{name}}"
+  },
+  "updateNotice": {
+    "label": "Update available",
+    "aria": "Update available: {{version}}. Go to settings."
   }
 }

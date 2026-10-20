@@ -7,6 +7,7 @@ import type {
   ListUsersResponse,
   StorageResponse,
   TunnelStatusResponse,
+  UpdateStatusResponse,
   UpdateUserRequest,
   createUserRequestSchema,
 } from '@easysend/shared';
@@ -22,6 +23,7 @@ const api = createApi([
   'admin.storage',
   'admin.tunnelGet',
   'admin.tunnelSet',
+  'admin.updates',
 ] as const);
 
 export const USED_ENDPOINTS = api.ids;
@@ -66,4 +68,12 @@ export function getTunnel(): Promise<TunnelStatusResponse> {
 /** Configures (or reconfigures) the Cloudflare tunnel. The API token is never stored. */
 export function setTunnel(body: CloudflareRequest): Promise<CloudflareResponse> {
   return api.call('admin.tunnelSet', { body });
+}
+
+/**
+ * Is a newer release available? `refresh` skips the server cache (limited to 10 per hour). The
+ * server asks GitHub only when the "check for updates" setting is on.
+ */
+export function getUpdateStatus(refresh = false): Promise<UpdateStatusResponse> {
+  return api.call('admin.updates', refresh ? { query: { refresh: true } } : {});
 }

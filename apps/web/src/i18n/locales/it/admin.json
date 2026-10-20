@@ -183,7 +183,9 @@
       "errors": {
         "reserve": "Inserisci un numero intero di MB, da 0 a 10485760.",
         "chunk": "Inserisci un numero intero di MB, da 1 a 50."
-      }
+      },
+      "updateCheck": "Controlla gli aggiornamenti",
+      "updateCheckHelp": "Una volta al giorno il server chiede a GitHub l'ultima versione pubblicata. Nessun dato dell'istanza viene inviato."
     },
     "smtp": {
       "title": "Posta in uscita (SMTP)",
@@ -247,15 +249,41 @@
         "subdomain": "Usa solo lettere, numeri e trattini.",
         "token": "Inserisci il token API di Cloudflare (almeno 20 caratteri)."
       }
+    },
+    "updates": {
+      "title": "Aggiornamenti",
+      "description": "Versione in uso e ultima versione pubblicata su GitHub.",
+      "current": "Versione in uso",
+      "latest": "Ultima versione",
+      "published": "Pubblicata il",
+      "checked": "Ultimo controllo",
+      "status": "Stato",
+      "upToDate": "Aggiornato",
+      "available": "Aggiornamento disponibile",
+      "disabled": "Controllo disattivato",
+      "unavailable": "GitHub non raggiungibile",
+      "disabledHint": "Attiva «Controlla gli aggiornamenti» nella sezione Generali per sapere quando esce una nuova versione.",
+      "unavailableHint": "Il server non è riuscito a leggere l'ultima versione. Riprova più tardi.",
+      "devBuild": "Questa istanza usa la versione «{{version}}», che non è un numero di rilascio: non viene confrontata con le versioni pubblicate.",
+      "checkNow": "Controlla ora",
+      "checking": "Controllo in corso…",
+      "releaseNotes": "Note di rilascio",
+      "newTab": "(si apre in una nuova scheda)",
+      "howTitle": "Come aggiornare",
+      "howBody": "Sul server che ospita EasySend esegui questi comandi. Il deploy scarica le nuove immagini, fa un backup e riavvia lo stack.",
+      "commands": "Comandi da eseguire sul server",
+      "docs": "Guida all'aggiornamento",
+      "docsUrl": "https://ivanerricis.github.io/easysend/it/guide/updates",
+      "refreshed": "Controllo completato."
     }
   },
   "appearance": {
-    "description": "Nome, colori, carattere e immagini delle pagine pubbliche e delle email. L'anteprima si aggiorna mentre scrivi.",
+    "description": "Nome, colori, carattere e immagini delle pagine pubbliche e delle email. Le modifiche si applicano a tutte le pagine dopo il salvataggio.",
     "savedToast": "Aspetto salvato.",
     "resetToast": "Aspetto predefinito ripristinato.",
     "resetDefaults": "Ripristina i valori predefiniti",
     "resetTitle": "Ripristinare l'aspetto predefinito?",
-    "resetDescription": "Nome, piè di pagina, colori, raggio, carattere e tema tornano ai valori predefiniti di {{name}}. Le immagini caricate restano.",
+    "resetDescription": "Nome, piè di pagina, colori, raggio, carattere e tema tornano ai valori predefiniti di {{name}}. Anche i loghi, la favicon e lo sfondo caricati vengono rimossi.",
     "resetConfirm": "Ripristina",
     "errors": {
       "instanceName": "Inserisci un nome da 1 a 60 caratteri.",

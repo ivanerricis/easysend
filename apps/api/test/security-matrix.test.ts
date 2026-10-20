@@ -42,6 +42,7 @@ const COVERED_IDS: ReadonlySet<string> = new Set([
   'admin.storage',
   'admin.tunnelGet',
   'admin.tunnelSet',
+  'admin.updates',
 ]);
 const isSetup = (e: EndpointDef): boolean => e.tag === 'setup';
 /** Endpoints outside the covered set that are mounted (and covered by their own tests). */
@@ -54,6 +55,7 @@ const EXPECTED_IDS = [
   'admin.storage',
   'admin.tunnelGet',
   'admin.tunnelSet',
+  'admin.updates',
   'auth.csrf',
   'auth.login',
   'auth.login2fa',

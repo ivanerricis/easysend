@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 
 /**
@@ -206,6 +207,50 @@ export function CheckboxField<TValues extends FieldValues, TName extends FieldPa
             ) : null}
             {message ? (
               <FieldError id={errorId}>{t(message, { defaultValue: message })}</FieldError>
+            ) : null}
+          </Field>
+        );
+      }}
+    />
+  );
+}
+
+/** Switch for an on/off setting: label on the left, switch on the right, in a row of at least 44px. */
+export function SwitchField<TValues extends FieldValues, TName extends FieldPath<TValues>>({
+  control,
+  name,
+  label,
+  description,
+  idPrefix,
+  className,
+  disabled,
+}: CheckboxFieldProps<TValues, TName>) {
+  const id = fieldId(name, idPrefix);
+  return (
+    <Controller
+      control={control}
+      name={name}
+      render={({ field, fieldState }) => {
+        const descriptionId = description ? `${id}-description` : undefined;
+        return (
+          <Field data-invalid={fieldState.invalid || undefined} className={className}>
+            <div className="flex min-h-11 items-center justify-between gap-4">
+              <FieldLabel htmlFor={id} className="min-h-11 flex-1 py-3 text-sm font-medium">
+                {label}
+              </FieldLabel>
+              <Switch
+                id={id}
+                checked={field.value === true}
+                onCheckedChange={(checked) => field.onChange(checked)}
+                onBlur={field.onBlur}
+                ref={field.ref}
+                name={field.name}
+                disabled={disabled}
+                aria-describedby={descriptionId}
+              />
+            </div>
+            {description ? (
+              <FieldDescription id={descriptionId}>{description}</FieldDescription>
             ) : null}
           </Field>
         );

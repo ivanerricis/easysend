@@ -107,6 +107,7 @@ describe('setup wizard: happy path (local mode)', () => {
       diskReserveMb: 1024,
       chunkSizeMb: 25,
       defaultLocale: 'en',
+      updateCheck: true,
     });
 
     status = bodyAs(await client.get('/api/setup/status'));

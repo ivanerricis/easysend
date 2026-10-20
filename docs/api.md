@@ -2,7 +2,7 @@
 
 # easysend API contract
 
-68 endpoints. Source of truth: the Zod schemas and the endpoint registry in `packages/shared`; this file is generated from them (`pnpm api:docs`, checked in CI).
+69 endpoints. Source of truth: the Zod schemas and the endpoint registry in `packages/shared`; this file is generated from them (`pnpm api:docs`, checked in CI).
 
 ## Decisions to approve
 
@@ -157,10 +157,11 @@
 | GET | `/api/admin/storage` | admin | Disk usage and per-user storage |
 | GET | `/api/admin/tunnel` | admin | Domain and Cloudflare tunnel status |
 | POST | `/api/admin/tunnel` | admin | Configure or change the domain and tunnel |
+| GET | `/api/admin/updates` | admin | Is a newer release available? |
 | GET | `/api/public/settings` | public | Public settings: appearance, branding images, setup state |
 | GET | `/api/assets/:kind` | public | Branding image |
 | GET | `/api/admin/settings` | admin | General and SMTP settings |
-| PATCH | `/api/admin/settings` | admin | Update general settings (disk reserve, chunk size, default language) |
+| PATCH | `/api/admin/settings` | admin | Update general settings (disk reserve, chunk size, default language, update check) |
 | PUT | `/api/admin/settings/smtp` | admin | Change the SMTP settings |
 | POST | `/api/admin/settings/smtp/test` | admin | Send a test email to the current admin |
 | PUT | `/api/admin/settings/appearance` | admin | Replace the appearance settings |
@@ -499,6 +500,7 @@ Save the general settings
   diskReserveMb: integer (min 0, max 10485760)
   chunkSizeMb: integer (min 1, max 50)
   defaultLocale: "it" | "en"
+  updateCheck?: boolean  // default true
   instanceName: string (min 1, max 60)
   defaultTheme: "light" | "dark" | "system"
 }
@@ -2468,6 +2470,39 @@ Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `FORBIDD
 
 **Notes:** Same logic and schema as `POST /api/setup/cloudflare`, usable after the setup. The API token is not stored. In local mode it answers 409 `NOT_APPLICABLE_IN_LOCAL_MODE`.
 
+### `GET /api/admin/updates`
+
+Is a newer release available?
+
+**Auth:** `admin` · **CSRF:** no · **Rate limit:** `updateCheck` · **Success:** `200` json · **Id:** `admin.updates`
+
+**Query**
+
+```ts
+{
+  refresh?: "true" | "false"
+}
+```
+
+**Response `200`**
+
+```ts
+{
+  enabled: boolean
+  currentVersion: string
+  latestVersion: string | null
+  updateAvailable: boolean
+  releaseUrl: string | null
+  publishedAt: integer (min 0) | null
+  checkedAt: integer (min 0) | null
+  status: "ok" | "disabled" | "unavailable"
+}
+```
+
+Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `FORBIDDEN`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`.
+
+**Notes:** Asks the GitHub releases API for the latest published release, only when an admin calls this endpoint (no background job) and only when the `updateCheck` setting is on. A success is cached for 24 hours and a failure for 1 hour; `refresh=true` skips the success cache (at most 10 per hour). The request carries no data of the instance, only a `User-Agent` with the running version. A network error or an invalid answer is not an HTTP error: the response is 200 with `status: "unavailable"`. When the running version is not a release number (e.g. `0.0.0-dev`), `updateAvailable` is always false.
+
 ## Settings and appearance
 
 Public settings and branding images, plus the admin settings pages.
@@ -2569,6 +2604,7 @@ General and SMTP settings
     diskReserveMb: integer (min 0, max 10485760)
     chunkSizeMb: integer (min 1, max 50)
     defaultLocale: "it" | "en"
+    updateCheck: boolean  // default true
   }
   smtp:
   | {
@@ -2590,7 +2626,7 @@ Also possible: `401` `UNAUTHENTICATED`, `403` `FORBIDDEN`, `500` `INTERNAL_ERROR
 
 ### `PATCH /api/admin/settings`
 
-Update general settings (disk reserve, chunk size, default language)
+Update general settings (disk reserve, chunk size, default language, update check)
 
 **Auth:** `admin` · **CSRF:** required · **Success:** `200` json · **Id:** `settings.adminUpdate`
 
@@ -2601,6 +2637,7 @@ Update general settings (disk reserve, chunk size, default language)
   diskReserveMb?: integer (min 0, max 10485760)
   chunkSizeMb?: integer (min 1, max 50)
   defaultLocale?: "it" | "en"
+  updateCheck?: boolean
 }
 ```
 
@@ -2612,6 +2649,7 @@ Update general settings (disk reserve, chunk size, default language)
     diskReserveMb: integer (min 0, max 10485760)
     chunkSizeMb: integer (min 1, max 50)
     defaultLocale: "it" | "en"
+    updateCheck: boolean  // default true
   }
   smtp:
   | {

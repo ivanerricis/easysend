@@ -42,6 +42,16 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ CLOUDFLARE_API_BASE: 'not a url' })).toThrow(ConfigError);
   });
 
+  it('uses the GitHub releases API for the update check unless UPDATE_CHECK_URL is set', () => {
+    expect(loadConfig({}).updateCheckUrl).toBe(
+      'https://api.github.com/repos/ivanerricis/easysend/releases/latest',
+    );
+    expect(
+      loadConfig({ UPDATE_CHECK_URL: 'https://mirror.example.org/x.json' }).updateCheckUrl,
+    ).toBe('https://mirror.example.org/x.json');
+    expect(() => loadConfig({ UPDATE_CHECK_URL: 'nope' })).toThrow(ConfigError);
+  });
+
   it('defaults PUBLIC_URL and TRUST_PROXY in local mode', () => {
     const config = loadConfig({ APP_MODE: 'local' });
     expect(config.publicUrl).toBe('http://localhost:8080');

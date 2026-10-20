@@ -57,6 +57,7 @@ export function settingsRouter(ctx: AppContext): Router {
     diskReserveMb: ctx.config.defaultDiskReserveMb,
     chunkSizeMb: ctx.config.defaultChunkSizeMb,
     defaultLocale: settings.getDefaultLocale(),
+    updateCheck: true,
     ...settings.get('general'),
   });
 
