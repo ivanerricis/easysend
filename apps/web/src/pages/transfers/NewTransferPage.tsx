@@ -8,7 +8,6 @@ import { FormErrorSummary } from '@/components/common/FormErrorSummary';
 import { PageHeader } from '@/components/common/PageHeader';
 import { ErrorState, LoadingState } from '@/components/common/States';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import { clearDraft, loadDraft, saveDraft, type DraftRecord } from '@/features/upload/draft';
 import type { UploadItem } from '@/features/upload/runner';
 import type { RunnerEvent } from '@/features/upload/types';
@@ -28,6 +27,7 @@ import {
 import { OptionsFields, commitRecipientInput } from './new/OptionsFields';
 import { ResumeBanner } from './new/ResumeBanner';
 import { SelectedFiles } from './new/SelectedFiles';
+import { QuotaMeter, SubmitBar } from './new/TransferSummary';
 import { SuccessPanel } from './new/SuccessPanel';
 import { UploadProgressPanel } from './new/UploadProgressPanel';
 
@@ -253,13 +253,16 @@ export default function NewTransferPage() {
               onResume={handleResume}
             />
           ) : null}
-          <form onSubmit={onSubmit} noValidate className="space-y-8">
+          <form onSubmit={onSubmit} noValidate className="space-y-6 pb-28 lg:pb-0">
             <FormErrorSummary
               errors={form.formState.errors}
               submitCount={form.formState.submitCount}
             />
-            <div className="grid gap-8 lg:grid-cols-2">
-              <section aria-labelledby="files-heading" className="space-y-4">
+            <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-x-10">
+              <section
+                aria-labelledby="files-heading"
+                className="space-y-4 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-1 lg:self-start lg:border lg:p-5"
+              >
                 <h2 id="files-heading" className="text-base font-semibold">
                   {t('transfers.new.filesHeading')}
                 </h2>
@@ -281,43 +284,40 @@ export default function NewTransferPage() {
                   {fileNotice}
                 </p>
                 <SelectedFiles files={files} onRemove={removeFile} />
+                {me.data ? (
+                  <QuotaMeter
+                    quotaBytes={me.data.quotaBytes}
+                    usedBytes={me.data.usedBytes}
+                    selectedBytes={total}
+                  />
+                ) : null}
+                {overQuota ? (
+                  <Alert variant="destructive" role="alert">
+                    <AlertTriangle aria-hidden="true" />
+                    <AlertDescription>
+                      {t('transfers.new.overQuota', {
+                        total: formatBytes(total, i18n.language),
+                        remaining: formatBytes(remaining ?? 0, i18n.language),
+                      })}
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+                <SubmitBar
+                  fileCount={files.length}
+                  totalBytes={total}
+                  disabled={overQuota}
+                  label={
+                    mode === 'email'
+                      ? t('transfers.new.submitEmail')
+                      : t('transfers.new.submitLink')
+                  }
+                />
               </section>
 
-              <section aria-labelledby="options-heading" className="space-y-4">
-                <h2 id="options-heading" className="text-base font-semibold">
-                  {t('transfers.new.optionsHeading')}
-                </h2>
+              <div className="lg:col-start-1 lg:row-start-1">
                 <OptionsFields form={form} config={config.data} />
-              </section>
+              </div>
             </div>
-
-            {me.data ? (
-              <p className="text-muted-foreground text-sm">
-                {me.data.quotaBytes === null
-                  ? t('transfers.new.quotaUnlimited', {
-                      used: formatBytes(me.data.usedBytes, i18n.language),
-                    })
-                  : t('transfers.new.quotaRemaining', {
-                      remaining: formatBytes(remaining ?? 0, i18n.language),
-                      quota: formatBytes(me.data.quotaBytes, i18n.language),
-                    })}
-              </p>
-            ) : null}
-            {overQuota ? (
-              <Alert variant="destructive" role="alert">
-                <AlertTriangle aria-hidden="true" />
-                <AlertDescription>
-                  {t('transfers.new.overQuota', {
-                    total: formatBytes(total, i18n.language),
-                    remaining: formatBytes(remaining ?? 0, i18n.language),
-                  })}
-                </AlertDescription>
-              </Alert>
-            ) : null}
-
-            <Button type="submit" size="lg" disabled={overQuota}>
-              {mode === 'email' ? t('transfers.new.submitEmail') : t('transfers.new.submitLink')}
-            </Button>
           </form>
         </>
       )}
