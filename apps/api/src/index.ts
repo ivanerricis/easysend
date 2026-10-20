@@ -49,8 +49,9 @@ async function main(): Promise<void> {
   });
   // Uploads and downloads can run for a long time: do not cut them off.
   server.requestTimeout = 0;
-  server.headersTimeout = 60_000;
   server.keepAliveTimeout = 65_000;
+  // Must exceed keepAliveTimeout, otherwise Node may drop an idle keep-alive socket early.
+  server.headersTimeout = 66_000;
 
   let shuttingDown = false;
   const shutdown = (signal: string): void => {

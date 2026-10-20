@@ -1,4 +1,5 @@
 import { Writable } from 'node:stream';
+import supertest from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import { generateTotpCode } from '../src/auth/totp.js';
 import { SESSION_COOKIE } from '../src/http/cookies.js';
@@ -163,5 +164,46 @@ describe('no secrets in logs or audit rows', () => {
       if (leaks(audit, value)) leaked.push(`${label} found in audit rows`);
     }
     expect(leaked).toEqual([]);
+  });
+
+  it('logs requests without client IPs, headers or download tokens', async () => {
+    const { lines, logger } = memoryLogger();
+    const t = await createTestApp({ logger });
+    const token = 'dlTokenAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+    const headers = {
+      'X-Forwarded-For': '203.0.113.7',
+      'CF-Connecting-IP': '198.51.100.9',
+      'User-Agent': 'LeakyBrowser/9.9',
+    };
+
+    await supertest(t.app).get(`/api/downloads/${token}`).set(headers);
+    await supertest(t.app).get(`/api/downloads/${token}/files/f1?probe=secretquery`).set(headers);
+    await supertest(t.app).get('/api/public/settings').set(headers);
+
+    const requestLines = lines.filter((l) => l.includes('request completed'));
+    expect(requestLines.length).toBeGreaterThanOrEqual(3);
+    const log = lines.join('\n').toLowerCase();
+    for (const forbidden of [
+      '203.0.113.7',
+      '198.51.100.9',
+      '127.0.0.1',
+      '::ffff:',
+      token,
+      'secretquery',
+      'leakybrowser',
+      'x-forwarded-for',
+      'cf-connecting-ip',
+      'user-agent',
+      'remoteaddress',
+    ]) {
+      expect(log, forbidden).not.toContain(forbidden.toLowerCase());
+    }
+    const entry = JSON.parse(requestLines[0] as string) as Record<string, unknown>;
+    expect(entry.req).toEqual({
+      id: expect.any(String) as unknown,
+      method: 'GET',
+      url: '/api/downloads/[token]',
+    });
+    expect(entry.res).toEqual({ statusCode: expect.any(Number) as unknown });
   });
 });

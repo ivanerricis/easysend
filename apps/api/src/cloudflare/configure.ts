@@ -59,7 +59,12 @@ export async function configureTunnel(
   }
   const domain = input.domain.toLowerCase();
   const hostname = (input.subdomain ? `${input.subdomain}.${domain}` : domain).toLowerCase();
-  const client = createCloudflareClient(ctx.cloudflareFetch, input.apiToken, ctx.logger);
+  const client = createCloudflareClient(
+    ctx.cloudflareFetch,
+    input.apiToken,
+    ctx.logger,
+    ctx.config.cloudflareApiBase,
+  );
   const stored = ctx.settings.get('tunnel');
 
   // Zone of the domain (gives the account too).

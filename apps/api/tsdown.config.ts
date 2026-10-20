@@ -6,6 +6,8 @@ export default defineConfig({
     'cli/migrate': 'src/cli/migrate.ts',
     'cli/create-admin': 'src/cli/create-admin.ts',
     'cli/rotate-key': 'src/cli/rotate-key.ts',
+    'cli/backup-db': 'src/cli/backup-db.ts',
+    'cli/restore-db': 'src/cli/restore-db.ts',
   },
   format: 'esm',
   platform: 'node',

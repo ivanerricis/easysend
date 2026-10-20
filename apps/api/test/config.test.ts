@@ -33,6 +33,15 @@ describe('loadConfig', () => {
     expect(config.storageDir).toBe('/mnt/files');
   });
 
+  it('uses the Cloudflare API by default and normalizes CLOUDFLARE_API_BASE', () => {
+    expect(loadConfig({}).cloudflareApiBase).toBe('https://api.cloudflare.com/client/v4');
+    expect(
+      loadConfig({ CLOUDFLARE_API_BASE: 'http://fake-cloudflare:8787/client/v4/' })
+        .cloudflareApiBase,
+    ).toBe('http://fake-cloudflare:8787/client/v4');
+    expect(() => loadConfig({ CLOUDFLARE_API_BASE: 'not a url' })).toThrow(ConfigError);
+  });
+
   it('defaults PUBLIC_URL and TRUST_PROXY in local mode', () => {
     const config = loadConfig({ APP_MODE: 'local' });
     expect(config.publicUrl).toBe('http://localhost:8080');

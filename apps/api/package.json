@@ -12,6 +12,8 @@
     "db:migrate": "tsx src/cli/migrate.ts",
     "user:create-admin": "tsx src/cli/create-admin.ts",
     "key:rotate": "tsx src/cli/rotate-key.ts",
+    "db:backup": "tsx src/cli/backup-db.ts",
+    "db:restore": "tsx src/cli/restore-db.ts",
     "mail:preview": "tsx scripts/mail-preview.ts"
   },
   "dependencies": {

@@ -261,6 +261,21 @@ describe('tus metadata and ownership', () => {
     expect((await tusHead(t, owner, location)).headers['upload-offset']).toBe('0');
   });
 
+  it('answers 404 to upload ids that fail the contract schema, before any DB lookup', async () => {
+    const t = await createUploadApp();
+    const { client } = await userWithClient(t);
+    const location = `/api/uploads/${'x'.repeat(65)}`;
+
+    const head = await tusHead(t, client, location);
+    expect(head.status).toBe(404);
+    const patch = await tusPatch(t, client, location, 0, randomBytes(10));
+    expect(patch.status).toBe(404);
+    expect(errorCode(patch)).toBe('NOT_FOUND');
+    const del = await tusRequest(t, client, 'delete', location);
+    expect(del.status).toBe(404);
+    expect(errorCode(del)).toBe('NOT_FOUND');
+  });
+
   it('answers 404 for an unknown upload id', async () => {
     const t = await createUploadApp();
     const { client } = await userWithClient(t);

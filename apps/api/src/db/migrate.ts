@@ -60,16 +60,22 @@ function lastAppliedAt(sqlite: SqliteDatabase): number | undefined {
   return row?.last ?? undefined;
 }
 
-function timestamp(): string {
-  return new Date().toISOString().replace(/[-:]/g, '').replace(/\..+$/, '');
+export function backupTimestamp(date: Date = new Date()): string {
+  return date.toISOString().replace(/[-:]/g, '').replace(/\..+$/, '');
 }
 
-function pruneBackups(backupDir: string, logger: Logger): void {
+/** Deletes all but the newest `keep` files of `backupDir` whose name matches `pattern`. */
+export function pruneBackups(
+  backupDir: string,
+  logger: Logger,
+  pattern: RegExp = BACKUP_FILE,
+  keep: number = BACKUPS_TO_KEEP,
+): void {
   const files = readdirSync(backupDir)
-    .filter((name) => BACKUP_FILE.test(name))
+    .filter((name) => pattern.test(name))
     .map((name) => ({ name, mtime: statSync(path.join(backupDir, name)).mtimeMs }))
     .sort((a, b) => b.mtime - a.mtime || b.name.localeCompare(a.name));
-  for (const old of files.slice(BACKUPS_TO_KEEP)) {
+  for (const old of files.slice(keep)) {
     unlinkSync(path.join(backupDir, old.name));
     logger.info({ file: old.name }, 'removed old database backup');
   }
@@ -98,7 +104,7 @@ export async function runMigrations(
   if (last !== undefined) {
     mkdirSync(backupDir, { recursive: true });
     const lastTag = pending[pending.length - 1]?.tag ?? 'unknown';
-    backupPath = path.join(backupDir, `app-pre-${lastTag}-${timestamp()}.sqlite`);
+    backupPath = path.join(backupDir, `app-pre-${lastTag}-${backupTimestamp()}.sqlite`);
     await sqlite.backup(backupPath);
     logger.info({ file: path.basename(backupPath) }, 'database backup created before migration');
     pruneBackups(backupDir, logger);

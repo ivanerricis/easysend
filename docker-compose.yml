@@ -7,6 +7,12 @@ x-common: &common
     - no-new-privileges:true
   cap_drop:
     - ALL
+  # Rotate container logs: at most 3 files of 10 MB per service.
+  logging:
+    driver: json-file
+    options:
+      max-size: '10m'
+      max-file: '3'
 
 services:
   api:

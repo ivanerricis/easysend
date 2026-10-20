@@ -22,6 +22,8 @@ const boolish = z
 const positiveInt = z.coerce.number().int().positive();
 const nonNegativeInt = z.coerce.number().int().nonnegative();
 
+const DEFAULT_CLOUDFLARE_API_BASE = 'https://api.cloudflare.com/client/v4';
+
 const envSchema = z.object({
   APP_MODE: z.enum(APP_MODES).default('production'),
   PUBLIC_URL: z.url().optional(),
@@ -52,6 +54,8 @@ const envSchema = z.object({
   SMTP_DEV_HOST: z.string().min(1).optional(),
   SMTP_DEV_PORT: z.coerce.number().int().min(1).max(65535).optional(),
   APP_VERSION: z.string().min(1).optional(),
+  // Automated tests only (the E2E stack points it at a fake server). Never set in production.
+  CLOUDFLARE_API_BASE: z.url().default(DEFAULT_CLOUDFLARE_API_BASE),
 });
 
 export interface AppConfig {
@@ -84,6 +88,8 @@ export interface AppConfig {
   /** Local-mode SMTP fallback (Mailpit), used only when no SMTP settings are stored. */
   smtpDevHost: string | undefined;
   smtpDevPort: number | undefined;
+  /** Cloudflare API base URL without a trailing slash (only tests override it). */
+  cloudflareApiBase: string;
   version: string;
 }
 
@@ -128,6 +134,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     brandingDir: e.BRANDING_DIR ?? path.join(dataDir, 'branding'),
     secretsDir: path.join(dataDir, 'secrets'),
     sharedDir: e.SHARED_DIR,
+    cloudflareApiBase: e.CLOUDFLARE_API_BASE.replace(/\/+$/, ''),
     setupCodeTtlMinutes: e.SETUP_CODE_TTL_MINUTES,
     passwordResetTtlMinutes: e.PASSWORD_RESET_TTL_MINUTES,
     logRetentionDays: e.LOG_RETENTION_DAYS,
