@@ -283,38 +283,11 @@
       "ibm-plex-sans": "IBM Plex Sans",
       "system": "System font"
     },
-    "contrast": {
-      "title": "Contrast check",
-      "help": "WCAG 2.2 AA requires 4.5:1 for text and 3:1 for interface elements. You can save anyway, but low contrast makes the pages hard to read.",
-      "allPass": "All contrast checks pass.",
-      "someFail_one": "{{count}} contrast check does not pass.",
-      "someFail_other": "{{count}} contrast checks do not pass.",
-      "required": "required {{value}}:1",
-      "pass": "Pass",
-      "fail": "Fail",
-      "checks": {
-        "primaryText": "Text on the primary colour (buttons)",
-        "primaryOnLight": "Primary colour on a white background (button edges)",
-        "accentText": "Text on the accent colour (badges)",
-        "accentOnLight": "Accent colour on a white background (focus rings, icons)",
-        "accentAsText": "Accent colour used as link text on white",
-        "darkPrimaryFallback": "In the dark theme the primary colour is too close to the dark background: the default dark colour is used there.",
-        "darkAccentFallback": "In the dark theme the accent colour is too close to the dark background: the default dark colour is used there."
-      }
-    },
-    "preview": {
-      "title": "Preview",
-      "help": "A miniature public page, not saved until you press Save.",
-      "light": "Light theme",
-      "dark": "Dark theme",
-      "sample": "Send large files simply.",
-      "link": "Learn more",
-      "input": "Email address",
-      "button": "Download",
-      "badge": "New"
-    },
     "images": {
       "title": "Images",
+      "choose": "Choose image",
+      "noFile": "No file selected",
+      "chooseLabel": "Choose image: {{name}}",
       "description": "PNG, JPEG or WebP, up to {{size}} each. SVG is not accepted. Images are re-encoded and resized; the change is applied immediately.",
       "default": "Default",
       "currentAlt": "Current image: {{name}}",

@@ -19,51 +19,12 @@ async function colorInput(label: string) {
 }
 
 describe('AppearancePage', () => {
-  it('updates both previews live when a colour changes', async () => {
-    renderPage();
-    const primary = await colorInput('Primary colour');
-    const light = screen.getByTestId('preview-light');
-    const dark = screen.getByTestId('preview-dark');
-    expect(dark).toHaveClass('dark');
-    expect(light).not.toHaveClass('dark');
-
-    fireEvent.change(primary, { target: { value: '#ff0000' } });
-    await waitFor(() => expect(light.style.getPropertyValue('--primary')).toBe('#ff0000'));
-    // The dark preview only takes colours that stand out from the dark surface.
-    expect(dark.style.getPropertyValue('--primary')).toBe('#ff0000');
-
-    fireEvent.change(primary, { target: { value: '#101010' } });
-    await waitFor(() => expect(light.style.getPropertyValue('--primary')).toBe('#101010'));
-    expect(dark.style.getPropertyValue('--primary')).toBe('');
-  });
-
-  it('syncs the colour picker with the hex input and shows the footer in the preview', async () => {
+  it('syncs the colour picker with the hex input', async () => {
     renderPage();
     const accent = await colorInput('Accent colour');
     const picker = screen.getByLabelText('Pick: Accent colour');
     fireEvent.change(picker, { target: { value: '#123456' } });
     await waitFor(() => expect(accent).toHaveValue('#123456'));
-
-    fireEvent.change(screen.getByLabelText(/Footer text/), { target: { value: 'My company' } });
-    await waitFor(() =>
-      expect(within(screen.getByTestId('preview-light')).getByText('My company')).toBeVisible(),
-    );
-  });
-
-  it('flags a low-contrast colour as failing, with ratio and requirement as text', async () => {
-    renderPage();
-    const accent = await colorInput('Accent colour');
-    expect(screen.getByTestId('contrast-accentAsText')).toHaveAttribute('data-result', 'pass');
-
-    fireEvent.change(accent, { target: { value: '#ffff99' } });
-    await waitFor(() =>
-      expect(screen.getByTestId('contrast-accentAsText')).toHaveAttribute('data-result', 'fail'),
-    );
-    const row = screen.getByTestId('contrast-accentAsText');
-    expect(within(row).getByText('Fail')).toBeInTheDocument();
-    expect(row).toHaveTextContent(/\d\.\d{2}:1/);
-    expect(row).toHaveTextContent('required 4.5:1');
-    expect(screen.getByText(/contrast check.* not pass/)).toBeInTheDocument();
   });
 
   it('rejects an invalid colour inline and does not call the API', async () => {

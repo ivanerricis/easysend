@@ -283,38 +283,11 @@
       "ibm-plex-sans": "IBM Plex Sans",
       "system": "Carattere di sistema"
     },
-    "contrast": {
-      "title": "Verifica del contrasto",
-      "help": "WCAG 2.2 AA richiede 4,5:1 per il testo e 3:1 per gli elementi dell'interfaccia. Puoi salvare comunque, ma un contrasto basso rende le pagine difficili da leggere.",
-      "allPass": "Tutte le verifiche di contrasto sono superate.",
-      "someFail_one": "{{count}} verifica di contrasto non è superata.",
-      "someFail_other": "{{count}} verifiche di contrasto non sono superate.",
-      "required": "richiesto {{value}}:1",
-      "pass": "Superata",
-      "fail": "Non superata",
-      "checks": {
-        "primaryText": "Testo sul colore primario (pulsanti)",
-        "primaryOnLight": "Colore primario su sfondo bianco (bordi dei pulsanti)",
-        "accentText": "Testo sul colore di accento (etichette)",
-        "accentOnLight": "Colore di accento su sfondo bianco (anello del focus, icone)",
-        "accentAsText": "Colore di accento usato come testo dei link su bianco",
-        "darkPrimaryFallback": "Nel tema scuro il colore primario è troppo vicino allo sfondo: lì si usa il colore scuro predefinito.",
-        "darkAccentFallback": "Nel tema scuro il colore di accento è troppo vicino allo sfondo: lì si usa il colore scuro predefinito."
-      }
-    },
-    "preview": {
-      "title": "Anteprima",
-      "help": "Una pagina pubblica in miniatura: non viene salvata finché non premi Salva.",
-      "light": "Tema chiaro",
-      "dark": "Tema scuro",
-      "sample": "Invia file di grandi dimensioni in modo semplice.",
-      "link": "Scopri di più",
-      "input": "Indirizzo email",
-      "button": "Scarica",
-      "badge": "Novità"
-    },
     "images": {
       "title": "Immagini",
+      "choose": "Scegli immagine",
+      "noFile": "Nessun file selezionato",
+      "chooseLabel": "Scegli immagine: {{name}}",
       "description": "PNG, JPEG o WebP, fino a {{size}} ciascuna. L'SVG non è accettato. Le immagini vengono ricodificate e ridimensionate; la modifica è immediata.",
       "default": "Predefinita",
       "currentAlt": "Immagine attuale: {{name}}",
