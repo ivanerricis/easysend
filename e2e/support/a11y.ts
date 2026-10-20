@@ -38,6 +38,20 @@ export async function analyzeA11y(page: Page): Promise<A11yFinding[]> {
  */
 export async function checkA11y(page: Page, label: string): Promise<A11yFinding[]> {
   await page.waitForLoadState('networkidle');
+  // Elements fading in (toasts, dialogs) have a partial opacity that axe reads as low contrast:
+  // analyse the settled state. Infinite animations (spinners) are ignored.
+  await page
+    .waitForFunction(
+      () =>
+        document
+          .getAnimations()
+          .every(
+            (a) => a.playState !== 'running' || a.effect?.getComputedTiming().endTime === Infinity,
+          ),
+      undefined,
+      { timeout: 5_000 },
+    )
+    .catch(() => undefined);
   const findings = await analyzeA11y(page);
   if (findings.length > 0) {
     await test.info().attach(`axe-${label}`, {

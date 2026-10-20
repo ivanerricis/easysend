@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import {
   Select,
   SelectContent,
@@ -58,6 +58,9 @@ export function SelectInput({
 }: SelectInputProps) {
   const hasEmpty = options.some((option) => option.value === '');
   const internal = value === '' && hasEmpty ? EMPTY_VALUE : value;
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  // The <label for> names the trigger only: the listbox gets the same name when it opens.
+  const [listLabel, setListLabel] = useState<string | undefined>(aria['aria-label']);
   return (
     <Select
       value={internal}
@@ -65,11 +68,22 @@ export function SelectInput({
       disabled={disabled}
       required={required}
       onValueChange={(next) => onValueChange(next === EMPTY_VALUE ? '' : next)}
+      onOpenChange={(open) => {
+        if (open) {
+          setListLabel(aria['aria-label'] ?? triggerRef.current?.labels?.[0]?.textContent?.trim());
+        }
+      }}
     >
-      <SelectTrigger id={id} onBlur={onBlur} className={cn('w-full min-w-0', className)} {...aria}>
+      <SelectTrigger
+        ref={triggerRef}
+        id={id}
+        onBlur={onBlur}
+        className={cn('w-full min-w-0', className)}
+        {...aria}
+      >
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent position="popper" className={contentClassName}>
+      <SelectContent position="popper" className={contentClassName} aria-label={listLabel}>
         {options.map((option) => (
           <SelectItem
             key={option.value || EMPTY_VALUE}

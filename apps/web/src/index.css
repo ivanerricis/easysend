@@ -178,6 +178,12 @@
   --sidebar-ring: oklch(0.765 0.177 163.223);
 }
 
+/* Toast close button: sonner draws it at 20px, below the 24px minimum target (WCAG 2.2, 2.5.8). */
+[data-sonner-toast][data-styled='true'] [data-close-button] {
+  width: 24px;
+  height: 24px;
+}
+
 /* Static replacement of the <style> element Radix Select injects (blocked by the CSP). */
 [data-radix-select-viewport] {
   scrollbar-width: none;
