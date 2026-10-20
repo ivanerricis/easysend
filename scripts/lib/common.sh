@@ -102,7 +102,9 @@ set_env_var() {
 }
 
 # --- State (.deploy/) ------------------------------------------------------------
-state_get() { [[ -f "$DEPLOY_DIR/$1" ]] && tr -d '[:space:]' <"$DEPLOY_DIR/$1" || true; }
+state_get() {
+  if [[ -f "$DEPLOY_DIR/$1" ]]; then tr -d '[:space:]' <"$DEPLOY_DIR/$1"; fi
+}
 state_set() { printf '%s\n' "$2" >"$DEPLOY_DIR/$1.tmp" && mv "$DEPLOY_DIR/$1.tmp" "$DEPLOY_DIR/$1"; }
 history_add() { printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >>"$DEPLOY_DIR/history.log"; }
 
