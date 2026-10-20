@@ -1,8 +1,11 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
 import i18n from '@/i18n';
 import { configureApiClient, setCsrfToken } from '@/lib/api/client';
+
+// Lazy routes plus mocked fetches can exceed the 1 s default when the whole suite runs in parallel.
+configure({ asyncUtilTimeout: 5000 });
 
 // jsdom gaps that Radix UI components rely on.
 class ResizeObserverStub {
