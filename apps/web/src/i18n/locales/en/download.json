@@ -1,3 +1,67 @@
 {
-  "title": "Download files"
+  "title": "Download files",
+  "loading": "Loading transfer…",
+  "sentBy": "Sent by {{name}}",
+  "untitled": "Files shared with you",
+  "contents": "Contents",
+  "availability": "Availability",
+  "messageLabel": "Message from the sender",
+  "expires": "Available until {{date}} ({{relative}})",
+  "counter": "Downloads",
+  "counterOf": "{{count}} of {{max}} used",
+  "counterOnly": "{{count}} so far",
+  "limitLast": "Only 1 download left. Each download that starts from the beginning counts, even if you do not finish it.",
+  "limitNone": "No downloads left on this link.",
+  "limitSoon": "Only {{remaining}} downloads left. Each download that starts from the beginning counts, even if you do not finish it.",
+  "attachmentNote": "Files are delivered as attachments and are never opened in the browser.",
+  "files": {
+    "heading": "Files",
+    "selectAll": "Select all files",
+    "selectFile": "Select {{name}}",
+    "selectedCount_one": "{{count}} file selected",
+    "selectedCount_other": "{{count}} files selected",
+    "download": "Download",
+    "downloadNamed": "Download {{name}} ({{size}})"
+  },
+  "zip": {
+    "all": "Download all as ZIP",
+    "selected": "Download selected as ZIP",
+    "needSelection": "Select at least one file to download a ZIP of the selection."
+  },
+  "started": "Download started. Your browser shows its progress.",
+  "locked": {
+    "title": "This transfer is protected",
+    "description": "Enter the password the sender gave you to see and download the files.",
+    "password": "Password",
+    "submit": "Unlock",
+    "submitting": "Unlocking…",
+    "retryIn": "Too many attempts. Try again in {{time}}.",
+    "required": "Enter the password."
+  },
+  "states": {
+    "notFound": {
+      "title": "Link not valid",
+      "description": "This link does not exist or the transfer was deleted. Check that you copied the whole address."
+    },
+    "expired": {
+      "title": "Transfer expired",
+      "description": "The files are no longer available. Ask the sender to send them again."
+    },
+    "revoked": {
+      "title": "Transfer revoked",
+      "description": "The sender has withdrawn this transfer. Ask them to send it again if you still need the files."
+    },
+    "limit": {
+      "title": "Download limit reached",
+      "description": "This link has reached its maximum number of downloads. Ask the sender for a new link."
+    },
+    "rateLimited": {
+      "title": "Too many requests",
+      "description": "Please wait a moment and try again."
+    },
+    "generic": {
+      "title": "Could not load the transfer",
+      "description": "Something went wrong on our side. Try again in a moment."
+    }
+  }
 }

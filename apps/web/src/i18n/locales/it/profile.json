@@ -1,3 +1,80 @@
 {
-  "title": "Profilo"
+  "title": "Profilo",
+  "description": "Il tuo account, le preferenze e la sicurezza.",
+  "retryIn": "Troppi tentativi. Riprova tra {{time}}.",
+  "account": {
+    "title": "Account",
+    "email": "Email",
+    "role": "Ruolo",
+    "roleAdmin": "Amministratore",
+    "roleUser": "Utente",
+    "created": "Account creato",
+    "lastLogin": "Ultimo accesso",
+    "never": "Mai",
+    "displayName": "Nome visualizzato",
+    "displayNameHelp": "I destinatari vedono questo nome nella pagina di download al posto del nome dell'istanza. Lascialo vuoto per mostrare il nome dell'istanza. La tua email non viene mai mostrata.",
+    "displayNameTooLong": "Il nome è troppo lungo.",
+    "saved": "Profilo salvato."
+  },
+  "preferences": {
+    "title": "Preferenze",
+    "language": "Lingua",
+    "theme": "Tema",
+    "themeHelp": "La scelta viene salvata nel tuo profilo e ti segue su ogni dispositivo."
+  },
+  "storage": {
+    "title": "Spazio",
+    "unlimited": "Non hai una quota: i caricamenti sono limitati solo dallo spazio libero sul disco del server."
+  },
+  "password": {
+    "title": "Password",
+    "description": "Scegli una password lunga e unica.",
+    "current": "Password attuale",
+    "new": "Nuova password",
+    "newHelp": "Almeno {{min}} caratteri.",
+    "confirm": "Conferma la nuova password",
+    "submit": "Cambia password",
+    "submitting": "Modifica in corso…",
+    "success": "Password cambiata.",
+    "sessionsNote": "Password cambiata. Sei stato disconnesso da tutti gli altri dispositivi e browser.",
+    "errors": {
+      "currentRequired": "Inserisci la password attuale.",
+      "tooShort": "La nuova password è troppo corta.",
+      "tooLong": "La nuova password è troppo lunga.",
+      "confirmRequired": "Ripeti la nuova password.",
+      "mismatch": "Le due password non coincidono."
+    }
+  },
+  "twoFactor": {
+    "title": "Verifica in due passaggi",
+    "description": "Un codice dalla tua app di autenticazione protegge l'account anche se la password viene scoperta.",
+    "statusOn": "Attiva",
+    "statusOff": "Disattivata",
+    "enable": "Attiva la verifica in due passaggi",
+    "starting": "Preparazione…",
+    "scan": "Inquadra il codice QR con la tua app di autenticazione, poi inserisci il codice a 6 cifre che mostra.",
+    "secretLabel": "Non riesci a inquadrarlo? Inserisci questa chiave a mano",
+    "copySecret": "Copia la chiave",
+    "codeLabel": "Codice dell'app",
+    "verify": "Verifica e attiva",
+    "verifying": "Verifica in corso…",
+    "cancel": "Annulla",
+    "codesDone": "Fatto",
+    "codesEnabledNote": "La verifica in due passaggi è ora attiva. Salva i codici di recupero prima di continuare.",
+    "codesRegeneratedNote": "I vecchi codici di recupero non funzionano più. Salva quelli nuovi prima di continuare.",
+    "regenerate": "Rigenera i codici di recupero",
+    "regenerateHelp": "Conferma con la password e un codice attuale. I vecchi codici di recupero smettono di funzionare.",
+    "regenerateSubmit": "Genera nuovi codici",
+    "disable": "Disattiva la verifica in due passaggi",
+    "disableHelp": "Conferma con la password e un codice attuale.",
+    "disableSubmit": "Disattiva",
+    "adminRequired": "La verifica in due passaggi è obbligatoria per gli amministratori e non si può disattivare.",
+    "reauthPassword": "La tua password",
+    "reauthCode": "Codice dell'app",
+    "disabledDone": "Verifica in due passaggi disattivata.",
+    "errors": {
+      "passwordRequired": "Inserisci la password attuale.",
+      "codeRequired": "Inserisci il codice a 6 cifre."
+    }
+  }
 }
