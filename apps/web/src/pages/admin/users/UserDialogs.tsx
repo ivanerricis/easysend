@@ -36,7 +36,7 @@ import { createUser, deleteUser, listUsers, updateUser } from '@/lib/api/admin';
 import { isApiError } from '@/lib/api/client';
 import { errorMessage, hasErrorCode } from '@/lib/errors';
 import { notifySuccess } from '@/lib/toast';
-import { NativeSelect } from '../components/NativeSelect';
+import { SelectInput } from '@/components/common/SelectInput';
 import { QuotaField } from '../components/QuotaField';
 import { QUOTA_UNITS, bytesToQuotaFields, quotaToBytes } from '../quota';
 
@@ -208,13 +208,17 @@ function CreateUserForm({ onDone }: { onDone: () => void }) {
           label={t('admin.users.fields.role')}
         >
           {({ field, controlProps }) => (
-            <NativeSelect {...field} {...controlProps}>
-              {USER_ROLES.map((role) => (
-                <option key={role} value={role}>
-                  {t(`admin.users.roles.${role}`)}
-                </option>
-              ))}
-            </NativeSelect>
+            <SelectInput
+              {...controlProps}
+              name={field.name}
+              value={field.value}
+              onBlur={field.onBlur}
+              onValueChange={field.onChange}
+              options={USER_ROLES.map((role) => ({
+                value: role,
+                label: t(`admin.users.roles.${role}`),
+              }))}
+            />
           )}
         </FormField>
         <FormField
@@ -224,13 +228,17 @@ function CreateUserForm({ onDone }: { onDone: () => void }) {
           label={t('admin.users.fields.locale')}
         >
           {({ field, controlProps }) => (
-            <NativeSelect {...field} {...controlProps}>
-              {LOCALES.map((locale) => (
-                <option key={locale} value={locale}>
-                  {t(`admin.locales.${locale}`)}
-                </option>
-              ))}
-            </NativeSelect>
+            <SelectInput
+              {...controlProps}
+              name={field.name}
+              value={field.value}
+              onBlur={field.onBlur}
+              onValueChange={field.onChange}
+              options={LOCALES.map((locale) => ({
+                value: locale,
+                label: t(`admin.locales.${locale}`),
+              }))}
+            />
           )}
         </FormField>
       </div>
@@ -387,13 +395,18 @@ function EditUserForm({
           description={isSelf ? t('admin.users.edit.selfLocked') : undefined}
         >
           {({ field, controlProps }) => (
-            <NativeSelect disabled={isSelf} {...field} {...controlProps}>
-              {USER_ROLES.map((role) => (
-                <option key={role} value={role}>
-                  {t(`admin.users.roles.${role}`)}
-                </option>
-              ))}
-            </NativeSelect>
+            <SelectInput
+              disabled={isSelf}
+              {...controlProps}
+              name={field.name}
+              value={field.value}
+              onBlur={field.onBlur}
+              onValueChange={field.onChange}
+              options={USER_ROLES.map((role) => ({
+                value: role,
+                label: t(`admin.users.roles.${role}`),
+              }))}
+            />
           )}
         </FormField>
         <FormField
@@ -403,13 +416,17 @@ function EditUserForm({
           label={t('admin.users.fields.locale')}
         >
           {({ field, controlProps }) => (
-            <NativeSelect {...field} {...controlProps}>
-              {LOCALES.map((locale) => (
-                <option key={locale} value={locale}>
-                  {t(`admin.locales.${locale}`)}
-                </option>
-              ))}
-            </NativeSelect>
+            <SelectInput
+              {...controlProps}
+              name={field.name}
+              value={field.value}
+              onBlur={field.onBlur}
+              onValueChange={field.onChange}
+              options={LOCALES.map((locale) => ({
+                value: locale,
+                label: t(`admin.locales.${locale}`),
+              }))}
+            />
           )}
         </FormField>
       </div>
@@ -544,20 +561,18 @@ function DeleteUserForm({ user, onDone }: { user: AdminUser; onDone: () => void 
               <AlertDescription>{errorMessage(t, candidates.error)}</AlertDescription>
             </Alert>
           ) : (
-            <NativeSelect
+            <SelectInput
               id="delete-reassign-target"
               value={target}
               required
               aria-describedby={needsTarget ? 'delete-target-hint' : undefined}
-              onChange={(event) => setTarget(event.target.value)}
-            >
-              <option value="">{t('admin.users.delete.targetPlaceholder')}</option>
-              {options.map((candidate) => (
-                <option key={candidate.id} value={candidate.id}>
-                  {candidate.email}
-                </option>
-              ))}
-            </NativeSelect>
+              onValueChange={setTarget}
+              placeholder={t('admin.users.delete.targetPlaceholder')}
+              options={options.map((candidate) => ({
+                value: candidate.id,
+                label: candidate.email,
+              }))}
+            />
           )}
           {needsTarget ? (
             <p id="delete-target-hint" className="text-muted-foreground text-sm">

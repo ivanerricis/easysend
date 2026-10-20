@@ -24,7 +24,7 @@ import {
   DataRow,
   DataTable,
 } from './components/DataTable';
-import { NativeSelect } from './components/NativeSelect';
+import { SelectInput } from '@/components/common/SelectInput';
 import { Pager } from './components/Pager';
 import { UsageMeter } from './components/UsageMeter';
 import { useDebouncedValue, useUrlState } from './components/useUrlState';
@@ -111,18 +111,15 @@ export default function UsersPage() {
           <Label htmlFor="users-role" className="text-sm font-medium">
             {t('admin.users.filters.role')}
           </Label>
-          <NativeSelect
+          <SelectInput
             id="users-role"
             value={role ?? ''}
-            onChange={(event) => update({ role: event.target.value })}
-          >
-            <option value="">{t('admin.users.filters.allRoles')}</option>
-            {USER_ROLES.map((value) => (
-              <option key={value} value={value}>
-                {t(`admin.users.roles.${value}`)}
-              </option>
-            ))}
-          </NativeSelect>
+            onValueChange={(value) => update({ role: value })}
+            options={[
+              { value: '', label: t('admin.users.filters.allRoles') },
+              ...USER_ROLES.map((value) => ({ value, label: t(`admin.users.roles.${value}`) })),
+            ]}
+          />
         </div>
       </div>
 

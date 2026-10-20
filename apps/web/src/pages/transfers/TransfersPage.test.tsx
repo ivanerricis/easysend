@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { makeTransferSummary } from '@/features/upload/fixtures';
+import { chooseOption, getSelect } from '@/test/select';
 import { makeUser, renderApp } from '@/test/render';
 
 function list(items = [makeTransferSummary()], total = items.length) {
@@ -46,12 +47,12 @@ describe('TransfersPage', () => {
     expect(query?.get('mode')).toBe('email');
     expect(query?.get('q')).toBe('hello');
     expect(query?.get('page')).toBe('2');
-    expect(screen.getByLabelText('Status')).toHaveValue('revoked');
+    expect(getSelect('Status')).toHaveTextContent('Revoked');
   });
 
   it('updates the query and the URL when a filter changes', async () => {
     const { api, router } = await openList('/transfers?page=3');
-    fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'active' } });
+    await chooseOption('Status', 'Active');
     await waitFor(() =>
       expect(lastQuery(api.callsTo('GET /api/transfers'))?.get('status')).toBe('active'),
     );
@@ -60,7 +61,7 @@ describe('TransfersPage', () => {
     expect(router.state.location.search).toContain('status=active');
     expect(router.state.location.search).not.toContain('page=');
 
-    fireEvent.change(screen.getByLabelText('Mode'), { target: { value: 'email' } });
+    await chooseOption('Mode', 'Email');
     await waitFor(() =>
       expect(lastQuery(api.callsTo('GET /api/transfers'))?.get('mode')).toBe('email'),
     );
@@ -91,7 +92,7 @@ describe('TransfersPage', () => {
     await openList('/transfers?status=expired', list([], 0));
     expect(await screen.findByText('No transfers found')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
-    await waitFor(() => expect(screen.getByLabelText('Status')).toHaveValue(''));
+    await waitFor(() => expect(getSelect('Status')).toHaveTextContent('All statuses'));
   });
 
   it('paginates', async () => {

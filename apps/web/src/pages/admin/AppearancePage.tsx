@@ -26,7 +26,7 @@ import { Slider } from '@/components/ui/slider';
 import { resetAppearance, updateAppearance } from '@/lib/api/settings';
 import { errorMessage } from '@/lib/errors';
 import { notifyError, notifySuccess } from '@/lib/toast';
-import { NativeSelect } from './components/NativeSelect';
+import { SelectInput } from '@/components/common/SelectInput';
 import { BrandingImages } from './appearance/BrandingImages';
 import { ColorField } from './appearance/ColorField';
 
@@ -205,13 +205,17 @@ function AppearanceForm({ initial }: { initial: Appearance }) {
             label={t('admin.appearance.fields.font')}
           >
             {({ field, controlProps }) => (
-              <NativeSelect {...field} {...controlProps}>
-                {AVAILABLE_FONTS.map((font) => (
-                  <option key={font} value={font}>
-                    {t(`admin.appearance.fonts.${font}`)}
-                  </option>
-                ))}
-              </NativeSelect>
+              <SelectInput
+                {...controlProps}
+                name={field.name}
+                value={field.value}
+                onBlur={field.onBlur}
+                onValueChange={field.onChange}
+                options={AVAILABLE_FONTS.map((font) => ({
+                  value: font,
+                  label: t(`admin.appearance.fonts.${font}`),
+                }))}
+              />
             )}
           </FormField>
           <FormField
@@ -222,13 +226,17 @@ function AppearanceForm({ initial }: { initial: Appearance }) {
             description={t('admin.appearance.fields.defaultThemeHelp')}
           >
             {({ field, controlProps }) => (
-              <NativeSelect {...field} {...controlProps}>
-                {THEME_PREFERENCES.map((theme) => (
-                  <option key={theme} value={theme}>
-                    {t(`common.theme.${theme}`)}
-                  </option>
-                ))}
-              </NativeSelect>
+              <SelectInput
+                {...controlProps}
+                name={field.name}
+                value={field.value}
+                onBlur={field.onBlur}
+                onValueChange={field.onChange}
+                options={THEME_PREFERENCES.map((theme) => ({
+                  value: theme,
+                  label: t(`common.theme.${theme}`),
+                }))}
+              />
             )}
           </FormField>
         </div>

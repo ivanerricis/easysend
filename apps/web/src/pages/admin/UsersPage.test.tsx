@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { chooseOption } from '@/test/select';
 import { apiError, makeAdmin, renderWithProviders } from '@/test/render';
 import UsersPage from './UsersPage';
 import { makeAdminListAdmin, makeAdminListUser, userList } from './testData';
@@ -38,7 +39,7 @@ describe('UsersPage', () => {
       ),
     );
 
-    fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'admin' } });
+    await chooseOption('Role', 'Administrator');
     await waitFor(() =>
       expect(api.callsTo('GET /api/admin/users').some((c) => c.query.get('role') === 'admin')).toBe(
         true,
@@ -119,11 +120,13 @@ describe('UsersPage', () => {
     const confirm = within(dialog).getByRole('button', { name: 'Delete user' });
     expect(confirm).toBeDisabled();
 
-    const target = await within(dialog).findByLabelText('New owner');
-    await waitFor(() => expect(within(target).getAllByRole('option').length).toBeGreaterThan(1));
+    const target = await within(dialog).findByRole('combobox', { name: 'New owner' });
+    fireEvent.keyDown(target, { key: 'Enter' });
+    const listbox = await screen.findByRole('listbox');
+    expect(within(listbox).getAllByRole('option').length).toBeGreaterThan(0);
     // The user being deleted is not offered as a target.
-    expect(within(target).queryByRole('option', { name: 'ada@example.com' })).toBeNull();
-    fireEvent.change(target, { target: { value: me.id } });
+    expect(within(listbox).queryByRole('option', { name: 'ada@example.com' })).toBeNull();
+    fireEvent.click(within(listbox).getByRole('option', { name: me.email }));
     expect(confirm).toBeEnabled();
     fireEvent.click(confirm);
 

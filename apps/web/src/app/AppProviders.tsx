@@ -2,6 +2,7 @@ import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { AppearanceEffects, AppearanceProvider } from '@/app/providers/AppearanceProvider';
 import { SessionProvider } from '@/app/providers/SessionProvider';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { LocaleProvider } from '@/i18n/LocaleProvider';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 
@@ -23,7 +24,7 @@ export function AppProviders({
           <ThemeProvider>
             <LocaleProvider>
               <AppearanceEffects />
-              {children}
+              <TooltipProvider>{children}</TooltipProvider>
             </LocaleProvider>
           </ThemeProvider>
         </SessionProvider>

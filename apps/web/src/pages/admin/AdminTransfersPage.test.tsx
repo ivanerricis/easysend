@@ -1,6 +1,7 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { makeAdmin, renderWithProviders } from '@/test/render';
+import { chooseOption } from '@/test/select';
 import AdminTransfersPage from './AdminTransfersPage';
 import { makeAdminListAdmin, makeAdminListUser, userList } from './testData';
 
@@ -48,17 +49,16 @@ describe('AdminTransfersPage', () => {
     const { api } = renderPage();
     await screen.findByRole('link', { name: 'Holiday photos' });
 
-    const owner = screen.getByLabelText('Owner');
-    await waitFor(() => expect(owner.querySelectorAll('option').length).toBeGreaterThan(1));
-    fireEvent.change(owner, { target: { value: 'u-ada' } });
+    await waitFor(() => expect(api.callsTo('GET /api/admin/users').length).toBeGreaterThan(0));
+    await chooseOption('Owner', 'ada@example.com');
     await waitFor(() =>
       expect(
         api.callsTo('GET /api/admin/transfers').some((c) => c.query.get('ownerId') === 'u-ada'),
       ).toBe(true),
     );
 
-    fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'revoked' } });
-    fireEvent.change(screen.getByLabelText('Type'), { target: { value: 'email' } });
+    await chooseOption('Status', 'Revoked');
+    await chooseOption('Type', 'Email');
     await waitFor(() =>
       expect(
         api

@@ -22,7 +22,7 @@ import {
   DataRow,
   DataTable,
 } from './components/DataTable';
-import { NativeSelect } from './components/NativeSelect';
+import { SelectInput } from '@/components/common/SelectInput';
 import { Pager } from './components/Pager';
 import { useDebouncedValue, useUrlState } from './components/useUrlState';
 
@@ -90,55 +90,52 @@ export default function AdminTransfersPage() {
           <Label htmlFor="transfers-status" className="text-sm font-medium">
             {t('admin.transfers.filters.status')}
           </Label>
-          <NativeSelect
+          <SelectInput
             id="transfers-status"
             value={status ?? ''}
-            onChange={(event) => update({ status: event.target.value })}
-          >
-            <option value="">{t('admin.transfers.filters.allStatuses')}</option>
-            {TRANSFER_STATUSES.map((value) => (
-              <option key={value} value={value}>
-                {t(`common.status.${value}`)}
-              </option>
-            ))}
-          </NativeSelect>
+            onValueChange={(value) => update({ status: value })}
+            options={[
+              { value: '', label: t('admin.transfers.filters.allStatuses') },
+              ...TRANSFER_STATUSES.map((value) => ({ value, label: t(`common.status.${value}`) })),
+            ]}
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="transfers-mode" className="text-sm font-medium">
             {t('admin.transfers.filters.mode')}
           </Label>
-          <NativeSelect
+          <SelectInput
             id="transfers-mode"
             value={mode ?? ''}
-            onChange={(event) => update({ mode: event.target.value })}
-          >
-            <option value="">{t('admin.transfers.filters.allModes')}</option>
-            {TRANSFER_MODES.map((value) => (
-              <option key={value} value={value}>
-                {t(`admin.transfers.modes.${value}`)}
-              </option>
-            ))}
-          </NativeSelect>
+            onValueChange={(value) => update({ mode: value })}
+            options={[
+              { value: '', label: t('admin.transfers.filters.allModes') },
+              ...TRANSFER_MODES.map((value) => ({
+                value,
+                label: t(`admin.transfers.modes.${value}`),
+              })),
+            ]}
+          />
         </div>
         <div className="space-y-1.5 sm:col-span-2">
           <Label htmlFor="transfers-owner" className="text-sm font-medium">
             {t('admin.transfers.filters.owner')}
           </Label>
-          <NativeSelect
+          <SelectInput
             id="transfers-owner"
             value={ownerId}
-            onChange={(event) => update({ owner: event.target.value })}
-          >
-            <option value="">{t('admin.transfers.filters.allOwners')}</option>
-            {ownerId && !owners.data?.items.some((owner) => owner.id === ownerId) ? (
-              <option value={ownerId}>{ownerId}</option>
-            ) : null}
-            {(owners.data?.items ?? []).map((owner) => (
-              <option key={owner.id} value={owner.id}>
-                {owner.email}
-              </option>
-            ))}
-          </NativeSelect>
+            onValueChange={(value) => update({ owner: value })}
+            options={[
+              { value: '', label: t('admin.transfers.filters.allOwners') },
+              ...(ownerId && !owners.data?.items.some((owner) => owner.id === ownerId)
+                ? [{ value: ownerId, label: ownerId }]
+                : []),
+              ...(owners.data?.items ?? []).map((owner) => ({
+                value: owner.id,
+                label: owner.email,
+              })),
+            ]}
+          />
         </div>
       </div>
 

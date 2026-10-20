@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { updateGeneralSettings } from '@/lib/api/settings';
 import { errorMessage } from '@/lib/errors';
 import { notifySuccess } from '@/lib/toast';
-import { NativeSelect } from '../components/NativeSelect';
+import { SelectInput } from '@/components/common/SelectInput';
 
 const RESERVE_MAX_MB = 10_485_760;
 
@@ -115,13 +115,17 @@ export function GeneralSection({ settings }: { settings: GeneralSettings }) {
         description={t('admin.settings.general.defaultLocaleHelp')}
       >
         {({ field, controlProps }) => (
-          <NativeSelect {...field} {...controlProps}>
-            {LOCALES.map((locale) => (
-              <option key={locale} value={locale}>
-                {t(`admin.locales.${locale}`)}
-              </option>
-            ))}
-          </NativeSelect>
+          <SelectInput
+            {...controlProps}
+            name={field.name}
+            value={field.value}
+            onBlur={field.onBlur}
+            onValueChange={field.onChange}
+            options={LOCALES.map((locale) => ({
+              value: locale,
+              label: t(`admin.locales.${locale}`),
+            }))}
+          />
         )}
       </FormField>
       <Button type="submit" disabled={mutation.isPending} aria-busy={mutation.isPending}>

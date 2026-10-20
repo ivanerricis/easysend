@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { queryKeys } from '@/app/query';
 import { ErrorState, LoadingState } from '@/components/common/States';
+import { HintText } from '@/components/common/HintTooltip';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -63,8 +64,12 @@ export function DownloadLog({ transferId }: { transferId: string }) {
               <TableCell className="text-right font-mono text-xs">
                 {formatBytes(entry.bytesSent, locale)}
               </TableCell>
-              <TableCell className="max-w-64 truncate" title={entry.userAgent ?? undefined}>
-                {entry.userAgent ? truncate(entry.userAgent, UA_MAX) : '—'}
+              <TableCell className="max-w-64 truncate">
+                {entry.userAgent ? (
+                  <HintText content={entry.userAgent}>{truncate(entry.userAgent, UA_MAX)}</HintText>
+                ) : (
+                  '—'
+                )}
               </TableCell>
             </TableRow>
           ))}

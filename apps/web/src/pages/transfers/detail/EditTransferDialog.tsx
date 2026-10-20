@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { queryKeys } from '@/app/query';
+import { SelectInput } from '@/components/common/SelectInput';
 import { FormErrorSummary } from '@/components/common/FormErrorSummary';
 import { FormField, TextField } from '@/components/common/FormField';
 import { PasswordInput } from '@/components/common/PasswordInput';
@@ -31,9 +32,6 @@ interface EditTransferDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
-const selectClass =
-  'border-input bg-background h-11 w-full min-w-0 border px-3 text-base md:text-sm dark:bg-input/30';
 
 /** Dialog content is unmounted when closed, so the form starts from the current values each time. */
 export function EditTransferDialog({ transfer, open, onOpenChange }: EditTransferDialogProps) {
@@ -141,18 +139,22 @@ function EditForm({
           idPrefix="edit"
         >
           {({ field, controlProps }) => (
-            <select {...field} {...controlProps} className={selectClass}>
-              <option value="keep">{t('transfers.edit.expiryKeep')}</option>
-              <option value="3d">
-                {t('transfers.edit.expiryFromNow', { period: t('transfers.expiry.3d') })}
-              </option>
-              <option value="1w">
-                {t('transfers.edit.expiryFromNow', { period: t('transfers.expiry.1w') })}
-              </option>
-              <option value="1m">
-                {t('transfers.edit.expiryFromNow', { period: t('transfers.expiry.1m') })}
-              </option>
-            </select>
+            <SelectInput
+              {...controlProps}
+              name={field.name}
+              value={field.value}
+              onBlur={field.onBlur}
+              onValueChange={field.onChange}
+              options={[
+                { value: 'keep', label: t('transfers.edit.expiryKeep') },
+                ...(['3d', '1w', '1m'] as const).map((period) => ({
+                  value: period,
+                  label: t('transfers.edit.expiryFromNow', {
+                    period: t(`transfers.expiry.${period}`),
+                  }),
+                })),
+              ]}
+            />
           )}
         </FormField>
         <FormField

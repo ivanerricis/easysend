@@ -19,6 +19,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { HintText } from '@/components/common/HintTooltip';
+import { SelectInput } from '@/components/common/SelectInput';
 import { listTransfers } from '@/lib/api/transfers';
 import { formatBytes, formatDateTime, formatRelative } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -26,9 +28,6 @@ import { downloadsText, readListParams, transferTitle } from './list-utils';
 
 const STATUS_FILTERS = ['active', 'uploading', 'revoked', 'expired'] as const;
 const SEARCH_DEBOUNCE_MS = 300;
-
-const selectClass =
-  'border-input bg-background h-11 w-full min-w-0 border px-3 text-base md:text-sm dark:bg-input/30';
 
 function ModeLabel({ mode }: { mode: TransferMode }) {
   const { t } = useTranslation();
@@ -46,9 +45,9 @@ function Expires({ transfer }: { transfer: TransferSummary }) {
   if (transfer.status === 'uploading') return <span aria-hidden="true">—</span>;
   const iso = new Date(transfer.expiresAt * 1000).toISOString();
   return (
-    <time dateTime={iso} title={formatDateTime(transfer.expiresAt, i18n.language)}>
-      {formatRelative(transfer.expiresAt, i18n.language)}
-    </time>
+    <HintText content={formatDateTime(transfer.expiresAt, i18n.language)}>
+      <time dateTime={iso}>{formatRelative(transfer.expiresAt, i18n.language)}</time>
+    </HintText>
   );
 }
 
@@ -146,34 +145,30 @@ export default function TransfersPage() {
           <label htmlFor="transfers-status" className="sr-only">
             {t('transfers.list.status')}
           </label>
-          <select
+          <SelectInput
             id="transfers-status"
-            className={selectClass}
             value={status ?? ''}
-            onChange={(event) => update({ status: event.target.value || undefined })}
-          >
-            <option value="">{t('transfers.list.allStatuses')}</option>
-            {STATUS_FILTERS.map((value) => (
-              <option key={value} value={value}>
-                {t(`common.status.${value}`)}
-              </option>
-            ))}
-          </select>
+            onValueChange={(value) => update({ status: value || undefined })}
+            options={[
+              { value: '', label: t('transfers.list.allStatuses') },
+              ...STATUS_FILTERS.map((value) => ({ value, label: t(`common.status.${value}`) })),
+            ]}
+          />
         </div>
         <div>
           <label htmlFor="transfers-mode" className="sr-only">
             {t('transfers.list.mode')}
           </label>
-          <select
+          <SelectInput
             id="transfers-mode"
-            className={selectClass}
             value={mode ?? ''}
-            onChange={(event) => update({ mode: event.target.value || undefined })}
-          >
-            <option value="">{t('transfers.list.allModes')}</option>
-            <option value="link">{t('transfers.mode.link')}</option>
-            <option value="email">{t('transfers.mode.email')}</option>
-          </select>
+            onValueChange={(value) => update({ mode: value || undefined })}
+            options={[
+              { value: '', label: t('transfers.list.allModes') },
+              { value: 'link', label: t('transfers.mode.link') },
+              { value: 'email', label: t('transfers.mode.email') },
+            ]}
+          />
         </div>
       </form>
 

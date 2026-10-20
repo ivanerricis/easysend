@@ -46,7 +46,6 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { TooltipProvider } from '@/components/ui/tooltip';
 import { SUPPORTED_LOCALES, type Locale } from '@/i18n';
 import { useLocale } from '@/i18n/LocaleProvider';
 import { notifyError } from '@/lib/toast';
@@ -250,33 +249,31 @@ export function AppLayout({ children }: { children?: ReactNode }) {
   const { instanceName, appearance } = useAppearance();
 
   return (
-    <TooltipProvider>
-      <SidebarProvider>
-        <SkipLink />
-        <AppSidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="bg-background sticky top-0 z-10 flex h-14 items-center gap-3 border-b px-3 sm:px-4">
-            <SidebarTrigger />
-            <span className="truncate text-sm font-medium md:hidden">{instanceName}</span>
-          </header>
-          <main
-            id="main"
-            tabIndex={-1}
-            className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 outline-none sm:px-6 sm:py-8"
-          >
-            {children ?? (
-              <Suspense fallback={<LoadingState label={t('common.states.loadingPage')} />}>
-                <Outlet />
-              </Suspense>
-            )}
-          </main>
-          {appearance.footer ? (
-            <footer className="border-t">
-              <p className="text-muted-foreground px-4 py-4 text-sm sm:px-6">{appearance.footer}</p>
-            </footer>
-          ) : null}
-        </div>
-      </SidebarProvider>
-    </TooltipProvider>
+    <SidebarProvider>
+      <SkipLink />
+      <AppSidebar />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="bg-background sticky top-0 z-10 flex h-14 items-center gap-3 border-b px-3 sm:px-4">
+          <SidebarTrigger />
+          <span className="truncate text-sm font-medium md:hidden">{instanceName}</span>
+        </header>
+        <main
+          id="main"
+          tabIndex={-1}
+          className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 outline-none sm:px-6 sm:py-8"
+        >
+          {children ?? (
+            <Suspense fallback={<LoadingState label={t('common.states.loadingPage')} />}>
+              <Outlet />
+            </Suspense>
+          )}
+        </main>
+        {appearance.footer ? (
+          <footer className="border-t">
+            <p className="text-muted-foreground px-4 py-4 text-sm sm:px-6">{appearance.footer}</p>
+          </footer>
+        ) : null}
+      </div>
+    </SidebarProvider>
   );
 }
