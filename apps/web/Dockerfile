@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Build context: repository root.
 ARG NODE_IMAGE=node:26.12.0-alpine3.24
-ARG NGINX_IMAGE=nginx:1.30.6-alpine3.24
+ARG NGINX_IMAGE=nginx:1.30.6-alpine3.24-slim
 
 FROM ${NODE_IMAGE} AS base
 RUN npm i -g pnpm@12.14.0 && npm cache clean --force

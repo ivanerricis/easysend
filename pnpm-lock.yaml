@@ -170,7 +170,10 @@ catalogs:
     '@eslint/js':
       specifier: 10.0.1
       version: 10.0.1
-    '@fontsource/ibm-plex-mono':
+    '@fontsource-variable/jetbrains-mono':
+      specifier: 5.3.0
+      version: 5.3.0
+    '@fontsource-variable/plus-jakarta-sans':
       specifier: 5.3.0
       version: 5.3.0
     '@fontsource/ibm-plex-sans':
@@ -418,18 +421,49 @@ importers:
       '@node-rs/argon2':
         specifier: 'catalog:'
         version: 2.2.2
+      better-sqlite3:
+        specifier: 'catalog:'
+        version: 13.0.3
+      sharp:
+        specifier: 'catalog:'
+        version: 0.35.5(@types/node@26.6.5)
+    devDependencies:
+      '@easysend/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@tus/file-store':
         specifier: 'catalog:'
         version: 2.1.1
       '@tus/server':
         specifier: 'catalog:'
         version: 2.4.6
-      better-sqlite3:
+      '@types/better-sqlite3':
         specifier: 'catalog:'
-        version: 13.0.3
+        version: 9.6.0
+      '@types/express':
+        specifier: 'catalog:'
+        version: 5.0.6
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.3.0(@types/react@19.3.0)
+      '@types/supertest':
+        specifier: 'catalog:'
+        version: 7.2.1
+      '@types/yauzl':
+        specifier: 'catalog:'
+        version: 3.4.0
+      '@types/yazl':
+        specifier: 'catalog:'
+        version: 3.3.1
       cookie:
         specifier: 'catalog:'
         version: 2.0.1
+      drizzle-kit:
+        specifier: 'catalog:'
+        version: 0.31.11
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@13.0.3)
@@ -454,6 +488,9 @@ importers:
       pino-http:
         specifier: 'catalog:'
         version: 11.0.0
+      pino-pretty:
+        specifier: 'catalog:'
+        version: 13.2.0
       rate-limiter-flexible:
         specifier: 'catalog:'
         version: 11.2.3
@@ -463,46 +500,6 @@ importers:
       react-dom:
         specifier: 'catalog:'
         version: 19.3.1(react@19.3.1)
-      sharp:
-        specifier: 'catalog:'
-        version: 0.35.5(@types/node@26.6.5)
-      yazl:
-        specifier: 'catalog:'
-        version: 3.3.1
-      zod:
-        specifier: 'catalog:'
-        version: 4.6.7
-    devDependencies:
-      '@easysend/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@types/better-sqlite3':
-        specifier: 'catalog:'
-        version: 9.6.0
-      '@types/express':
-        specifier: 'catalog:'
-        version: 5.0.6
-      '@types/react':
-        specifier: 'catalog:'
-        version: 19.3.0
-      '@types/react-dom':
-        specifier: 'catalog:'
-        version: 19.3.0(@types/react@19.3.0)
-      '@types/supertest':
-        specifier: 'catalog:'
-        version: 7.2.1
-      '@types/yauzl':
-        specifier: 'catalog:'
-        version: 3.4.0
-      '@types/yazl':
-        specifier: 'catalog:'
-        version: 3.3.1
-      drizzle-kit:
-        specifier: 'catalog:'
-        version: 0.31.11
-      pino-pretty:
-        specifier: 'catalog:'
-        version: 13.2.0
       supertest:
         specifier: 'catalog:'
         version: 7.3.1
@@ -512,13 +509,22 @@ importers:
       yauzl:
         specifier: 'catalog:'
         version: 3.4.0
+      yazl:
+        specifier: 'catalog:'
+        version: 3.3.1
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
 
   apps/web:
     dependencies:
       '@easysend/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@fontsource/ibm-plex-mono':
+      '@fontsource-variable/jetbrains-mono':
+        specifier: 'catalog:'
+        version: 5.3.0
+      '@fontsource-variable/plus-jakarta-sans':
         specifier: 'catalog:'
         version: 5.3.0
       '@fontsource/ibm-plex-sans':
@@ -624,12 +630,18 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.5
+      '@types/yauzl':
+        specifier: 'catalog:'
+        version: 3.4.0
       otpauth:
         specifier: 'catalog:'
         version: 9.5.2
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+      yauzl:
+        specifier: 'catalog:'
+        version: 3.4.0
 
   packages/shared:
     dependencies:
@@ -1362,8 +1374,11 @@ packages:
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
 
-  '@fontsource/ibm-plex-mono@5.3.0':
-    resolution: {integrity: sha512-eTgnZjZEGk1QtD3ZstF+Vclo2HLAni8YMy34/DxllwZvyz1lR/1RF/xTiAquOBO7MvqBx8D2Ig2WCPMVfdZu7Q==}
+  '@fontsource-variable/jetbrains-mono@5.3.0':
+    resolution: {integrity: sha512-F32xpS2NsGYoQi2ADSkKTgpJj7ozajsGgDJ8woTnqjmIB+dxDIqImjl4pXZVEExu8UFZ2ndhmX18EBS/hdz3Lw==}
+
+  '@fontsource-variable/plus-jakarta-sans@5.3.0':
+    resolution: {integrity: sha512-/l/4r0yyWK9JzAlmA0LiYgGgmJe/Gswt4jTJEzr5QhJfwMbvJZDmYWyW0M4X7yCK69BajMVlV/Lx8g7WDc1+sw==}
 
   '@fontsource/ibm-plex-sans@5.3.0':
     resolution: {integrity: sha512-CbE4CbbEEZJX860XyUiRpsksXIQR8Rp2XDva2VO53NJox9tVNtusrysd2x5YkUEY3ErQ66W1IiiQL8/wihhw5w==}
@@ -6301,7 +6316,9 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
-  '@fontsource/ibm-plex-mono@5.3.0': {}
+  '@fontsource-variable/jetbrains-mono@5.3.0': {}
+
+  '@fontsource-variable/plus-jakarta-sans@5.3.0': {}
 
   '@fontsource/ibm-plex-sans@5.3.0': {}
 
@@ -7530,8 +7547,6 @@ snapshots:
       '@tus/utils': 0.7.1
       debug: 4.4.3
     transitivePeerDependencies:
-      - '@node-rs/xxhash'
-      - '@opentelemetry/api'
       - supports-color
 
   '@tus/server@2.4.6':
@@ -7542,8 +7557,6 @@ snapshots:
       set-cookie-parser: 2.7.2
       srvx: 0.11.22
     transitivePeerDependencies:
-      - '@node-rs/xxhash'
-      - '@opentelemetry/api'
       - supports-color
 
   '@tus/utils@0.7.1': {}

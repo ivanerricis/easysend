@@ -30,6 +30,7 @@ const { values: args } = parseArgs({
   options: {
     'size-gb': { type: 'string', default: '5' },
     'base-url': { type: 'string', default: `http://localhost:${localWebPort()}` },
+    project: { type: 'string', default: 'easysend-local' },
   },
 });
 const SIZE = Math.round(Number(args['size-gb']) * 1024 * MB);
@@ -37,7 +38,7 @@ const BASE = args['base-url'].replace(/\/$/, '');
 if (!Number.isSafeInteger(SIZE) || SIZE <= 0) throw new Error('Invalid --size-gb');
 
 // ---- docker helpers ---------------------------------------------------------------------------
-const PROJECT = ['compose', '-p', 'easysend-local'];
+const PROJECT = ['compose', '-p', args.project];
 
 function dockerSync(argv) {
   const result = spawnSync('docker', argv, { cwd: root, encoding: 'utf8' });
