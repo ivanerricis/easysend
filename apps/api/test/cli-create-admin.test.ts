@@ -101,6 +101,25 @@ describe('create-admin CLI', () => {
     );
   });
 
+  it('asks for the password twice and creates nothing when the two differ', async () => {
+    const { env, dbPath } = cliEnv();
+    const answers = ['prompted-password-123', 'prompted-password-124'];
+    const labels: string[] = [];
+    const io: CreateAdminIo = {
+      log: () => undefined,
+      promptPassword: (label) => {
+        labels.push(label);
+        return Promise.resolve(answers.shift() ?? '');
+      },
+    };
+    await expect(runCreateAdmin({ argv: ['--email', 'p@example.com'], env, io })).rejects.toThrow(
+      /do not match/,
+    );
+    expect(labels).toEqual(['Password', 'Confirm password']);
+    // The database was never even opened.
+    expect(() => readUsers(dbPath)).toThrow();
+  });
+
   it('fails without a terminal and without --password', async () => {
     const { env } = cliEnv();
     const io: CreateAdminIo = {
