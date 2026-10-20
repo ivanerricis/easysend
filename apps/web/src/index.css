@@ -132,6 +132,18 @@
   --sidebar-ring: oklch(0.765 0.177 163.223);
 }
 
+/* Static replacement of the <style> element react-remove-scroll injects (blocked by the CSP).
+   The gutter is reserved only while locked, so the layout does not shift when the scrollbar goes. */
+html:has(body[data-scroll-locked]) {
+  scrollbar-gutter: stable;
+}
+body[data-scroll-locked] {
+  overflow: hidden !important;
+  overscroll-behavior: contain;
+  position: relative !important;
+  --removed-body-scroll-bar-size: 0px;
+}
+
 @layer base {
   * {
     @apply border-border;

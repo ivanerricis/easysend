@@ -7,23 +7,59 @@ const apiPort = process.env['DEV_API_PORT'] ?? '3000';
 const webPort = Number(process.env['DEV_WEB_PORT'] ?? '5173');
 
 /**
- * sonner injects its stylesheet through an inline <style> element at import time, which the CSP
- * (`style-src 'self'`) blocks. The same CSS is imported from `src/index.css` instead, so the
- * injector is turned into a no-op.
+ * Turns an inline <style> injector of a dependency into a no-op: the CSP (`style-src 'self'`)
+ * blocks those elements, and the same CSS ships in our stylesheet instead. The build fails if the
+ * dependency is bundled but the injector was not found (e.g. after an update changed its code),
+ * so a silent CSP regression cannot slip through.
  */
-function sonnerWithoutStyleInjection(): Plugin {
+function withoutStyleInjection(name: string, pathPart: string, signature: string): Plugin {
+  let seen = false;
+  let patched = false;
   return {
-    name: 'sonner-no-style-injection',
+    name,
     enforce: 'pre',
     transform(code, id) {
-      if (!id.replaceAll('\\', '/').includes('/sonner/dist/index.mjs')) return null;
-      return code.replace('function __insertCSS(code) {', 'function __insertCSS(code) { return;');
+      if (!id.replaceAll('\\', '/').includes(pathPart)) return null;
+      seen = true;
+      if (!code.includes(signature)) return null;
+      patched = true;
+      return code.replace(signature, `${signature} return;`);
+    },
+    buildEnd() {
+      if (seen && !patched) this.error(`${name}: "${signature}" not found in ${pathPart}`);
     },
   };
 }
 
 export default defineConfig({
-  plugins: [sonnerWithoutStyleInjection(), react(), tailwindcss()],
+  plugins: [
+    // sonner: CSS imported from `src/index.css`.
+    withoutStyleInjection(
+      'sonner-no-style-injection',
+      '/sonner/dist/index.mjs',
+      'function __insertCSS(code) {',
+    ),
+    // react-remove-scroll (Radix dialogs and sheets): static `body[data-scroll-locked]` rules
+    // live in `src/index.css`.
+    withoutStyleInjection(
+      'scroll-lock-no-style-injection',
+      '/react-style-singleton/dist/',
+      'function insertStyleTag(tag) {',
+    ),
+    react(),
+    tailwindcss(),
+  ],
+  build: {
+    rolldownOptions: {
+      output: {
+        // Zod and `lib/zod-jitless.ts` share a chunk, so the setting runs before any schema is
+        // created by the chunks that depend on it.
+        advancedChunks: {
+          groups: [{ name: 'zod', test: /node_modules\/zod\/|zod-jitless/ }],
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
