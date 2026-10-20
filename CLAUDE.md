@@ -113,7 +113,7 @@ Regole:
 - Repository: `ivanerricis/easysend`, pubblico, licenza MIT.
 - Deploy sull'LXC: metodo manuale con `scripts/deploy.sh [versione]`, `rollback.sh`, `backup.sh` e `uninstall.sh` (bash, `scripts/lib/common.sh` condiviso), stato in `.deploy/`; immagini `${IMAGE_PREFIX:-ghcr.io/ivanerricis/easysend}-<servizio>:${APP_VERSION}`. Provati in simulazione (registry locale e container Debian 12); controllo di salute con `docker compose exec web wget /health`, che non dipende dalla rete dell'host.
 - `main` protetto da ruleset `protect-main`: PR obbligatoria, controlli obbligatori `lint`, `typecheck`, `test`, `build`, `e2e` (nomi dei job da non rinominare mai), branch aggiornato, niente force push né cancellazione. Solo squash merge con titolo della PR.
-- release-please: tipo `simple`, manifest `0.0.0` e `release-as: 0.1.0`; rimuovere `release-as` subito dopo il merge della release 0.1.0.
+- release-please: tipo `simple`; la prima release 0.1.0 è uscita il 2026-10-20 con `release-as`, poi rimosso: le versioni successive seguono i Conventional Commits (in 0.x `feat` alza la minor, `fix` la patch).
 - La PR di release creata con GITHUB_TOKEN ha la CI in attesa di approvazione ("action required"): prima di unire la release si approva il run dalla PR ("Approve workflows to run") o con `gh api -X POST repos/ivanerricis/easysend/actions/runs/<id>/approve`. Il dispatch della CI è stato tolto perché i controlli lanciati così non si collegano alla PR. Niente bypass, niente PAT.
 - Lingua su GitHub: template, issue ed etichette in inglese; riepiloghi di fase nelle PR in italiano.
 - Il progetto resta in `C:\` su Windows (non in WSL2); nel README va la nota di SPEC 11-bis.
