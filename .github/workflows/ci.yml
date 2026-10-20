@@ -38,7 +38,7 @@ jobs:
       - name: ShellCheck
         run: |
           shopt -s nullglob
-          shellcheck scripts/*.sh docker/cloudflared/entrypoint.sh
+          shellcheck -x -P SCRIPTDIR scripts/*.sh scripts/lib/*.sh docker/cloudflared/entrypoint.sh
       - name: Validate release-please JSON
         run: jq empty release-please-config.json .release-please-manifest.json
       - name: Check for CRLF line endings

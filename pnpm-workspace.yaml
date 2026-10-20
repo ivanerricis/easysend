@@ -9,9 +9,12 @@ allowBuilds:
 
 # Advisories without a fixed version that never reach the images:
 # GHSA-vfj7-8cjw-p6xm (braces) comes in through the shadcn CLI, used only at build time.
+# GHSA-fx2h-pf6j-xcff (vite 5 dev server, Windows paths) comes in through VitePress 1.x, whose
+# stable line has no fixed vite: the docs site is only built statically. Drop it with VitePress 2.
 auditConfig:
   ignoreGhsas:
     - GHSA-vfj7-8cjw-p6xm
+    - GHSA-fx2h-pf6j-xcff
 
 catalog:
   # tooling
