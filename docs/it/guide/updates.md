@@ -32,3 +32,9 @@ Ripristinare il database scarta tutto ciò che è stato scritto dopo quel deploy
 ::: warning Versioni 0.x
 Nelle versioni 0.x, le release che cambiano la minor possono contenere modifiche incompatibili. Leggi prima le note di rilascio.
 :::
+
+## Avviso di aggiornamento nel pannello admin
+
+Quando esiste una release più recente, gli admin vedono un avviso nella barra laterale e la sezione **Impostazioni → Aggiornamenti** mostra la versione attuale e l'ultima, le note di rilascio e i comandi esatti da lanciare sul server.
+
+Per sapere se ci sono nuove release il server chiede a GitHub l'ultima versione pubblicata: solo quando un admin apre il pannello e al massimo una volta al giorno (la risposta resta in memoria per 24 ore). La richiesta non ha corpo né cookie; GitHub vede solo l'indirizzo IP del server e l'header `User-Agent` con la versione in uso. Nessun dato dell'istanza viene inviato. Il controllo si disattiva in **Impostazioni → Generali → Controlla gli aggiornamenti**.

@@ -32,3 +32,9 @@ Restoring the database discards everything written since that deploy (the curren
 ::: warning 0.x releases
 In 0.x, releases that change the minor number can contain breaking changes. Read the release notes first.
 :::
+
+## Update notice in the admin panel
+
+When a newer release exists, admins see a notice in the sidebar and the **Settings → Updates** section shows the current and latest version, the release notes and the exact commands to run on the server.
+
+To know about new releases the server asks GitHub for the latest published release: only when an admin opens the panel, at most once a day (the answer is kept in memory for 24 hours). The request has no body and no cookies; GitHub only sees the server's IP address and the `User-Agent` header with the running version. No data about your instance is sent. Turn the check off in **Settings → General → Check for updates**.

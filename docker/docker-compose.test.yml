@@ -16,6 +16,8 @@ services:
       TRUST_PROXY: 1
       # Tests only: the API talks to the in-memory fake instead of api.cloudflare.com.
       CLOUDFLARE_API_BASE: http://fake-cloudflare:8787/client/v4
+      # No calls to GitHub from tests: the fake answers 404, so the update check reads "unavailable".
+      UPDATE_CHECK_URL: http://fake-cloudflare:8787/__fake/no-releases
       # The hourly cleanup would delete the transfers the expiry test pushes into the past.
       CLEANUP_CRON: 0 3 1 1 *
     depends_on:
