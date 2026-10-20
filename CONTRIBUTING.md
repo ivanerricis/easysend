@@ -1,6 +1,6 @@
 # Contributing to EasySend
 
-Thanks for helping. This file describes how changes get into `main`. For setting up a development machine, see [section 14 of the README](README.md#14-local-development).
+Thanks for helping. This file describes how changes get into `main`. For setting up a development machine, see the [Local development](https://ivanerricis.github.io/easysend/development/local) page of the documentation.
 
 ## Workflow
 

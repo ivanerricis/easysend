@@ -28,7 +28,7 @@ Out of scope: Cloudflare and its services, your host, Proxmox, Docker, your SMTP
 
 ## Security model
 
-- **Encryption at rest**: files are encrypted on disk with AES-256-GCM in 64 KiB segments. Each file has its own random key, wrapped with a key derived (HKDF) from the master key (`APP_SECRET_KEY` or `/data/secrets/app.key`). TOTP secrets and the SMTP password are encrypted with keys derived from the same master key. The master key can be rotated (README, section 11).
+- **Encryption at rest**: files are encrypted on disk with AES-256-GCM in 64 KiB segments. Each file has its own random key, wrapped with a key derived (HKDF) from the master key (`APP_SECRET_KEY` or `/data/secrets/app.key`). TOTP secrets and the SMTP password are encrypted with keys derived from the same master key. The master key can be rotated ([documentation](https://ivanerricis.github.io/easysend/guide/key-rotation)).
 - **Authentication**: argon2id password hashes; server-side sessions with a random token stored only as a SHA-256 hash; mandatory TOTP two-factor authentication for admins; single-use recovery codes stored as HMAC; lockouts and rate limits on login, password reset, download passwords and setup.
 - **Requests**: CSRF protection on every unsafe request (signed token plus `Origin` and `Sec-Fetch-Site` checks), Zod validation of all input, an authorization check on every resource (non-owners get 404), a strict Content-Security-Policy.
 - **Transport**: TLS ends at Cloudflare; no inbound port is opened on the host. Enable HSTS and "Always Use HTTPS" in Cloudflare.

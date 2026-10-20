@@ -9,3 +9,6 @@ apps/api/drizzle/**
 CLAUDE.md
 docs/SPEC.md
 docs/FASI.md
+
+docs/.vitepress/cache
+docs/.vitepress/dist

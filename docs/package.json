@@ -1,0 +1,20 @@
+{
+  "name": "@easysend/docs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "EasySend documentation site (VitePress, published on GitHub Pages)",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@fontsource-variable/jetbrains-mono": "catalog:",
+    "@fontsource-variable/plus-jakarta-sans": "catalog:",
+    "vitepress": "catalog:",
+    "typescript": "catalog:",
+    "@types/node": "catalog:"
+  }
+}
