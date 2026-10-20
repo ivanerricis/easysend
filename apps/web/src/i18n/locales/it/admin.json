@@ -3,5 +3,343 @@
   "transfersTitle": "Tutti i trasferimenti",
   "storageTitle": "Spazio",
   "settingsTitle": "Impostazioni",
-  "appearanceTitle": "Aspetto"
+  "appearanceTitle": "Aspetto",
+  "locales": {
+    "it": "Italiano",
+    "en": "Inglese"
+  },
+  "usage": {
+    "meterLabel": "Spazio usato da {{name}}",
+    "noQuota": "nessuna quota"
+  },
+  "users": {
+    "description": "Crea e gestisci le persone che possono inviare file. Non esiste la registrazione pubblica.",
+    "never": "Mai",
+    "disabled": "Disabilitato",
+    "empty": "Non ci sono ancora utenti.",
+    "emptyFiltered": "Nessun utente corrisponde ai filtri.",
+    "roles": {
+      "admin": "Amministratore",
+      "user": "Utente"
+    },
+    "twoFactor": {
+      "on": "Attivo",
+      "off": "Non attivo"
+    },
+    "filters": {
+      "search": "Cerca",
+      "searchPlaceholder": "Email o nome",
+      "role": "Ruolo",
+      "allRoles": "Tutti i ruoli",
+      "clear": "Azzera i filtri"
+    },
+    "columns": {
+      "user": "Utente",
+      "role": "Ruolo",
+      "twoFactor": "2FA",
+      "usage": "Spazio",
+      "transfers": "Trasferimenti",
+      "lastLogin": "Ultimo accesso",
+      "actions": "Azioni"
+    },
+    "actions": {
+      "edit": "Modifica {{email}}",
+      "reset2fa": "Azzera il 2FA di {{email}}",
+      "delete": "Elimina {{email}}"
+    },
+    "fields": {
+      "email": "Email",
+      "displayName": "Nome visualizzato",
+      "displayNameHelp": "Lo vedono i destinatari dei suoi file al posto dell'indirizzo email.",
+      "role": "Ruolo",
+      "locale": "Lingua",
+      "password": "Password",
+      "passwordHelp": "Almeno {{count}} caratteri. Lasciala vuota per farla scegliere all'utente.",
+      "quota": "Quota di spazio",
+      "quotaHelp": "Lascia vuoto per nessuna quota: gli upload sono limitati solo dallo spazio libero sul disco.",
+      "quotaPlaceholder": "Nessuna quota",
+      "quotaUnit": "Unità della quota",
+      "disabled": "Disabilita questo account",
+      "disabledHelp": "Un utente disabilitato viene disconnesso e non può più accedere."
+    },
+    "errors": {
+      "emailRequired": "Inserisci un indirizzo email.",
+      "emailInvalid": "Inserisci un indirizzo email valido.",
+      "displayNameTooLong": "Il nome visualizzato è troppo lungo (massimo 80 caratteri).",
+      "passwordTooShort": "La password è troppo corta (almeno 12 caratteri).",
+      "passwordTooLong": "La password è troppo lunga (massimo 128 caratteri).",
+      "quotaInvalid": "Inserisci un numero maggiore di zero, oppure lascia il campo vuoto."
+    },
+    "create": {
+      "open": "Nuovo utente",
+      "title": "Nuovo utente",
+      "description": "L'utente potrà accedere e inviare file.",
+      "welcomeNote": "Nessuna password impostata: l'utente riceverà un'email di benvenuto con un link, valido 72 ore, per scegliere la password.",
+      "createdToast": "Utente creato.",
+      "createdWelcomeToast": "Utente creato. Email di benvenuto inviata a {{email}}."
+    },
+    "edit": {
+      "title": "Modifica utente",
+      "selfLocked": "Non puoi cambiare il tuo ruolo né disabilitare il tuo account.",
+      "savedToast": "Utente aggiornato."
+    },
+    "reset2fa": {
+      "action": "Azzera 2FA",
+      "title": "Azzerare l'autenticazione a due fattori?",
+      "descriptionUser": "{{email}} verrà disconnesso e potrà accedere solo con la password. Potrà riattivare il 2FA dal suo profilo.",
+      "descriptionAdmin": "{{email}} verrà disconnesso e al prossimo accesso dovrà configurare di nuovo il 2FA: gli amministratori non possono farne a meno.",
+      "confirm": "Azzera 2FA",
+      "doneToast": "2FA azzerato per {{email}}."
+    },
+    "delete": {
+      "title": "Elimina utente",
+      "question": "Cosa fare dei suoi trasferimenti e file?",
+      "modeDelete": "Elimina i suoi trasferimenti e file",
+      "modeDeleteHelp": "I link smettono subito di funzionare e i file vengono rimossi dal disco.",
+      "modeReassign": "Assegnali a un altro utente",
+      "modeReassignHelp": "Trasferimenti, upload e spazio occupato passano all'utente scelto.",
+      "target": "Nuovo proprietario",
+      "targetPlaceholder": "Scegli un utente…",
+      "targetRequired": "Scegli l'utente che riceverà i trasferimenti.",
+      "irreversible": "L'account viene eliminato definitivamente. L'operazione non si può annullare.",
+      "confirm": "Elimina utente",
+      "deletedToast": "{{email}} eliminato."
+    }
+  },
+  "transfers": {
+    "description": "I trasferimenti di tutti gli utenti. Aprine uno per gestirlo.",
+    "untitled": "Trasferimento senza titolo",
+    "passwordProtected": "Password",
+    "empty": "Non ci sono ancora trasferimenti.",
+    "emptyFiltered": "Nessun trasferimento corrisponde ai filtri.",
+    "modes": {
+      "link": "Link",
+      "email": "Email"
+    },
+    "filters": {
+      "search": "Cerca",
+      "searchPlaceholder": "Titolo o email del destinatario",
+      "status": "Stato",
+      "allStatuses": "Tutti gli stati",
+      "mode": "Tipo",
+      "allModes": "Tutti i tipi",
+      "owner": "Proprietario",
+      "allOwners": "Tutti gli utenti",
+      "clear": "Azzera i filtri"
+    },
+    "columns": {
+      "transfer": "Trasferimento",
+      "owner": "Proprietario",
+      "status": "Stato",
+      "content": "Contenuto",
+      "downloads": "Download",
+      "expires": "Scadenza"
+    }
+  },
+  "storage": {
+    "description": "Spazio su disco e quanto ne usa ogni utente.",
+    "refreshing": "Aggiornamento dei dati…",
+    "refreshed": "Dati aggiornati.",
+    "updatedAt": "Ultimo aggiornamento: {{time}}",
+    "diskTitle": "Disco",
+    "total": "Dimensione totale",
+    "barLabel": "Uso del disco, totale {{total}}.",
+    "freeNote": "Spazio libero {{free}}; riserva per il sistema {{reserve}}.",
+    "segments": {
+      "others": "Altri dati",
+      "stored": "File di EasySend",
+      "reserve": "Riserva",
+      "usable": "Disponibile"
+    },
+    "segmentHelp": {
+      "others": "Sistema e altre applicazioni",
+      "stored": "File cifrati dei trasferimenti",
+      "reserve": "Mai usata dagli upload",
+      "usable": "Spazio libero per nuovi upload"
+    },
+    "numbersTitle": "In numeri",
+    "storedBytes": "Dati archiviati",
+    "activeTransfers": "Trasferimenti attivi",
+    "totalFiles": "File",
+    "usersTitle": "Uso per utente",
+    "noUsers": "Nessun utente.",
+    "columns": {
+      "user": "Utente",
+      "usage": "Spazio usato"
+    }
+  },
+  "settings": {
+    "description": "Opzioni generali, posta in uscita e indirizzo pubblico.",
+    "savedToast": "Impostazioni salvate.",
+    "general": {
+      "title": "Generali",
+      "description": "Limiti validi per ogni upload e lingua predefinita dell'istanza.",
+      "diskReserve": "Riserva di disco (MB)",
+      "diskReserveHelp": "Spazio libero che gli upload non usano mai. 0 disattiva la riserva.",
+      "chunkSize": "Dimensione dei blocchi di upload (MB)",
+      "chunkSizeHelp": "Da 1 a {{max}} MB. Dietro Cloudflare nessuna richiesta può superare 100 MB, quindi il valore predefinito di 25 MB è una scelta sicura.",
+      "defaultLocale": "Lingua predefinita",
+      "defaultLocaleHelp": "Usata per le email ai destinatari e per chi non ha una preferenza.",
+      "errors": {
+        "reserve": "Inserisci un numero intero di MB, da 0 a 10485760.",
+        "chunk": "Inserisci un numero intero di MB, da 1 a 50."
+      }
+    },
+    "smtp": {
+      "title": "Posta in uscita (SMTP)",
+      "description": "Serve per le notifiche di download, le email di benvenuto e il recupero password. Invia un'email di prova prima di salvare.",
+      "host": "Server",
+      "port": "Porta",
+      "security": "Sicurezza",
+      "securityOptions": {
+        "none": "Nessuna",
+        "starttls": "STARTTLS",
+        "tls": "TLS (SSL)"
+      },
+      "username": "Nome utente",
+      "password": "Password",
+      "passwordKept": "Una password è già salvata. Lascia il campo vuoto per mantenerla.",
+      "fromEmail": "Email del mittente",
+      "fromName": "Nome del mittente",
+      "test": "Invia email di prova",
+      "testing": "Invio in corso…",
+      "testFirst": "Invia un'email di prova con questi valori per poter salvare. Ogni modifica richiede una nuova prova.",
+      "testOk": "Email di prova inviata a {{email}}. Controlla la posta, poi salva.",
+      "testFailedReason": "Non è stato possibile inviare l'email di prova (codice {{reason}}). Controlla server, porta, sicurezza e credenziali.",
+      "errors": {
+        "host": "Inserisci l'indirizzo del server di posta (massimo 255 caratteri).",
+        "port": "Inserisci una porta da 1 a 65535.",
+        "username": "Il nome utente è troppo lungo.",
+        "password": "La password è troppo lunga.",
+        "fromEmail": "Inserisci un indirizzo email del mittente valido.",
+        "fromName": "Il nome del mittente è troppo lungo (massimo 100 caratteri)."
+      }
+    },
+    "tunnel": {
+      "title": "Dominio e tunnel",
+      "description": "L'indirizzo pubblico dell'istanza, esposto tramite un tunnel Cloudflare.",
+      "localTitle": "In modalità locale Cloudflare non si usa",
+      "localBody": "Questa istanza gira con APP_MODE=local: non c'è nessun tunnel né dominio pubblico. Il modulo è disattivato.",
+      "status": "Stato",
+      "configured": "Configurato",
+      "notConfigured": "Non configurato",
+      "hostname": "Indirizzo",
+      "publicUrl": "URL pubblico",
+      "configuredAt": "Configurato il",
+      "domain": "Dominio",
+      "domainHelp": "Un dominio gestito dal tuo account Cloudflare, ad esempio example.com.",
+      "subdomain": "Sottodominio",
+      "subdomainHelp": "Ad esempio «send» per send.example.com. Se è vuoto si usa il dominio stesso.",
+      "apiToken": "Token API di Cloudflare",
+      "apiTokenHelp": "Serve solo per questa operazione: non viene mai salvato.",
+      "permissionsTitle": "Crea il token con questi permessi minimi",
+      "permTunnel": "Account > Cloudflare Tunnel: Edit",
+      "permDns": "Zone > DNS: Edit",
+      "permZone": "Zone > Zone: Read",
+      "createToken": "Apri la pagina dei token API di Cloudflare",
+      "newTab": "(si apre in una nuova scheda)",
+      "reconfigureWarning": "Cambiando il dominio cambia l'indirizzo pubblico: i link già condivisi con il vecchio indirizzo smetteranno di funzionare.",
+      "configure": "Configura il tunnel",
+      "reconfigure": "Cambia dominio",
+      "savedToast": "Tunnel configurato: {{url}}",
+      "errors": {
+        "domain": "Inserisci un dominio valido, ad esempio example.com.",
+        "subdomain": "Usa solo lettere, numeri e trattini.",
+        "token": "Inserisci il token API di Cloudflare (almeno 20 caratteri)."
+      }
+    }
+  },
+  "appearance": {
+    "description": "Nome, colori, carattere e immagini delle pagine pubbliche e delle email. L'anteprima si aggiorna mentre scrivi.",
+    "savedToast": "Aspetto salvato.",
+    "resetToast": "Aspetto predefinito ripristinato.",
+    "resetDefaults": "Ripristina i valori predefiniti",
+    "resetTitle": "Ripristinare l'aspetto predefinito?",
+    "resetDescription": "Nome, piè di pagina, colori, raggio, carattere e tema tornano ai valori predefiniti di {{name}}. Le immagini caricate restano.",
+    "resetConfirm": "Ripristina",
+    "errors": {
+      "instanceName": "Inserisci un nome da 1 a 60 caratteri.",
+      "footer": "Il piè di pagina è troppo lungo (massimo 200 caratteri).",
+      "color": "Inserisci un colore nel formato #rrggbb, ad esempio #047857."
+    },
+    "fields": {
+      "title": "Identità e stile",
+      "instanceName": "Nome dell'istanza",
+      "instanceNameHelp": "Compare nell'intestazione, nelle email e come mittente nella pagina di download quando l'utente non ha un nome visualizzato.",
+      "footer": "Testo del piè di pagina",
+      "footerHelp": "Compare in fondo alle pagine pubbliche e alle email. Lascialo vuoto per nasconderlo.",
+      "primaryColor": "Colore primario",
+      "primaryColorHelp": "Pulsanti principali.",
+      "accentColor": "Colore di accento",
+      "accentColorHelp": "Link, evidenziazioni e anello del focus.",
+      "pickColor": "Scegli: {{name}}",
+      "radius": "Raggio degli angoli",
+      "radiusHelp": "In rem. L'interfaccia usa angoli netti, quindi l'effetto è limitato; il valore lo usano le email.",
+      "font": "Carattere",
+      "defaultTheme": "Tema predefinito",
+      "defaultThemeHelp": "Ogni utente può scegliere il proprio dal profilo."
+    },
+    "fonts": {
+      "ibm-plex-sans": "IBM Plex Sans",
+      "system": "Carattere di sistema"
+    },
+    "contrast": {
+      "title": "Verifica del contrasto",
+      "help": "WCAG 2.2 AA richiede 4,5:1 per il testo e 3:1 per gli elementi dell'interfaccia. Puoi salvare comunque, ma un contrasto basso rende le pagine difficili da leggere.",
+      "allPass": "Tutte le verifiche di contrasto sono superate.",
+      "someFail_one": "{{count}} verifica di contrasto non è superata.",
+      "someFail_other": "{{count}} verifiche di contrasto non sono superate.",
+      "required": "richiesto {{value}}:1",
+      "pass": "Superata",
+      "fail": "Non superata",
+      "checks": {
+        "primaryText": "Testo sul colore primario (pulsanti)",
+        "primaryOnLight": "Colore primario su sfondo bianco (bordi dei pulsanti)",
+        "accentText": "Testo sul colore di accento (etichette)",
+        "accentOnLight": "Colore di accento su sfondo bianco (anello del focus, icone)",
+        "accentAsText": "Colore di accento usato come testo dei link su bianco",
+        "darkPrimaryFallback": "Nel tema scuro il colore primario è troppo vicino allo sfondo: lì si usa il colore scuro predefinito.",
+        "darkAccentFallback": "Nel tema scuro il colore di accento è troppo vicino allo sfondo: lì si usa il colore scuro predefinito."
+      }
+    },
+    "preview": {
+      "title": "Anteprima",
+      "help": "Una pagina pubblica in miniatura: non viene salvata finché non premi Salva.",
+      "light": "Tema chiaro",
+      "dark": "Tema scuro",
+      "sample": "Invia file di grandi dimensioni in modo semplice.",
+      "link": "Scopri di più",
+      "input": "Indirizzo email",
+      "button": "Scarica",
+      "badge": "Novità"
+    },
+    "images": {
+      "title": "Immagini",
+      "description": "PNG, JPEG o WebP, fino a {{size}} ciascuna. L'SVG non è accettato. Le immagini vengono ricodificate e ridimensionate; la modifica è immediata.",
+      "default": "Predefinita",
+      "currentAlt": "Immagine attuale: {{name}}",
+      "uploading": "Caricamento in corso…",
+      "uploadedToast": "{{name}} aggiornato.",
+      "removedToast": "{{name}} rimosso.",
+      "removeLabel": "Rimuovi: {{name}}",
+      "removeTitle": "Rimuovere «{{name}}»?",
+      "removeDescription": "Tornerà a essere usata l'immagine predefinita.",
+      "kinds": {
+        "logoLight": "Logo (tema chiaro)",
+        "logoDark": "Logo (tema scuro)",
+        "favicon": "Favicon",
+        "background": "Sfondo"
+      },
+      "help": {
+        "logoLight": "Consigliato: sfondo trasparente, fino a 800×200 px. Si usa anche nelle email.",
+        "logoDark": "Consigliato: versione per sfondi scuri, fino a 800×200 px. Se manca, si usa il logo chiaro.",
+        "favicon": "Consigliato: quadrata, 256×256 px.",
+        "background": "Consigliato: fino a 2560×1440 px, poco dettagliato così il testo resta leggibile."
+      },
+      "errors": {
+        "type": "Formato non supportato. Scegli un'immagine PNG, JPEG o WebP.",
+        "size": "Il file è troppo grande: il massimo è {{max}}."
+      }
+    }
+  }
 }

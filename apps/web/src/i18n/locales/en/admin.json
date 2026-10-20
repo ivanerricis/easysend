@@ -3,5 +3,343 @@
   "transfersTitle": "All transfers",
   "storageTitle": "Storage",
   "settingsTitle": "Settings",
-  "appearanceTitle": "Appearance"
+  "appearanceTitle": "Appearance",
+  "locales": {
+    "it": "Italian",
+    "en": "English"
+  },
+  "usage": {
+    "meterLabel": "Storage used by {{name}}",
+    "noQuota": "no quota"
+  },
+  "users": {
+    "description": "Create and manage the people who can send files. There is no public registration.",
+    "never": "Never",
+    "disabled": "Disabled",
+    "empty": "There are no users yet.",
+    "emptyFiltered": "No user matches these filters.",
+    "roles": {
+      "admin": "Administrator",
+      "user": "User"
+    },
+    "twoFactor": {
+      "on": "Enabled",
+      "off": "Not enabled"
+    },
+    "filters": {
+      "search": "Search",
+      "searchPlaceholder": "Email or name",
+      "role": "Role",
+      "allRoles": "All roles",
+      "clear": "Clear filters"
+    },
+    "columns": {
+      "user": "User",
+      "role": "Role",
+      "twoFactor": "2FA",
+      "usage": "Storage",
+      "transfers": "Transfers",
+      "lastLogin": "Last sign-in",
+      "actions": "Actions"
+    },
+    "actions": {
+      "edit": "Edit {{email}}",
+      "reset2fa": "Reset 2FA of {{email}}",
+      "delete": "Delete {{email}}"
+    },
+    "fields": {
+      "email": "Email",
+      "displayName": "Display name",
+      "displayNameHelp": "Shown to people who receive their files instead of the email address.",
+      "role": "Role",
+      "locale": "Language",
+      "password": "Password",
+      "passwordHelp": "At least {{count}} characters. Leave it empty to let the user choose it.",
+      "quota": "Storage quota",
+      "quotaHelp": "Leave empty for no quota: only the free disk space limits uploads.",
+      "quotaPlaceholder": "No quota",
+      "quotaUnit": "Quota unit",
+      "disabled": "Disable this account",
+      "disabledHelp": "A disabled user is signed out and cannot sign in."
+    },
+    "errors": {
+      "emailRequired": "Enter an email address.",
+      "emailInvalid": "Enter a valid email address.",
+      "displayNameTooLong": "The display name is too long (80 characters at most).",
+      "passwordTooShort": "The password is too short (at least 12 characters).",
+      "passwordTooLong": "The password is too long (128 characters at most).",
+      "quotaInvalid": "Enter a number greater than zero, or leave the field empty."
+    },
+    "create": {
+      "open": "New user",
+      "title": "New user",
+      "description": "The user will be able to sign in and send files.",
+      "welcomeNote": "No password set: the user will receive a welcome email with a link, valid for 72 hours, to choose their password.",
+      "createdToast": "User created.",
+      "createdWelcomeToast": "User created. A welcome email was sent to {{email}}."
+    },
+    "edit": {
+      "title": "Edit user",
+      "selfLocked": "You cannot change your own role or disable your own account.",
+      "savedToast": "User updated."
+    },
+    "reset2fa": {
+      "action": "Reset 2FA",
+      "title": "Reset two-factor authentication?",
+      "descriptionUser": "{{email}} will be signed out and will be able to sign in with the password only. They can enable 2FA again from their profile.",
+      "descriptionAdmin": "{{email}} will be signed out and will have to set up 2FA again the next time they sign in: administrators cannot work without it.",
+      "confirm": "Reset 2FA",
+      "doneToast": "2FA reset for {{email}}."
+    },
+    "delete": {
+      "title": "Delete user",
+      "question": "What should happen to their transfers and files?",
+      "modeDelete": "Delete their transfers and files",
+      "modeDeleteHelp": "Links stop working immediately and the files are removed from the disk.",
+      "modeReassign": "Reassign them to another user",
+      "modeReassignHelp": "Transfers, uploads and the storage they use pass to the chosen user.",
+      "target": "New owner",
+      "targetPlaceholder": "Choose a user…",
+      "targetRequired": "Choose the user who will receive the transfers.",
+      "irreversible": "The account is deleted permanently. This cannot be undone.",
+      "confirm": "Delete user",
+      "deletedToast": "{{email}} deleted."
+    }
+  },
+  "transfers": {
+    "description": "Transfers of all users. Open one to manage it.",
+    "untitled": "Untitled transfer",
+    "passwordProtected": "Password",
+    "empty": "There are no transfers yet.",
+    "emptyFiltered": "No transfer matches these filters.",
+    "modes": {
+      "link": "Link",
+      "email": "Email"
+    },
+    "filters": {
+      "search": "Search",
+      "searchPlaceholder": "Title or recipient email",
+      "status": "Status",
+      "allStatuses": "All statuses",
+      "mode": "Type",
+      "allModes": "All types",
+      "owner": "Owner",
+      "allOwners": "All users",
+      "clear": "Clear filters"
+    },
+    "columns": {
+      "transfer": "Transfer",
+      "owner": "Owner",
+      "status": "Status",
+      "content": "Content",
+      "downloads": "Downloads",
+      "expires": "Expires"
+    }
+  },
+  "storage": {
+    "description": "Disk space and how much each user is using.",
+    "refreshing": "Refreshing data…",
+    "refreshed": "Data up to date.",
+    "updatedAt": "Last updated: {{time}}",
+    "diskTitle": "Disk",
+    "total": "Total size",
+    "barLabel": "Disk usage, total {{total}}.",
+    "freeNote": "Free space {{free}}; reserve kept for the system {{reserve}}.",
+    "segments": {
+      "others": "Other data",
+      "stored": "EasySend files",
+      "reserve": "Reserve",
+      "usable": "Available"
+    },
+    "segmentHelp": {
+      "others": "System and other applications",
+      "stored": "Encrypted files of the transfers",
+      "reserve": "Never used by uploads",
+      "usable": "Free space for new uploads"
+    },
+    "numbersTitle": "In numbers",
+    "storedBytes": "Stored data",
+    "activeTransfers": "Active transfers",
+    "totalFiles": "Files",
+    "usersTitle": "Usage by user",
+    "noUsers": "No users.",
+    "columns": {
+      "user": "User",
+      "usage": "Storage used"
+    }
+  },
+  "settings": {
+    "description": "General options, outgoing email and public address.",
+    "savedToast": "Settings saved.",
+    "general": {
+      "title": "General",
+      "description": "Limits that apply to every upload and the default language of the instance.",
+      "diskReserve": "Disk reserve (MB)",
+      "diskReserveHelp": "Free space that uploads never use. 0 disables the reserve.",
+      "chunkSize": "Upload chunk size (MB)",
+      "chunkSizeHelp": "From 1 to {{max}} MB. Behind Cloudflare no request may exceed 100 MB, so the default of 25 MB is a safe choice.",
+      "defaultLocale": "Default language",
+      "defaultLocaleHelp": "Used for emails to recipients and for visitors without a preference.",
+      "errors": {
+        "reserve": "Enter a whole number of MB, from 0 to 10485760.",
+        "chunk": "Enter a whole number of MB, from 1 to 50."
+      }
+    },
+    "smtp": {
+      "title": "Outgoing email (SMTP)",
+      "description": "Used for download notifications, welcome and password reset emails. Send a test email before saving.",
+      "host": "Server",
+      "port": "Port",
+      "security": "Security",
+      "securityOptions": {
+        "none": "None",
+        "starttls": "STARTTLS",
+        "tls": "TLS (SSL)"
+      },
+      "username": "Username",
+      "password": "Password",
+      "passwordKept": "A password is saved. Leave the field empty to keep it.",
+      "fromEmail": "Sender email",
+      "fromName": "Sender name",
+      "test": "Send test email",
+      "testing": "Sending…",
+      "testFirst": "Send a test email with these values to enable saving. Any change requires a new test.",
+      "testOk": "Test email sent to {{email}}. Check your inbox, then save.",
+      "testFailedReason": "The test email could not be sent (code {{reason}}). Check the server, port, security and credentials.",
+      "errors": {
+        "host": "Enter the mail server address (255 characters at most).",
+        "port": "Enter a port from 1 to 65535.",
+        "username": "The username is too long.",
+        "password": "The password is too long.",
+        "fromEmail": "Enter a valid sender email address.",
+        "fromName": "The sender name is too long (100 characters at most)."
+      }
+    },
+    "tunnel": {
+      "title": "Domain and tunnel",
+      "description": "The public address of the instance, served through a Cloudflare tunnel.",
+      "localTitle": "Cloudflare is not used in local mode",
+      "localBody": "This instance runs with APP_MODE=local, so there is no tunnel and no public domain. The form is disabled.",
+      "status": "Status",
+      "configured": "Configured",
+      "notConfigured": "Not configured",
+      "hostname": "Address",
+      "publicUrl": "Public URL",
+      "configuredAt": "Configured on",
+      "domain": "Domain",
+      "domainHelp": "A domain managed by your Cloudflare account, for example example.com.",
+      "subdomain": "Subdomain",
+      "subdomainHelp": "For example “send” for send.example.com. Empty uses the domain itself.",
+      "apiToken": "Cloudflare API token",
+      "apiTokenHelp": "Used only for this operation: it is never saved.",
+      "permissionsTitle": "Create the token with these minimal permissions",
+      "permTunnel": "Account > Cloudflare Tunnel: Edit",
+      "permDns": "Zone > DNS: Edit",
+      "permZone": "Zone > Zone: Read",
+      "createToken": "Open the Cloudflare API tokens page",
+      "newTab": "(opens in a new tab)",
+      "reconfigureWarning": "Changing the domain changes the public address: links already shared with the old address will stop working.",
+      "configure": "Configure tunnel",
+      "reconfigure": "Change domain",
+      "savedToast": "Tunnel configured: {{url}}",
+      "errors": {
+        "domain": "Enter a valid domain, for example example.com.",
+        "subdomain": "Use only letters, numbers and hyphens.",
+        "token": "Enter the Cloudflare API token (at least 20 characters)."
+      }
+    }
+  },
+  "appearance": {
+    "description": "Name, colours, font and images of the public pages and of the emails. The preview updates as you type.",
+    "savedToast": "Appearance saved.",
+    "resetToast": "Default appearance restored.",
+    "resetDefaults": "Restore defaults",
+    "resetTitle": "Restore the default appearance?",
+    "resetDescription": "Name, footer, colours, radius, font and theme go back to the {{name}} defaults. Uploaded images are kept.",
+    "resetConfirm": "Restore defaults",
+    "errors": {
+      "instanceName": "Enter a name of 1 to 60 characters.",
+      "footer": "The footer is too long (200 characters at most).",
+      "color": "Enter a colour as #rrggbb, for example #047857."
+    },
+    "fields": {
+      "title": "Identity and style",
+      "instanceName": "Instance name",
+      "instanceNameHelp": "Shown in the header, in the emails and as the sender on the download page when a user has no display name.",
+      "footer": "Footer text",
+      "footerHelp": "Shown at the bottom of public pages and emails. Leave it empty to hide the footer.",
+      "primaryColor": "Primary colour",
+      "primaryColorHelp": "Main buttons.",
+      "accentColor": "Accent colour",
+      "accentColorHelp": "Links, highlights and focus rings.",
+      "pickColor": "Pick: {{name}}",
+      "radius": "Corner radius",
+      "radiusHelp": "In rem. The interface uses square corners, so the effect is limited; the value is used by the emails.",
+      "font": "Font",
+      "defaultTheme": "Default theme",
+      "defaultThemeHelp": "Each user can choose their own in their profile."
+    },
+    "fonts": {
+      "ibm-plex-sans": "IBM Plex Sans",
+      "system": "System font"
+    },
+    "contrast": {
+      "title": "Contrast check",
+      "help": "WCAG 2.2 AA requires 4.5:1 for text and 3:1 for interface elements. You can save anyway, but low contrast makes the pages hard to read.",
+      "allPass": "All contrast checks pass.",
+      "someFail_one": "{{count}} contrast check does not pass.",
+      "someFail_other": "{{count}} contrast checks do not pass.",
+      "required": "required {{value}}:1",
+      "pass": "Pass",
+      "fail": "Fail",
+      "checks": {
+        "primaryText": "Text on the primary colour (buttons)",
+        "primaryOnLight": "Primary colour on a white background (button edges)",
+        "accentText": "Text on the accent colour (badges)",
+        "accentOnLight": "Accent colour on a white background (focus rings, icons)",
+        "accentAsText": "Accent colour used as link text on white",
+        "darkPrimaryFallback": "In the dark theme the primary colour is too close to the dark background: the default dark colour is used there.",
+        "darkAccentFallback": "In the dark theme the accent colour is too close to the dark background: the default dark colour is used there."
+      }
+    },
+    "preview": {
+      "title": "Preview",
+      "help": "A miniature public page, not saved until you press Save.",
+      "light": "Light theme",
+      "dark": "Dark theme",
+      "sample": "Send large files simply.",
+      "link": "Learn more",
+      "input": "Email address",
+      "button": "Download",
+      "badge": "New"
+    },
+    "images": {
+      "title": "Images",
+      "description": "PNG, JPEG or WebP, up to {{size}} each. SVG is not accepted. Images are re-encoded and resized; the change is applied immediately.",
+      "default": "Default",
+      "currentAlt": "Current image: {{name}}",
+      "uploading": "Uploading…",
+      "uploadedToast": "{{name}} updated.",
+      "removedToast": "{{name}} removed.",
+      "removeLabel": "Remove: {{name}}",
+      "removeTitle": "Remove “{{name}}”?",
+      "removeDescription": "The default image will be used again.",
+      "kinds": {
+        "logoLight": "Logo (light theme)",
+        "logoDark": "Logo (dark theme)",
+        "favicon": "Favicon",
+        "background": "Background"
+      },
+      "help": {
+        "logoLight": "Recommended: transparent background, up to 800×200 px. Also used in the emails.",
+        "logoDark": "Recommended: version for dark backgrounds, up to 800×200 px. If missing, the light logo is used.",
+        "favicon": "Recommended: square, 256×256 px.",
+        "background": "Recommended: up to 2560×1440 px, low detail so the text stays readable."
+      },
+      "errors": {
+        "type": "Unsupported format. Choose a PNG, JPEG or WebP image.",
+        "size": "The file is too large: the maximum is {{max}}."
+      }
+    }
+  }
 }
