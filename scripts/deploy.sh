@@ -141,7 +141,7 @@ auto_rollback() {
   if [[ -n "$backup" ]]; then
     log "Restoring database backup $backup..."
     dc run --rm --no-deps -T api node dist/cli/restore-db.js "$backup" ||
-      { err "Database restore failed: restore $backup manually (see README)."; return 1; }
+      { err "Database restore failed: restore $backup manually (see https://ivanerricis.github.io/easysend/guide/backup)."; return 1; }
   fi
   dc up -d --wait --wait-timeout "${DEPLOY_WAIT_TIMEOUT:-180}" || return 1
   wait_healthy "$prev" 30 || return 1
