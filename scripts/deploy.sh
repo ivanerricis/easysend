@@ -6,9 +6,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
 source "$SCRIPT_DIR/lib/common.sh"
 
+NO_SCRIPT_UPDATE=0
+
 usage() {
   cat <<'EOF'
-Usage: scripts/deploy.sh [VERSION] [--force] [--yes]
+Usage: scripts/deploy.sh [VERSION] [--force] [--yes] [--no-script-update]
 
 Deploys VERSION (e.g. 0.1.0 or v0.1.0). Without VERSION the latest GitHub release is used.
 
@@ -18,19 +20,25 @@ What it does:
   3. downloads the docker-compose.yml of the release tag and validates it;
   4. backs up the database (if the stack is running);
   5. pulls the images, updates APP_VERSION in .env, runs `docker compose up -d --wait`;
-  6. checks /health and the reported version.
+  6. checks /health and the reported version;
+  7. updates the scripts themselves (deploy, rollback, backup, uninstall, lib/common.sh) to the
+     ones of the release tag: they are downloaded, validated (`bash -n`), the current copies are
+     saved in .deploy/previous-scripts/ and replaced atomically. A failure here only prints a
+     warning with the manual command: it never fails or rolls back the deploy.
 If anything fails after the switch, the previous version, compose file and database are
 restored automatically and the script exits with an error.
 
 Options:
   --force   redeploy even if VERSION is already the current one
   --yes     do not ask for confirmation
+  --no-script-update  leave the scripts as they are
   -h, --help
 
 Environment:
   EASYSEND_DIR                   install directory (default: parent of scripts/)
   GITHUB_REPO                    owner/name (default: ivanerricis/easysend)
-  EASYSEND_SKIP_COMPOSE_DOWNLOAD=1  keep the docker-compose.yml already in the install directory
+  EASYSEND_SKIP_DOWNLOADS=1      do not download compose file and scripts (old name EASYSEND_SKIP_COMPOSE_DOWNLOAD works too)
+  EASYSEND_RAW_BASE              base URL of raw files (default: https://raw.githubusercontent.com/$GITHUB_REPO)
   DEPLOY_WAIT_TIMEOUT            seconds to wait for healthy containers (default: 180)
 EOF
 }
@@ -47,13 +55,13 @@ latest_version() {
 # Downloads the compose file of a release tag, validates it and installs it. Returns non-zero on failure.
 install_release_compose() {
   local version="$1" tmp
-  if [[ "${EASYSEND_SKIP_COMPOSE_DOWNLOAD:-0}" == "1" ]]; then
-    log "Keeping the existing docker-compose.yml (EASYSEND_SKIP_COMPOSE_DOWNLOAD=1)."
+  if downloads_skipped; then
+    log "Keeping the existing docker-compose.yml (downloads disabled)."
     return 0
   fi
   tmp="$(mktemp "$DEPLOY_DIR/compose.XXXXXX")"
   if ! curl -fsSL --max-time 60 -o "$tmp" \
-    "https://raw.githubusercontent.com/$GITHUB_REPO/v$version/docker-compose.yml"; then
+    "$(raw_base)/v$version/docker-compose.yml"; then
     rm -f "$tmp"
     err "Could not download docker-compose.yml for v$version."
     return 1
@@ -66,6 +74,57 @@ install_release_compose() {
   chmod 644 "$tmp"
   mv "$tmp" "$EASYSEND_DIR/docker-compose.yml"
   ok "docker-compose.yml updated to the one of v$version."
+}
+
+# Downloads the scripts of a release tag into a temp dir, validates them, saves the current ones
+# in .deploy/previous-scripts/ and replaces them. Returns non-zero (and changes nothing) on failure.
+update_scripts() {
+  local version="$1" tmp f
+  tmp="$(mktemp -d "$DEPLOY_DIR/scripts-new.XXXXXX")"
+  for f in "${SCRIPT_FILES[@]}"; do
+    mkdir -p "$tmp/$(dirname "$f")"
+    if ! curl -fsSL --max-time 60 -o "$tmp/$f" "$(raw_base)/v$version/$f"; then
+      err "Could not download $f for v$version."
+      rm -rf "$tmp"
+      return 1
+    fi
+    if [[ ! -s "$tmp/$f" ]]; then
+      err "Downloaded $f is empty."
+      rm -rf "$tmp"
+      return 1
+    fi
+    if [[ "$f" != scripts/lib/* && "$(head -n 1 "$tmp/$f")" != '#!/usr/bin/env bash' ]]; then
+      err "Downloaded $f does not start with '#!/usr/bin/env bash'."
+      rm -rf "$tmp"
+      return 1
+    fi
+    if ! bash -n "$tmp/$f"; then
+      err "Downloaded $f has a syntax error."
+      rm -rf "$tmp"
+      return 1
+    fi
+  done
+  snapshot_scripts "$DEPLOY_DIR/previous-scripts" || { rm -rf "$tmp"; return 1; }
+  install_scripts_from "$tmp" || { rm -rf "$tmp"; return 1; }
+  rm -rf "$tmp"
+  ok "Scripts updated to the ones of v$version (previous copies in .deploy/previous-scripts/)."
+}
+
+# Runs update_scripts after a successful deploy; never fails the deploy.
+maybe_update_scripts() {
+  local version="$1"
+  if ((NO_SCRIPT_UPDATE)) || downloads_skipped; then
+    log "Scripts not updated (disabled)."
+    rm -rf "$DEPLOY_DIR/previous-scripts"
+    return 0
+  fi
+  log "Updating the scripts to v$version..."
+  if ! update_scripts "$version"; then
+    rm -rf "$DEPLOY_DIR/previous-scripts"
+    warn "The scripts were NOT updated (the deploy itself succeeded). To update them by hand:"
+    warn "  for f in ${SCRIPT_FILES[*]}; do curl -fsSL -o \$f $(raw_base)/v$version/\$f; done; chmod +x scripts/*.sh"
+  fi
+  return 0
 }
 
 # Brings the stack to PREVIOUS after a failed deploy. Arguments: version, saved compose, db backup name.
@@ -102,11 +161,12 @@ switch_to() {
 }
 
 main() {
-  local version='' force=0
+  local version='' force=0  
   while (($#)); do
     case "$1" in
       -h | --help) usage; exit 0 ;;
       --force) force=1 ;;
+      --no-script-update) NO_SCRIPT_UPDATE=1 ;;
       --yes | -y) ASSUME_YES=1 ;;
       -*) usage >&2; die "Unknown option: $1" ;;
       *) [[ -z "$version" ]] || die "Only one version can be given."; version="$1" ;;
@@ -172,6 +232,7 @@ main() {
     history_add "deploy ${current:-none} -> $version ok backup=${backup:-none}"
     ok "EasySend $version is running."
     log "Summary: version=$version previous=$(state_get previous-version) db-backup=${backup:-none}"
+    maybe_update_scripts "$version"
     log "Old images stay on disk for rollbacks. To free space later: docker image prune -a"
     return 0
   fi

@@ -170,3 +170,48 @@ volume_real_name() {
     --filter "label=com.docker.compose.volume=$1" | head -n 1)"
   printf '%s\n' "${vol:-${project}_$1}"
 }
+
+# --- Scripts self-update -------------------------------------------------------------
+# Files of the install dir that deploy.sh keeps in sync with the deployed release.
+SCRIPT_FILES=(scripts/deploy.sh scripts/rollback.sh scripts/backup.sh scripts/uninstall.sh scripts/lib/common.sh)
+
+# Base URL of the raw repository files (overridable for forks and tests).
+raw_base() { printf '%s\n' "${EASYSEND_RAW_BASE:-https://raw.githubusercontent.com/$GITHUB_REPO}"; }
+
+# True when downloads from the release are disabled (old name kept for compatibility).
+downloads_skipped() {
+  [[ "${EASYSEND_SKIP_DOWNLOADS:-0}" == "1" || "${EASYSEND_SKIP_COMPOSE_DOWNLOAD:-0}" == "1" ]]
+}
+
+# install_file SRC DST MODE: copies next to DST then renames over it. A bash process that is
+# still reading the old file keeps its old inode, so replacing a running script is safe.
+install_file() {
+  local src="$1" dst="$2" mode="$3" tmp
+  mkdir -p "$(dirname "$dst")"
+  tmp="$(mktemp "$dst.XXXXXX")"
+  cp "$src" "$tmp"
+  chmod "$mode" "$tmp"
+  mv -f "$tmp" "$dst"
+}
+
+# script_mode FILE: 755 for the executables, 644 for the library.
+script_mode() { if [[ "$1" == scripts/lib/* ]]; then echo 644; else echo 755; fi; }
+
+# snapshot_scripts DIR: copies the current script files into DIR (same relative layout).
+snapshot_scripts() {
+  local dir="$1" f
+  rm -rf "$dir"
+  for f in "${SCRIPT_FILES[@]}"; do
+    mkdir -p "$dir/$(dirname "$f")"
+    cp -p "$EASYSEND_DIR/$f" "$dir/$f"
+  done
+}
+
+# install_scripts_from DIR: atomically puts every script file found in DIR in place.
+install_scripts_from() {
+  local dir="$1" f
+  for f in "${SCRIPT_FILES[@]}"; do
+    [[ -f "$dir/$f" ]] || continue
+    install_file "$dir/$f" "$EASYSEND_DIR/$f" "$(script_mode "$f")"
+  done
+}

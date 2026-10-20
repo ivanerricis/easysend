@@ -10,7 +10,8 @@ usage() {
   cat <<'USAGE'
 Usage: scripts/rollback.sh [--keep-db] [--yes]
 
-Restores the previous version recorded in .deploy/ together with its docker-compose.yml and,
+Restores the previous version recorded in .deploy/ together with its docker-compose.yml, the
+scripts saved by the last deploy (.deploy/previous-scripts/, if any) and,
 unless --keep-db is given, the database backup taken by the last deploy.
 
 WARNING: restoring the database discards everything written since that deploy (new transfers,
@@ -90,6 +91,19 @@ main() {
   fi
   state_set current-version "$previous"
   state_set last-backup ""
+
+  # Put the scripts of the previous release back too (atomic renames, so this very script keeps
+  # running from its old inode). The scripts we leave become the new "previous" ones.
+  if [[ -d "$DEPLOY_DIR/previous-scripts" ]]; then
+    if snapshot_scripts "$DEPLOY_DIR/scripts-before" &&
+      install_scripts_from "$DEPLOY_DIR/previous-scripts"; then
+      rm -rf "$DEPLOY_DIR/previous-scripts"
+      mv "$DEPLOY_DIR/scripts-before" "$DEPLOY_DIR/previous-scripts"
+      ok "Scripts restored to the previous release's."
+    else
+      warn "Could not restore the previous scripts (the rollback itself succeeded): see .deploy/previous-scripts/."
+    fi
+  fi
   history_add "rollback ${current:-unknown} -> $previous ok db=$((keep_db)) backup=${backup:-none}"
   ok "EasySend $previous is running again."
 }
