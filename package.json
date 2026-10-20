@@ -32,12 +32,15 @@
     "local:reset": "node scripts/local.mjs reset"
   },
   "devDependencies": {
+    "@axe-core/playwright": "catalog:",
     "@eslint/js": "catalog:",
+    "@playwright/test": "catalog:",
     "@types/node": "catalog:",
     "eslint": "catalog:",
     "eslint-plugin-jsx-a11y": "catalog:",
     "eslint-plugin-react-hooks": "catalog:",
     "globals": "catalog:",
+    "otpauth": "catalog:",
     "prettier": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",
