@@ -178,6 +178,16 @@
   --sidebar-ring: oklch(0.765 0.177 163.223);
 }
 
+/* Static replacement of the <style> element Radix Select injects (blocked by the CSP). */
+[data-radix-select-viewport] {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+}
+[data-radix-select-viewport]::-webkit-scrollbar {
+  display: none;
+}
+
 /* Static replacement of the <style> element react-remove-scroll injects (blocked by the CSP).
    The gutter is reserved only while locked, so the layout does not shift when the scrollbar goes. */
 html:has(body[data-scroll-locked]) {
