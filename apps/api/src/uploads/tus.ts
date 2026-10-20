@@ -16,6 +16,7 @@ import {
 import {
   MAX_FILES_PER_TRANSFER,
   tusUploadMetadataSchema,
+  tusUploadParamsSchema,
   type ErrorCode,
   type TusUploadMetadata,
 } from '@easysend/shared';
@@ -270,6 +271,10 @@ export function uploadsRouter(ctx: AppContext): Router {
       // A creation has no row yet: `onUploadCreate` checks and inserts it.
       if (req.method === 'POST') return Promise.resolve();
       const userId = authOf(req).user.id;
+      // Validate the id (contract schema) before any DB access; invalid reads as "not found".
+      if (!tusUploadParamsSchema.safeParse({ id: uploadId }).success) {
+        throw new AppError('NOT_FOUND', 'Upload not found');
+      }
       const row = db
         .select()
         .from(uploads)
@@ -360,13 +365,15 @@ export function uploadsRouter(ctx: AppContext): Router {
   const headShortcut: RequestHandler = (req, res, next) => {
     if (req.method !== 'HEAD') return next();
     const id = uploadIdOf(req);
-    const row = id
-      ? db
-          .select()
-          .from(uploads)
-          .where(and(eq(uploads.id, id), eq(uploads.ownerId, req.auth!.user.id)))
-          .get()
-      : undefined;
+    // An invalid id never reaches the DB: tus rejects it in `onIncomingRequest`.
+    const row =
+      id && tusUploadParamsSchema.safeParse({ id }).success
+        ? db
+            .select()
+            .from(uploads)
+            .where(and(eq(uploads.id, id), eq(uploads.ownerId, req.auth!.user.id)))
+            .get()
+        : undefined;
     if (!row || (row.status !== 'processing' && row.status !== 'completed')) return next();
     res
       .status(200)

@@ -5,9 +5,11 @@ import { createContext, type AppContext, type AppDeps } from './context.js';
 import { cookieParser } from './http/cookies.js';
 import { createErrorHandler, notFoundHandler } from './http/error-handler.js';
 import { createSetupGate } from './http/setup-gate.js';
+import { maskLogUrl } from './http/log-url.js';
 import { requestId } from './http/request-id.js';
 import type { Logger } from './logger.js';
 import { adminTunnelRouter } from './routes/admin-tunnel.js';
+import { adminUpdatesRouter } from './routes/admin-updates.js';
 import { adminUsersRouter } from './routes/admin-users.js';
 import { authRouter } from './routes/auth.js';
 import { downloadsRouter } from './routes/downloads.js';
@@ -68,6 +70,16 @@ export function createAppWithContext(deps: AppDeps): { app: Express; ctx: AppCon
       genReqId: (req) => req.id,
       // Health checks run every few seconds and would drown the log.
       autoLogging: { ignore: (req) => req.url === '/api/health' },
+      // Allow-list serializers: no headers (cookies, user agent, forwarded IPs), no socket
+      // address, and the URL without download tokens or query string.
+      serializers: {
+        req: (req: { id?: unknown; method?: string; originalUrl?: string; url?: string }) => ({
+          id: req.id,
+          method: req.method,
+          url: maskLogUrl(req.originalUrl ?? req.url ?? ''),
+        }),
+        res: (res: { statusCode?: number }) => ({ statusCode: res.statusCode }),
+      },
     }),
   );
   app.use(helmet());
@@ -100,6 +112,7 @@ export function createAppWithContext(deps: AppDeps): { app: Express; ctx: AppCon
     setupRouter(ctx),
     settingsRouter(ctx),
     adminTunnelRouter(ctx),
+    adminUpdatesRouter(ctx),
   );
 
   app.use(notFoundHandler);

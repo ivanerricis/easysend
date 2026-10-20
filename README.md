@@ -1,81 +1,55 @@
 # EasySend
 
-## Italiano
+English | [Italiano](README.it.md)
 
-Applicazione web self-hosted per il trasferimento di file di grandi dimensioni, simile a WeTransfer.
+EasySend is a self-hosted web application for sending large files, similar to WeTransfer. You run it on your own server, behind a Cloudflare Tunnel, so no inbound port is opened.
 
-Stato: lavori in corso, fase 1 (fondamenta e contratto API). Il README completo arriva nella fase 6.
+![New transfer page](docs/screenshots/06-new-transfer-light.png)
 
-### Prerequisiti
+| Download page                                                     | Admin: users                                              |
+| ----------------------------------------------------------------- | --------------------------------------------------------- |
+| ![Download page](docs/screenshots/11-download-unlocked-light.png) | ![Admin users](docs/screenshots/13-admin-users-light.png) |
 
-- Node 26 (con [fnm](https://github.com/Schniz/fnm): `fnm use`)
-- pnpm 12.14.0 (`npm i -g pnpm@12.14.0`)
-- Docker Desktop avviato
+## Features
 
-### Prova in locale
+- Resumable uploads of very large files with the [tus](https://tus.io) protocol, in chunks of 25 MB.
+- Files encrypted on disk (AES-256-GCM). Upload, download and zip are streamed, so RAM use does not grow with file size.
+- Share by link or email, with expiry, optional password and download limit. Revoke at any time.
+- Users with roles and quotas, mandatory two-factor authentication for admins.
+- Italian and English interface, light and dark theme, configurable branding.
+- Setup wizard for admin, SMTP, Cloudflare tunnel and general settings.
 
-```sh
-pnpm install
-pnpm local:up
-```
+## Quick start
 
-`local:up` costruisce le immagini e avvia lo stack. Poi apri:
-
-- http://localhost:8080 per la pagina segnaposto con "Stato API: ok";
-- http://localhost:8080/api/health per un JSON con `"status":"ok"` e `"mode":"local"`;
-- http://localhost:8025 per Mailpit, che raccoglie le email inviate dall'app.
-
-Per ricaricare il codice mentre lavori usa `pnpm dev` (frontend su http://localhost:5173, API fuori da Docker, solo Mailpit in un container).
-
-Per fermare tutto: `pnpm local:down`. Per fermare e cancellare anche i dati locali: `pnpm local:reset`.
-
-Se altri progetti usano le stesse porte, cambiale in `.env.local` (`LOCAL_WEB_PORT`, `MAILPIT_UI_PORT`, `MAILPIT_SMTP_PORT`, `DEV_API_PORT`, `DEV_WEB_PORT`).
-
-Nota per Windows: il progetto resta in `C:\` (non nel filesystem di WSL2). La raccomandazione di SPEC sezione 11-bis di usare WSL2 non si applica a questa installazione. In locale lo spazio libero rilevato dall'app è quello del disco virtuale di Docker Desktop, non del PC: si aumenta da Docker Desktop, Settings, Resources.
-
-### Documentazione
-
-- [docs/api.md](docs/api.md): contratto API generato.
-- [docs/SPEC.md](docs/SPEC.md): requisiti completi.
-
-Licenza: MIT.
-
-## English
-
-Self-hosted web application for transferring large files, similar to WeTransfer.
-
-Status: work in progress, phase 1 (foundations and API contract). The full README arrives in phase 6.
-
-### Prerequisites
-
-- Node 26 (with [fnm](https://github.com/Schniz/fnm): `fnm use`)
-- pnpm 12.14.0 (`npm i -g pnpm@12.14.0`)
-- Docker Desktop running
-
-### Try it locally
+On a Debian 12 LXC (or any Linux host) with Docker and the Compose plugin. The full guide, including the LXC preparation, is in the [documentation](https://ivanerricis.github.io/easysend/guide/install).
 
 ```sh
-pnpm install
-pnpm local:up
+sudo mkdir -p /opt/easysend && sudo chown "$USER": /opt/easysend && cd /opt/easysend
+V=0.1.0; RAW=https://raw.githubusercontent.com/ivanerricis/easysend/v$V; mkdir -p scripts/lib
+curl -fsSL -o docker-compose.yml $RAW/docker-compose.yml && curl -fsSL -o .env.example $RAW/.env.example
+for f in deploy.sh rollback.sh backup.sh uninstall.sh lib/common.sh; do curl -fsSL -o scripts/$f $RAW/scripts/$f; done
+chmod +x scripts/*.sh && cp .env.example .env && chmod 600 .env
+./scripts/deploy.sh
 ```
 
-`local:up` builds the images and starts the stack. Then open:
+Then open an SSH tunnel from your PC (`ssh -L 8080:127.0.0.1:8080 <user>@<lxc-address>`), go to http://localhost:8080 and follow the setup wizard. The setup code is in the api log: `docker compose logs api | grep "Setup code"`.
 
-- http://localhost:8080 for the placeholder page showing the API status as ok;
-- http://localhost:8080/api/health for a JSON with `"status":"ok"` and `"mode":"local"`;
-- http://localhost:8025 for Mailpit, which catches the emails sent by the app.
+## Documentation
 
-For live reload while developing use `pnpm dev` (frontend on http://localhost:5173, API outside Docker, only Mailpit in a container).
+Full documentation: **https://ivanerricis.github.io/easysend/** (also in [Italian](https://ivanerricis.github.io/easysend/it/)).
 
-To stop everything: `pnpm local:down`. To stop and also delete the local data: `pnpm local:reset`.
+- [Introduction and architecture](https://ivanerricis.github.io/easysend/guide/introduction)
+- [Requirements](https://ivanerricis.github.io/easysend/guide/requirements) and [LXC preparation](https://ivanerricis.github.io/easysend/guide/lxc)
+- [Installation](https://ivanerricis.github.io/easysend/guide/install) and [first setup](https://ivanerricis.github.io/easysend/guide/first-setup)
+- [Cloudflare API token](https://ivanerricis.github.io/easysend/guide/cloudflare)
+- [Backup and restore](https://ivanerricis.github.io/easysend/guide/backup)
+- [Updating and rollback](https://ivanerricis.github.io/easysend/guide/updates)
+- [Security notes](https://ivanerricis.github.io/easysend/guide/security) and [troubleshooting](https://ivanerricis.github.io/easysend/guide/troubleshooting)
 
-If other projects use the same ports, change them in `.env.local` (`LOCAL_WEB_PORT`, `MAILPIT_UI_PORT`, `MAILPIT_SMTP_PORT`, `DEV_API_PORT`, `DEV_WEB_PORT`).
+## Development
 
-Windows note: the project lives in `C:\` (not in the WSL2 filesystem). The SPEC section 11-bis recommendation to use WSL2 does not apply to this setup. Locally, the free space the app sees is that of the Docker Desktop virtual disk, not of the PC: increase it in Docker Desktop, Settings, Resources.
+Node 26 and pnpm 12.14.0 (`fnm use` picks the right Node), Docker Desktop running. `pnpm install && pnpm local:up` starts the whole stack on http://localhost:8080 with Mailpit on http://localhost:8025. Details, commands and tests: [Local development](https://ivanerricis.github.io/easysend/development/local).
 
-### Documentation
+## License
 
-- [docs/api.md](docs/api.md): generated API contract.
-- [docs/SPEC.md](docs/SPEC.md): full requirements (in Italian).
-
-License: MIT.
+[MIT](LICENSE). Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md). Security reports: [SECURITY.md](SECURITY.md).

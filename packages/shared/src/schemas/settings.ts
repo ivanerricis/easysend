@@ -4,6 +4,7 @@ import {
   AVAILABLE_FONTS,
   BRANDING_ASSET_KINDS,
   CHUNK_SIZE_MB,
+  DEFAULT_FONT,
   FOOTER_MAX_LENGTH,
   INSTANCE_NAME_MAX_LENGTH,
   THEME_PREFERENCES,
@@ -64,16 +65,25 @@ export const uploadBrandingAssetResponseSchema = z.object({
 export type UploadBrandingAssetResponse = z.infer<typeof uploadBrandingAssetResponseSchema>;
 
 // ---- General -----------------------------------------------------------------
-export const generalSettingsSchema = z.object({
+const generalSettingsFields = {
   /** Free disk space (MB) never used by uploads. */
   diskReserveMb: z.number().int().min(0).max(10_485_760),
   /** tus chunk size in MB; capped by the Cloudflare 100 MB per request limit. */
   chunkSizeMb: z.number().int().min(1).max(CHUNK_SIZE_MB.max),
   defaultLocale: localeSchema,
+};
+
+export const generalSettingsSchema = z.object({
+  ...generalSettingsFields,
+  /** Once a day the server asks GitHub for the latest release (admin "update available" notice). */
+  updateCheck: z.boolean().default(true),
 });
 export type GeneralSettings = z.infer<typeof generalSettingsSchema>;
 
-export const updateGeneralSettingsRequestSchema = generalSettingsSchema
+// Built from the plain fields: `.partial()` on the schema above would apply the default to a
+// missing `updateCheck` and silently re-enable the check on every unrelated PATCH.
+export const updateGeneralSettingsRequestSchema = z
+  .object({ ...generalSettingsFields, updateCheck: z.boolean() })
   .partial()
   .refine((v) => Object.keys(v).length > 0, { message: 'At least one field is required' });
 export type UpdateGeneralSettingsRequest = z.infer<typeof updateGeneralSettingsRequestSchema>;
@@ -128,6 +138,6 @@ export const DEFAULT_APPEARANCE: Appearance = {
   primaryColor: '#18181b',
   accentColor: '#047857',
   radius: 0,
-  font: 'ibm-plex-sans',
+  font: DEFAULT_FONT,
   defaultTheme: 'system',
 };

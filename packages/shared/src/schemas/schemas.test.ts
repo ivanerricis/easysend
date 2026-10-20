@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { loginRequestSchema, loginResponseSchema } from './auth.js';
 import { downloadInfoResponseSchema } from './downloads.js';
-import { appearanceSchema } from './settings.js';
+import {
+  appearanceSchema,
+  generalSettingsSchema,
+  updateGeneralSettingsRequestSchema,
+} from './settings.js';
 import { createTransferRequestSchema, updateTransferRequestSchema } from './transfers.js';
 import { tusUploadMetadataSchema } from './uploads.js';
 import {
@@ -199,5 +203,24 @@ describe('display name', () => {
     expect(downloadInfoResponseSchema.safeParse({ ...info, senderName: null }).success).toBe(true);
     expect(downloadInfoResponseSchema.safeParse({ ...info, senderName: 'Ada' }).success).toBe(true);
     expect(downloadInfoResponseSchema.safeParse({ ...info, sender: 'ada' }).success).toBe(false);
+  });
+});
+
+describe('general settings: updateCheck', () => {
+  const stored = { diskReserveMb: 1024, chunkSizeMb: 25, defaultLocale: 'it' };
+
+  it('defaults to true for settings stored before the field existed', () => {
+    expect(generalSettingsSchema.parse(stored).updateCheck).toBe(true);
+    expect(generalSettingsSchema.parse({ ...stored, updateCheck: false }).updateCheck).toBe(false);
+  });
+
+  it('is not applied to a partial update', () => {
+    expect(updateGeneralSettingsRequestSchema.parse({ diskReserveMb: 0 })).toEqual({
+      diskReserveMb: 0,
+    });
+    expect(updateGeneralSettingsRequestSchema.parse({ updateCheck: false })).toEqual({
+      updateCheck: false,
+    });
+    expect(updateGeneralSettingsRequestSchema.safeParse({}).success).toBe(false);
   });
 });

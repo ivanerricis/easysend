@@ -19,12 +19,12 @@ export class CliError extends Error {}
 export interface CreateAdminIo {
   /** Writes a line to the console (stdout). */
   log(message: string): void;
-  /** Asks for the password without echoing it. Rejects when there is no terminal. */
-  promptPassword(): Promise<string>;
+  /** Asks for a password without echoing it. Rejects when there is no terminal. */
+  promptPassword(label: string): Promise<string>;
 }
 
 /** Reads a password from the TTY with hidden input. */
-export function promptPasswordFromTty(): Promise<string> {
+export function promptPasswordFromTty(label: string): Promise<string> {
   if (!process.stdin.isTTY) {
     return Promise.reject(new CliError('No terminal available: pass --password'));
   }
@@ -37,7 +37,7 @@ export function promptPasswordFromTty(): Promise<string> {
       },
     });
     const rl = createInterface({ input: process.stdin, output, terminal: true });
-    rl.question('Password: ', (answer) => {
+    rl.question(`${label}: `, (answer) => {
       rl.close();
       process.stdout.write('\n');
       resolve(answer);
@@ -89,10 +89,14 @@ export async function runCreateAdmin(options: CreateAdminOptions): Promise<strin
   const email = emailSchema.safeParse(normalizeEmail(values.email));
   if (!email.success) throw new CliError('The email is not valid');
 
-  const password = values.password ?? (await io.promptPassword());
+  const password = values.password ?? (await io.promptPassword('Password'));
   const validPassword = passwordSchema.safeParse(password);
   if (!validPassword.success) {
     throw new CliError('The password must be between 12 and 128 characters');
+  }
+  // Hidden input hides typos: a prompted password is asked twice.
+  if (values.password === undefined && (await io.promptPassword('Confirm password')) !== password) {
+    throw new CliError('The passwords do not match');
   }
 
   const logger = createLogger(config);

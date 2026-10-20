@@ -2,7 +2,7 @@ import { Controller, type Control, type FieldValues } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
-import { NativeSelect } from './NativeSelect';
+import { SelectInput } from '@/components/common/SelectInput';
 import { QUOTA_UNITS, type QuotaUnit } from '../quota';
 
 export interface QuotaFormValues {
@@ -44,17 +44,15 @@ export function QuotaField<TValues extends FieldValues & QuotaFormValues>({
             control={typed}
             name="quotaUnit"
             render={({ field: unitField }) => (
-              <NativeSelect
+              <SelectInput
                 className="w-28 shrink-0"
                 aria-label={t('admin.users.fields.quotaUnit')}
-                {...unitField}
-              >
-                {QUOTA_UNITS.map((unit) => (
-                  <option key={unit} value={unit}>
-                    {unit}
-                  </option>
-                ))}
-              </NativeSelect>
+                name={unitField.name}
+                value={unitField.value}
+                onBlur={unitField.onBlur}
+                onValueChange={unitField.onChange}
+                options={QUOTA_UNITS.map((unit) => ({ value: unit, label: unit }))}
+              />
             )}
           />
         </div>

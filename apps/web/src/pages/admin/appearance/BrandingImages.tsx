@@ -4,12 +4,12 @@ import {
   BRANDING_MAX_BYTES,
   type BrandingAssetKind,
 } from '@easysend/shared';
-import { useState, type ChangeEvent } from 'react';
+import { ImageUp } from 'lucide-react';
+import { useRef, useState, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppearance } from '@/app/providers/AppearanceProvider';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { assetUrl, deleteBrandingAsset, uploadBrandingAsset } from '@/lib/api/settings';
 import { errorMessage } from '@/lib/errors';
@@ -53,9 +53,13 @@ function ImageRow({ kind }: { kind: BrandingAssetKind }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const inputId = `branding-${kind}`;
   const helpId = `${inputId}-help`;
   const errorId = `${inputId}-error`;
+  const nameId = `${inputId}-name`;
+  const buttonId = `${inputId}-button`;
   const label = t(`admin.appearance.images.kinds.${kind}`);
 
   const onFile = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -63,9 +67,11 @@ function ImageRow({ kind }: { kind: BrandingAssetKind }) {
     const file = input.files?.[0];
     if (!file) return;
     setError(null);
+    setFileName(file.name);
     if (!isAllowedType(file.type)) {
       setError(t('admin.appearance.images.errors.type'));
       input.value = '';
+      setFileName(null);
       return;
     }
     if (file.size > BRANDING_MAX_BYTES) {
@@ -75,6 +81,7 @@ function ImageRow({ kind }: { kind: BrandingAssetKind }) {
         }),
       );
       input.value = '';
+      setFileName(null);
       return;
     }
     setBusy(true);
@@ -87,6 +94,7 @@ function ImageRow({ kind }: { kind: BrandingAssetKind }) {
     } finally {
       setBusy(false);
       input.value = '';
+      setFileName(null);
     }
   };
 
@@ -125,16 +133,32 @@ function ImageRow({ kind }: { kind: BrandingAssetKind }) {
           {t(`admin.appearance.images.help.${kind}`)}
         </p>
         <div className="flex flex-wrap items-center gap-3">
-          <Input
+          <input
+            ref={fileInput}
             id={inputId}
             type="file"
             accept={ACCEPT}
             disabled={busy}
-            aria-describedby={error ? `${helpId} ${errorId}` : helpId}
-            aria-invalid={error ? true : undefined}
-            className="max-w-xs"
+            tabIndex={-1}
+            aria-hidden="true"
+            className="sr-only"
             onChange={(event) => void onFile(event)}
           />
+          <Button
+            id={buttonId}
+            type="button"
+            variant="outline"
+            disabled={busy}
+            aria-label={t('admin.appearance.images.chooseLabel', { name: label })}
+            aria-describedby={[helpId, nameId, error ? errorId : null].filter(Boolean).join(' ')}
+            onClick={() => fileInput.current?.click()}
+          >
+            <ImageUp aria-hidden="true" />
+            {t('admin.appearance.images.choose')}
+          </Button>
+          <span id={nameId} className="text-muted-foreground min-w-0 truncate text-sm">
+            {fileName ?? t('admin.appearance.images.noFile')}
+          </span>
           {info ? (
             <Button
               type="button"

@@ -23,6 +23,7 @@ describe('admin general settings', () => {
         diskReserveMb: t.config.defaultDiskReserveMb,
         chunkSizeMb: t.config.defaultChunkSizeMb,
         defaultLocale: 'it',
+        updateCheck: true,
       },
       smtp: null,
     });
@@ -35,12 +36,14 @@ describe('admin general settings', () => {
       diskReserveMb: t.config.defaultDiskReserveMb,
       chunkSizeMb: 10,
       defaultLocale: 'en',
+      updateCheck: true,
     });
     await admin.patch('/api/admin/settings', { body: { diskReserveMb: 0 } });
     expect(t.ctx.settings.get('general')).toEqual({
       diskReserveMb: 0,
       chunkSizeMb: 10,
       defaultLocale: 'en',
+      updateCheck: true,
     });
     const rows = t.db.sqlite
       .prepare(

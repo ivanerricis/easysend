@@ -1,6 +1,11 @@
 import type { z } from 'zod';
 import { ALLOWED_IMAGE_TYPES, BRANDING_MAX_BYTES } from '../constants.js';
-import { storageResponseSchema, tunnelStatusResponseSchema } from '../schemas/admin.js';
+import {
+  storageResponseSchema,
+  tunnelStatusResponseSchema,
+  updateStatusQuerySchema,
+  updateStatusResponseSchema,
+} from '../schemas/admin.js';
 import {
   csrfResponseSchema,
   login2faRequestSchema,
@@ -938,6 +943,20 @@ export const endpoints: readonly EndpointDef[] = [
       'Same logic and schema as `POST /api/setup/cloudflare`, usable after the setup. The API token is not stored. In local mode it answers 409 `NOT_APPLICABLE_IN_LOCAL_MODE`.',
   }),
 
+  defineEndpoint({
+    id: 'admin.updates',
+    tag: 'admin',
+    method: 'GET',
+    path: '/api/admin/updates',
+    summary: 'Is a newer release available?',
+    auth: 'admin',
+    rateLimit: 'updateCheck',
+    query: updateStatusQuerySchema,
+    response: json(200, updateStatusResponseSchema),
+    notes:
+      'Asks the GitHub releases API for the latest published release, only when an admin calls this endpoint (no background job) and only when the `updateCheck` setting is on. A success is cached for 24 hours and a failure for 1 hour; `refresh=true` skips the success cache (at most 10 per hour). The request carries no data of the instance, only a `User-Agent` with the running version. A network error or an invalid answer is not an HTTP error: the response is 200 with `status: "unavailable"`. When the running version is not a release number (e.g. `0.0.0-dev`), `updateAvailable` is always false.',
+  }),
+
   // ---- settings ------------------------------------------------------------
   defineEndpoint({
     id: 'settings.public',
@@ -985,7 +1004,7 @@ export const endpoints: readonly EndpointDef[] = [
     tag: 'settings',
     method: 'PATCH',
     path: '/api/admin/settings',
-    summary: 'Update general settings (disk reserve, chunk size, default language)',
+    summary: 'Update general settings (disk reserve, chunk size, default language, update check)',
     auth: 'admin',
     body: updateGeneralSettingsRequestSchema,
     response: json(200, adminSettingsResponseSchema),

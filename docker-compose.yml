@@ -7,11 +7,17 @@ x-common: &common
     - no-new-privileges:true
   cap_drop:
     - ALL
+  # Rotate container logs: at most 3 files of 10 MB per service.
+  logging:
+    driver: json-file
+    options:
+      max-size: '10m'
+      max-file: '3'
 
 services:
   api:
     <<: *common
-    image: ghcr.io/ivanerricis/easysend-api:${APP_VERSION:?set APP_VERSION in .env}
+    image: ${IMAGE_PREFIX:-ghcr.io/ivanerricis/easysend}-api:${APP_VERSION:?set APP_VERSION in .env}
     init: true
     read_only: true
     tmpfs:
@@ -55,7 +61,7 @@ services:
 
   web:
     <<: *common
-    image: ghcr.io/ivanerricis/easysend-web:${APP_VERSION:?set APP_VERSION in .env}
+    image: ${IMAGE_PREFIX:-ghcr.io/ivanerricis/easysend}-web:${APP_VERSION:?set APP_VERSION in .env}
     read_only: true
     tmpfs:
       - /tmp
@@ -76,7 +82,7 @@ services:
 
   cloudflared:
     <<: *common
-    image: ghcr.io/ivanerricis/easysend-cloudflared:${APP_VERSION:?set APP_VERSION in .env}
+    image: ${IMAGE_PREFIX:-ghcr.io/ivanerricis/easysend}-cloudflared:${APP_VERSION:?set APP_VERSION in .env}
     profiles: [tunnel]
     read_only: true
     tmpfs:

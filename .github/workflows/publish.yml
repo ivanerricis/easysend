@@ -1,0 +1,137 @@
+name: Publish
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Version without the leading v (e.g. 0.1.0)
+        type: string
+        required: true
+      ref:
+        description: Git tag to build (e.g. v0.1.0)
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish again (e.g. v0.1.0)
+        type: string
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: publish-${{ inputs.version || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: publish (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: api
+            dockerfile: apps/api/Dockerfile
+            description: EasySend API (Express, tus uploads, encrypted storage)
+          - image: web
+            dockerfile: apps/web/Dockerfile
+            description: EasySend web frontend served by Nginx
+          - image: cloudflared
+            dockerfile: docker/cloudflared/Dockerfile
+            description: EasySend Cloudflare Tunnel sidecar
+    env:
+      INPUT_VERSION: ${{ inputs.version }}
+      INPUT_REF: ${{ inputs.ref }}
+      INPUT_TAG: ${{ inputs.tag }}
+      IMAGE_NAME: easysend-${{ matrix.image }}
+    steps:
+      - name: Normalize inputs
+        id: meta
+        run: |
+          if [ -n "$INPUT_TAG" ]; then
+            ref="$INPUT_TAG"
+            version="${INPUT_TAG#v}"
+          else
+            ref="$INPUT_REF"
+            version="$INPUT_VERSION"
+          fi
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'; then
+            echo "::error::Invalid version: $version"
+            exit 1
+          fi
+          {
+            echo "ref=$ref"
+            echo "version=$version"
+            echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/$IMAGE_NAME"
+          } >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.meta.outputs.ref }}
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Docker metadata
+        id: docker-meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ steps.meta.outputs.image }}
+          tags: |
+            type=semver,pattern={{version}},value=v${{ steps.meta.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ steps.meta.outputs.version }}
+            type=raw,value=latest
+            type=sha
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.title=${{ env.IMAGE_NAME }}
+            org.opencontainers.image.description=${{ matrix.description }}
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.docker-meta.outputs.tags }}
+          labels: ${{ steps.docker-meta.outputs.labels }}
+          build-args: APP_VERSION=${{ steps.meta.outputs.version }}
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.meta.outputs.image }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+      # Scan the pushed image by digest. The package may still be private on
+      # the first push, so Trivy authenticates with the workflow token.
+      - name: Scan published image (CRITICAL, fixable)
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ${{ steps.meta.outputs.image }}@${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "$HOME/.cache/trivy"
+          docker run --rm \
+            -e TRIVY_USERNAME -e TRIVY_PASSWORD \
+            -v "$HOME/.cache/trivy:/root/.cache/" \
+            aquasec/trivy:0.76.0@sha256:2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222 \
+            image --scanners vuln --severity CRITICAL --ignore-unfixed \
+            --exit-code 1 --no-progress "$IMAGE"

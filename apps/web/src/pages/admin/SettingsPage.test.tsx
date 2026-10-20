@@ -3,7 +3,19 @@ import { describe, expect, it } from 'vitest';
 import { apiError, makeAdmin, renderWithProviders } from '@/test/render';
 import SettingsPage from './SettingsPage';
 
-const general = { diskReserveMb: 1024, chunkSizeMb: 25, defaultLocale: 'en' };
+const general = { diskReserveMb: 1024, chunkSizeMb: 25, defaultLocale: 'en', updateCheck: true };
+
+const updateStatus = (overrides: Record<string, unknown> = {}) => ({
+  enabled: true,
+  currentVersion: '0.1.0',
+  latestVersion: '0.2.0',
+  updateAvailable: true,
+  releaseUrl: 'https://github.com/ivanerricis/easysend/releases/tag/v0.2.0',
+  publishedAt: 1_790_000_000,
+  checkedAt: 1_790_000_100,
+  status: 'ok',
+  ...overrides,
+});
 
 function renderPage(routes: Record<string, unknown> = {}) {
   return renderWithProviders(<SettingsPage />, {
@@ -11,6 +23,7 @@ function renderPage(routes: Record<string, unknown> = {}) {
     route: '/admin/settings',
     routes: {
       'GET /api/admin/settings': { general, smtp: null },
+      'GET /api/admin/updates': updateStatus(),
       'GET /api/admin/tunnel': {
         appMode: 'local',
         configured: false,
@@ -152,6 +165,122 @@ describe('SettingsPage', () => {
       diskReserveMb: 1024,
       chunkSizeMb: 40,
       defaultLocale: 'en',
+      updateCheck: true,
     });
+  });
+
+  it('turns the update check off with the switch', async () => {
+    const { api } = renderPage({
+      'PATCH /api/admin/settings': {
+        general: { ...general, updateCheck: false },
+        smtp: null,
+      },
+    });
+    const toggle = await screen.findByRole('switch', { name: 'Check for updates' });
+    expect(toggle).toBeChecked();
+    expect(
+      screen.getByText(/Once a day the server asks GitHub for the latest published version/),
+    ).toBeInTheDocument();
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save' })[0]!);
+    await waitFor(() => expect(api.callsTo('PATCH /api/admin/settings')).toHaveLength(1));
+    expect(api.callsTo('PATCH /api/admin/settings')[0]?.body).toMatchObject({ updateCheck: false });
+  });
+});
+
+type MockRequest = { query: URLSearchParams };
+
+describe('SettingsPage: updates section', () => {
+  it('shows versions, release notes and the update commands', async () => {
+    renderPage();
+    expect(await screen.findByRole('heading', { name: 'Updates' })).toBeInTheDocument();
+    expect(await screen.findByText('Update available')).toBeInTheDocument();
+    expect(screen.getByText('0.1.0')).toBeInTheDocument();
+    expect(screen.getByText('0.2.0')).toBeInTheDocument();
+    const notes = screen.getByRole('link', { name: /Release notes/ });
+    expect(notes).toHaveAttribute(
+      'href',
+      'https://github.com/ivanerricis/easysend/releases/tag/v0.2.0',
+    );
+    expect(notes).toHaveAttribute('rel', 'noopener noreferrer');
+    const commands = screen.getByLabelText('Commands to run on the server');
+    expect(commands).toHaveTextContent('cd /opt/easysend');
+    expect(commands).toHaveTextContent('./scripts/deploy.sh 0.2.0');
+    expect(screen.getByRole('link', { name: /Update guide/ })).toHaveAttribute(
+      'href',
+      'https://ivanerricis.github.io/easysend/guide/updates',
+    );
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument();
+  });
+
+  it('says it is up to date and hides the commands', async () => {
+    renderPage({
+      'GET /api/admin/updates': updateStatus({ updateAvailable: false, latestVersion: '0.1.0' }),
+    });
+    expect(await screen.findByText('Up to date')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Commands to run on the server')).toBeNull();
+  });
+
+  it('explains a turned-off check and disables Check now', async () => {
+    renderPage({
+      'GET /api/admin/updates': updateStatus({
+        enabled: false,
+        status: 'disabled',
+        latestVersion: null,
+        updateAvailable: false,
+        releaseUrl: null,
+        publishedAt: null,
+        checkedAt: null,
+      }),
+    });
+    expect(await screen.findByText('Check turned off')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Check now' })).toBeDisabled();
+  });
+
+  it('reports an unreachable GitHub', async () => {
+    renderPage({
+      'GET /api/admin/updates': updateStatus({
+        status: 'unavailable',
+        latestVersion: null,
+        updateAvailable: false,
+        releaseUrl: null,
+        publishedAt: null,
+      }),
+    });
+    expect(await screen.findByText('GitHub is not reachable')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Release notes/ })).toBeNull();
+  });
+
+  it('notes that a development build is not compared', async () => {
+    renderPage({
+      'GET /api/admin/updates': updateStatus({
+        currentVersion: '0.0.0-dev',
+        updateAvailable: false,
+      }),
+    });
+    expect(await screen.findByText(/not a release number/)).toBeInTheDocument();
+  });
+
+  it('forces a new check with Check now', async () => {
+    const { api } = renderPage({
+      'GET /api/admin/updates': (request: MockRequest) =>
+        request.query.get('refresh') === 'true'
+          ? updateStatus({ latestVersion: '0.3.0' })
+          : updateStatus(),
+    });
+    await screen.findByText('0.2.0');
+    fireEvent.click(screen.getByRole('button', { name: 'Check now' }));
+    expect(await screen.findByText('0.3.0')).toBeInTheDocument();
+    expect(api.callsTo('GET /api/admin/updates').at(-1)?.query.get('refresh')).toBe('true');
+  });
+
+  it('shows the rate limit error of Check now', async () => {
+    renderPage({
+      'GET /api/admin/updates': (request: MockRequest) =>
+        request.query.get('refresh') === 'true' ? apiError(429, 'RATE_LIMITED') : updateStatus(),
+    });
+    await screen.findByText('0.2.0');
+    fireEvent.click(screen.getByRole('button', { name: 'Check now' }));
+    expect((await screen.findAllByText(/Too many requests/)).length).toBeGreaterThan(0);
   });
 });

@@ -2,9 +2,19 @@ packages:
   - apps/*
   - packages/*
   - e2e
+  - docs
 
 allowBuilds:
   esbuild: true
+
+# Advisories without a fixed version that never reach the images:
+# GHSA-vfj7-8cjw-p6xm (braces) comes in through the shadcn CLI, used only at build time.
+# GHSA-fx2h-pf6j-xcff (vite 5 dev server, Windows paths) comes in through VitePress 1.x, whose
+# stable line has no fixed vite: the docs site is only built statically. Drop it with VitePress 2.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-vfj7-8cjw-p6xm
+    - GHSA-fx2h-pf6j-xcff
 
 catalog:
   # tooling
@@ -65,7 +75,8 @@ catalog:
   i18next: 26.5.2
   react-i18next: 17.1.0
   '@fontsource/ibm-plex-sans': 5.3.0
-  '@fontsource/ibm-plex-mono': 5.3.0
+  '@fontsource-variable/plus-jakarta-sans': 5.3.0
+  '@fontsource-variable/jetbrains-mono': 5.3.0
   jsdom: 30.1.3
   '@testing-library/react': 16.3.3
   '@testing-library/jest-dom': 7.0.1
@@ -78,14 +89,16 @@ catalog:
   input-otp: 1.5.0
   sonner: 2.0.8
   uqr: 0.1.3
+  # docs (GitHub Pages site)
+  vitepress: 1.6.4
   # e2e (screenshots and axe, phase 5; full E2E in phase 6)
   '@playwright/test': 1.64.1
   '@axe-core/playwright': 4.13.0
 
-# shadcn 4.22.1 is younger than the minimum release age
-minimumReleaseAgeExclude:
-  - shadcn@4.22.1
-  - nodemailer@10.1.7
+# Redis lockers of @tus/server and @tus/file-store: optional, never used (file store only).
+ignoredOptionalDependencies:
+  - '@redis/client'
+  - ioredis
 
 # eslint-plugin-jsx-a11y 6.10.2 declares peer eslint up to ^9 but works with ESLint 10
 peerDependencyRules:

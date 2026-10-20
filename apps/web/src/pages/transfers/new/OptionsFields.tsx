@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { addAddresses, type TransferFormValues } from './form';
 
@@ -144,68 +145,85 @@ function Recipients({
   );
 }
 
-/** Mode, recipients, expiry, title, message, password and download limit. */
+const HEADING = 'text-base font-semibold';
+
+/** Mode, recipients, expiry, title, message, password and download limit, in titled blocks. */
 export function OptionsFields({ form, config, disabled }: OptionsFieldsProps) {
   const { t } = useTranslation();
   const { control } = form;
   const mode = useWatch({ control, name: 'mode' });
   const { limits } = config;
   return (
-    <div className="space-y-5">
-      <Controller
-        control={control}
-        name="mode"
-        render={({ field }) => (
-          <FieldSet>
-            <FieldLegend variant="label" className="text-sm font-medium">
-              {t('transfers.new.mode')}
-            </FieldLegend>
-            <RadioGroup
-              value={field.value}
-              onValueChange={(value) => {
-                field.onChange(value);
-                form.clearErrors('recipients');
-              }}
-              disabled={disabled}
-              className="gap-0"
-            >
-              {(['link', 'email'] as const).map((value) => (
-                <div key={value} className="flex min-h-11 items-start gap-3 py-2.5">
-                  <RadioGroupItem value={value} id={`mode-${value}`} className="mt-0.5" />
-                  <div className="space-y-0.5">
-                    <FieldLabel htmlFor={`mode-${value}`} className="text-sm font-medium">
-                      {t(`transfers.new.mode_${value}`)}
-                    </FieldLabel>
-                    <FieldDescription>{t(`transfers.new.mode_${value}_hint`)}</FieldDescription>
-                  </div>
-                </div>
-              ))}
-            </RadioGroup>
-          </FieldSet>
-        )}
-      />
+    <div className="space-y-8">
+      <div className="space-y-4">
+        <Controller
+          control={control}
+          name="mode"
+          render={({ field }) => (
+            <FieldSet>
+              <FieldLegend className={HEADING}>{t('transfers.new.mode')}</FieldLegend>
+              <RadioGroup
+                value={field.value}
+                onValueChange={(value) => {
+                  field.onChange(value);
+                  form.clearErrors('recipients');
+                }}
+                disabled={disabled}
+                className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+              >
+                {(['link', 'email'] as const).map((value) => (
+                  <label
+                    key={value}
+                    htmlFor={`mode-${value}`}
+                    className="border-border has-data-checked:border-primary has-data-checked:bg-primary/5 flex min-h-11 cursor-pointer items-start gap-3 border p-3"
+                  >
+                    <RadioGroupItem
+                      value={value}
+                      id={`mode-${value}`}
+                      className="mt-0.5"
+                      aria-labelledby={`mode-${value}-label`}
+                      aria-describedby={`mode-${value}-hint`}
+                    />
+                    <span className="space-y-0.5">
+                      <span id={`mode-${value}-label`} className="block text-sm font-medium">
+                        {t(`transfers.new.mode_${value}`)}
+                      </span>
+                      <span
+                        id={`mode-${value}-hint`}
+                        className="text-muted-foreground block text-xs leading-snug"
+                      >
+                        {t(`transfers.new.mode_${value}_hint`)}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </RadioGroup>
+            </FieldSet>
+          )}
+        />
 
-      {mode === 'email' ? <Recipients form={form} disabled={disabled} /> : null}
+        {mode === 'email' ? <Recipients form={form} disabled={disabled} /> : null}
+      </div>
+
+      <Separator />
 
       <Controller
         control={control}
         name="expiresIn"
         render={({ field }) => (
           <FieldSet>
-            <FieldLegend variant="label" className="text-sm font-medium">
-              {t('transfers.new.expiry')}
-            </FieldLegend>
+            <FieldLegend className={HEADING}>{t('transfers.new.expiry')}</FieldLegend>
             <RadioGroup
               value={field.value}
               onValueChange={field.onChange}
               disabled={disabled}
-              className="grid grid-cols-1 gap-2 sm:grid-cols-3"
+              className="grid grid-cols-3 gap-2 sm:gap-3"
             >
               {config.expiryOptions.map((option) => (
                 <label
                   key={option.key}
                   htmlFor={`expiry-${option.key}`}
-                  className="border-border has-data-checked:border-primary flex min-h-11 cursor-pointer items-center gap-3 border px-3 text-sm"
+                  className="border-border has-data-checked:border-primary has-data-checked:bg-primary/5 flex min-h-11 cursor-pointer flex-col items-start justify-center gap-1.5 border px-3 py-2 text-sm sm:flex-row sm:items-center sm:gap-2 sm:px-2 sm:whitespace-nowrap xl:gap-3 xl:px-3"
                 >
                   <RadioGroupItem value={option.key} id={`expiry-${option.key}`} />
                   {t(EXPIRY_LABEL[option.key])}
@@ -216,72 +234,88 @@ export function OptionsFields({ form, config, disabled }: OptionsFieldsProps) {
         )}
       />
 
-      <TextField
-        control={control}
-        name="title"
-        label={t('transfers.new.title')}
-        optional
-        maxLength={limits.maxTitleLength}
-        disabled={disabled}
-        autoComplete="off"
-      />
+      <Separator />
 
-      <FormField
-        control={control}
-        name="message"
-        label={t('transfers.new.message')}
-        description={t(
-          mode === 'email' ? 'transfers.new.messageHintEmail' : 'transfers.new.messageHintLink',
-        )}
-        optional
-      >
-        {({ field, controlProps }) => (
-          <Textarea
-            {...field}
-            {...controlProps}
-            rows={3}
-            maxLength={limits.maxMessageLength}
-            disabled={disabled}
-          />
-        )}
-      </FormField>
+      <section aria-labelledby="details-heading" className="space-y-4">
+        <h2 id="details-heading" className={HEADING}>
+          {t('transfers.new.detailsHeading')}
+        </h2>
+        <TextField
+          control={control}
+          name="title"
+          label={t('transfers.new.title')}
+          optional
+          maxLength={limits.maxTitleLength}
+          disabled={disabled}
+          autoComplete="off"
+        />
+        <FormField
+          control={control}
+          name="message"
+          label={t('transfers.new.message')}
+          description={t(
+            mode === 'email' ? 'transfers.new.messageHintEmail' : 'transfers.new.messageHintLink',
+          )}
+          optional
+        >
+          {({ field, controlProps }) => (
+            <Textarea
+              {...field}
+              {...controlProps}
+              rows={3}
+              maxLength={limits.maxMessageLength}
+              disabled={disabled}
+            />
+          )}
+        </FormField>
+      </section>
 
-      <FormField
-        control={control}
-        name="password"
-        label={t('transfers.new.password')}
-        description={t('transfers.new.passwordHint', { min: LINK_PASSWORD_MIN_LENGTH })}
-        optional
-      >
-        {({ field, controlProps }) => (
-          <PasswordInput
-            {...field}
-            {...controlProps}
-            autoComplete="new-password"
-            disabled={disabled}
-          />
-        )}
-      </FormField>
+      <Separator />
 
-      <FormField
-        control={control}
-        name="maxDownloads"
-        label={t('transfers.new.maxDownloads')}
-        description={t('transfers.new.maxDownloadsHint')}
-        optional
-      >
-        {({ field, controlProps }) => (
-          <Input
-            {...field}
-            {...controlProps}
-            type="text"
-            inputMode="numeric"
-            autoComplete="off"
-            disabled={disabled}
-            className="max-w-40 font-mono"
-          />
-        )}
-      </FormField>
+      <section aria-labelledby="protection-heading" className="space-y-4">
+        <h2 id="protection-heading" className={HEADING}>
+          {t('transfers.new.protectionHeading')}
+        </h2>
+        <div className="@container">
+          <div className="grid grid-cols-1 items-start gap-4 @md:grid-cols-2">
+            <FormField
+              control={control}
+              name="password"
+              label={t('transfers.new.password')}
+              description={t('transfers.new.passwordHint', { min: LINK_PASSWORD_MIN_LENGTH })}
+              optional
+            >
+              {({ field, controlProps }) => (
+                <PasswordInput
+                  {...field}
+                  {...controlProps}
+                  autoComplete="new-password"
+                  disabled={disabled}
+                />
+              )}
+            </FormField>
+            <FormField
+              control={control}
+              name="maxDownloads"
+              label={t('transfers.new.maxDownloads')}
+              description={t('transfers.new.maxDownloadsHint')}
+              optional
+            >
+              {({ field, controlProps }) => (
+                <Input
+                  {...field}
+                  {...controlProps}
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  disabled={disabled}
+                  className="font-mono"
+                />
+              )}
+            </FormField>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

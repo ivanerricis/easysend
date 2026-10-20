@@ -16,6 +16,7 @@ import { statfsDiskSpace, type DiskSpace } from './storage/disk.js';
 import { createSetupCodeService, type SetupCodeService } from './setup/code.js';
 import { createSetupLimiters, type SetupLimiters } from './setup/limiters.js';
 import { createTransferLimiters, type TransferLimiters } from './transfers/limiters.js';
+import { createUpdateService, type UpdateService } from './updates/service.js';
 import { createUploadWorker, type UploadWorker } from './uploads/worker.js';
 
 /** What the application is built from. Everything but the first four is optional (defaults for production). */
@@ -36,6 +37,8 @@ export interface AppDeps {
   diskSpace?: DiskSpace;
   /** `fetch` used for the Cloudflare API. Default: `globalThis.fetch`. Tests inject a fake. */
   cloudflareFetch?: typeof fetch;
+  /** `fetch` used for the GitHub release check. Default: `globalThis.fetch`. Tests inject a fake. */
+  updateFetch?: typeof fetch;
 }
 
 /** Everything a route needs, built once per app. Route factories receive it: no global state. */
@@ -54,6 +57,8 @@ export interface AppContext {
   smtpVerification: SmtpVerification;
   /** `fetch` for the Cloudflare API (injectable for tests). */
   cloudflareFetch: typeof fetch;
+  /** Latest-release check behind the admin update notice (cached, on demand only). */
+  updates: UpdateService;
   sessions: SessionService;
   csrf: CsrfService;
   limiters: AuthLimiters;
@@ -107,6 +112,13 @@ export function createContext(deps: AppDeps): AppContext {
     mailer,
     smtpVerification: createSmtpVerification(clock),
     cloudflareFetch: deps.cloudflareFetch ?? globalThis.fetch,
+    updates: createUpdateService({
+      url: config.updateCheckUrl,
+      currentVersion: config.version,
+      fetch: deps.updateFetch ?? globalThis.fetch,
+      clock,
+      logger,
+    }),
     sessions: createSessionService({ db, clock, clientIp, ipHashKey: keys.ipHash }),
     csrf: createCsrf({ publicUrl, csrfKey: keys.csrf }),
     limiters: createAuthLimiters(),

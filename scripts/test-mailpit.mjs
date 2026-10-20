@@ -1,5 +1,5 @@
 // Email tests against a real SMTP server: `node scripts/test-mailpit.mjs`.
-// Starts Mailpit from docker/docker-compose.test.yml, runs apps/api/test/mailpit.test.ts against
+// Starts only Mailpit from docker/docker-compose.test.yml (an overlay on the production file), runs apps/api/test/mailpit.test.ts against
 // it and always removes the container. Cross-platform, no dependencies.
 import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
@@ -8,7 +8,17 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const smtpPort = process.env.TEST_MAILPIT_SMTP_PORT ?? '11025';
 const uiPort = process.env.TEST_MAILPIT_UI_PORT ?? '18025';
-const composeArgs = ['compose', '-f', 'docker/docker-compose.test.yml', '-p', 'easysend-test'];
+const composeArgs = [
+  'compose',
+  '-p',
+  'easysend-test',
+  '-f',
+  'docker-compose.yml',
+  '-f',
+  'docker/docker-compose.test.yml',
+];
+// The production file requires APP_VERSION even though only Mailpit is started.
+const composeEnv = { ...process.env, APP_VERSION: 'e2e' };
 
 function run(command, args, options = {}) {
   return spawnSync(command, args, { cwd: root, stdio: 'inherit', shell: false, ...options });
@@ -29,7 +39,9 @@ if (info.error || info.status !== 0) {
 }
 
 function runAll() {
-  const up = run('docker', [...composeArgs, 'up', '-d', '--wait', 'mailpit']);
+  const up = run('docker', [...composeArgs, 'up', '-d', '--wait', 'mailpit'], {
+    env: composeEnv,
+  });
   if (up.status !== 0) return up.status ?? 1;
   const tests = runPnpm('--filter @easysend/api exec vitest run test/mailpit.test.ts', {
     env: {
@@ -44,5 +56,5 @@ function runAll() {
 try {
   process.exitCode = runAll();
 } finally {
-  run('docker', [...composeArgs, 'down', '-v']);
+  run('docker', [...composeArgs, 'down', '-v', '--remove-orphans'], { env: composeEnv });
 }

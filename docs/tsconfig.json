@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["node"],
+    "skipLibCheck": true
+  },
+  "include": [".vitepress/**/*.ts"],
+  "exclude": [".vitepress/dist", ".vitepress/cache"]
+}

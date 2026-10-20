@@ -1,6 +1,7 @@
 import { Eye, EyeOff } from 'lucide-react';
 import { useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
+import { HintTooltip } from '@/components/common/HintTooltip';
 import { Input } from '@/components/ui/input';
 
 type PasswordInputProps = Omit<ComponentProps<typeof Input>, 'type'>;
@@ -20,20 +21,21 @@ export function PasswordInput({ className, ...props }: PasswordInputProps) {
         type={visible ? 'text' : 'password'}
         className={`pr-12 ${className ?? ''}`.trim()}
       />
-      <button
-        type="button"
-        aria-pressed={visible}
-        aria-label={label}
-        title={label}
-        onClick={() => setVisible((value) => !value)}
-        className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-11 items-center justify-center"
-      >
-        {visible ? (
-          <EyeOff aria-hidden="true" className="size-5" />
-        ) : (
-          <Eye aria-hidden="true" className="size-5" />
-        )}
-      </button>
+      <HintTooltip content={label}>
+        <button
+          type="button"
+          aria-pressed={visible}
+          aria-label={label}
+          onClick={() => setVisible((value) => !value)}
+          className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-11 items-center justify-center"
+        >
+          {visible ? (
+            <EyeOff aria-hidden="true" className="size-5" />
+          ) : (
+            <Eye aria-hidden="true" className="size-5" />
+          )}
+        </button>
+      </HintTooltip>
     </div>
   );
 }

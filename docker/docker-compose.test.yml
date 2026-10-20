@@ -1,17 +1,76 @@
-# Services for automated tests (see scripts/test-mailpit.mjs). Own project name (`easysend-test`)
-# and own ports, so it never clashes with the local stack. Phase 6 adds web and api for the E2E.
+# Test overlay (see scripts/e2e.mjs and scripts/test-mailpit.mjs). Always used on top of the
+# production file, so the E2E run exercises the real compose (read_only, cap_drop, memory limits):
+#
+#   APP_VERSION=e2e docker compose -p easysend-e2e -f docker-compose.yml \
+#     [-f docker-compose.override.yml] -f docker/docker-compose.test.yml up -d --wait
+#
+# Relative paths resolve against the project directory (the folder of the FIRST -f file, i.e. the
+# repository root), not against this file. Own ports, so it never clashes with the local stack:
+# web 18090, Mailpit 11025/18025, fake Cloudflare 18787.
 
 services:
+  api:
+    environment:
+      APP_MODE: production
+      PUBLIC_URL: http://localhost:${E2E_WEB_PORT:-18090}
+      TRUST_PROXY: 1
+      # Tests only: the API talks to the in-memory fake instead of api.cloudflare.com.
+      CLOUDFLARE_API_BASE: http://fake-cloudflare:8787/client/v4
+      # No calls to GitHub from tests: the fake answers 404, so the update check reads "unavailable".
+      UPDATE_CHECK_URL: http://fake-cloudflare:8787/__fake/no-releases
+      # The hourly cleanup would delete the transfers the expiry test pushes into the past.
+      CLEANUP_CRON: 0 3 1 1 *
+    depends_on:
+      fake-cloudflare:
+        condition: service_healthy
+
+  web:
+    ports: !override
+      - '127.0.0.1:${E2E_WEB_PORT:-18090}:8080'
+
   mailpit:
     image: axllent/mailpit:v1.31.6
+    restart: unless-stopped
     mem_limit: 128m
     security_opt:
       - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
     ports:
       - '127.0.0.1:${TEST_MAILPIT_SMTP_PORT:-11025}:1025'
       - '127.0.0.1:${TEST_MAILPIT_UI_PORT:-18025}:8025'
     healthcheck:
       test: ['CMD', '/mailpit', 'readyz']
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  # Plain node:http server around apps/api/test/fake-cloudflare.ts (Node strips the types itself).
+  fake-cloudflare:
+    image: node:26.12.0-alpine3.24
+    restart: unless-stopped
+    command: ['node', '/repo/e2e/fake-cloudflare/server.ts']
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 64m
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+    volumes:
+      - ./e2e/fake-cloudflare:/repo/e2e/fake-cloudflare:ro
+      - ./apps/api/test/fake-cloudflare.ts:/repo/apps/api/test/fake-cloudflare.ts:ro
+    ports:
+      - '127.0.0.1:${E2E_FAKE_CF_PORT:-18787}:8787'
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:8787/__fake/health']
       interval: 2s
       timeout: 3s
       retries: 15

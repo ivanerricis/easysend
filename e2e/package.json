@@ -10,7 +10,9 @@
     "@axe-core/playwright": "catalog:",
     "@playwright/test": "catalog:",
     "@types/node": "catalog:",
+    "@types/yauzl": "catalog:",
     "otpauth": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "yauzl": "catalog:"
   }
 }

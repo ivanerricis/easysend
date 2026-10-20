@@ -17,8 +17,8 @@
     "typecheck": "pnpm -r --if-present run typecheck",
     "test": "pnpm -r --workspace-concurrency=1 --if-present run test",
     "test:mailpit": "node scripts/test-mailpit.mjs",
-    "test:e2e": "node -e \"console.log('E2E arrives in phase 6')\"",
-    "build": "pnpm -r --if-present run build",
+    "test:e2e": "node scripts/e2e.mjs",
+    "build": "pnpm -r --if-present --filter \"!@easysend/docs\" run build",
     "db:generate": "pnpm --filter @easysend/api run db:generate",
     "db:migrate": "pnpm --filter @easysend/api run db:migrate",
     "user:create-admin": "pnpm --filter @easysend/api run user:create-admin --",
@@ -30,7 +30,9 @@
     "local:up": "node scripts/local.mjs up",
     "local:down": "node scripts/local.mjs down",
     "local:reset": "node scripts/local.mjs reset",
-    "screenshots": "node scripts/screenshots.mjs"
+    "screenshots": "node scripts/screenshots.mjs",
+    "docs:dev": "pnpm --filter @easysend/docs run dev",
+    "docs:build": "pnpm --filter @easysend/docs run build"
   },
   "devDependencies": {
     "@eslint/js": "catalog:",

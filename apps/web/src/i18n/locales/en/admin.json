@@ -183,7 +183,9 @@
       "errors": {
         "reserve": "Enter a whole number of MB, from 0 to 10485760.",
         "chunk": "Enter a whole number of MB, from 1 to 50."
-      }
+      },
+      "updateCheck": "Check for updates",
+      "updateCheckHelp": "Once a day the server asks GitHub for the latest published version. No data about the instance is sent."
     },
     "smtp": {
       "title": "Outgoing email (SMTP)",
@@ -247,15 +249,41 @@
         "subdomain": "Use only letters, numbers and hyphens.",
         "token": "Enter the Cloudflare API token (at least 20 characters)."
       }
+    },
+    "updates": {
+      "title": "Updates",
+      "description": "The version you are running and the latest version published on GitHub.",
+      "current": "Running version",
+      "latest": "Latest version",
+      "published": "Published on",
+      "checked": "Last checked",
+      "status": "Status",
+      "upToDate": "Up to date",
+      "available": "Update available",
+      "disabled": "Check turned off",
+      "unavailable": "GitHub is not reachable",
+      "disabledHint": "Turn on “Check for updates” in the General section to know when a new version is released.",
+      "unavailableHint": "The server could not read the latest version. Try again later.",
+      "devBuild": "This instance runs version “{{version}}”, which is not a release number: it is not compared with published versions.",
+      "checkNow": "Check now",
+      "checking": "Checking…",
+      "releaseNotes": "Release notes",
+      "newTab": "(opens in a new tab)",
+      "howTitle": "How to update",
+      "howBody": "On the server that hosts EasySend run these commands. The deploy pulls the new images, takes a backup and restarts the stack.",
+      "commands": "Commands to run on the server",
+      "docs": "Update guide",
+      "docsUrl": "https://ivanerricis.github.io/easysend/guide/updates",
+      "refreshed": "Check completed."
     }
   },
   "appearance": {
-    "description": "Name, colours, font and images of the public pages and of the emails. The preview updates as you type.",
+    "description": "Name, colours, font and images of the public pages and of the emails. Changes apply to every page after you save.",
     "savedToast": "Appearance saved.",
     "resetToast": "Default appearance restored.",
     "resetDefaults": "Restore defaults",
     "resetTitle": "Restore the default appearance?",
-    "resetDescription": "Name, footer, colours, radius, font and theme go back to the {{name}} defaults. Uploaded images are kept.",
+    "resetDescription": "Name, footer, colours, radius, font and theme go back to the {{name}} defaults. The uploaded logos, favicon and background are removed too.",
     "resetConfirm": "Restore defaults",
     "errors": {
       "instanceName": "Enter a name of 1 to 60 characters.",
@@ -280,41 +308,15 @@
       "defaultThemeHelp": "Each user can choose their own in their profile."
     },
     "fonts": {
+      "plus-jakarta-sans": "Plus Jakarta Sans (default)",
       "ibm-plex-sans": "IBM Plex Sans",
       "system": "System font"
     },
-    "contrast": {
-      "title": "Contrast check",
-      "help": "WCAG 2.2 AA requires 4.5:1 for text and 3:1 for interface elements. You can save anyway, but low contrast makes the pages hard to read.",
-      "allPass": "All contrast checks pass.",
-      "someFail_one": "{{count}} contrast check does not pass.",
-      "someFail_other": "{{count}} contrast checks do not pass.",
-      "required": "required {{value}}:1",
-      "pass": "Pass",
-      "fail": "Fail",
-      "checks": {
-        "primaryText": "Text on the primary colour (buttons)",
-        "primaryOnLight": "Primary colour on a white background (button edges)",
-        "accentText": "Text on the accent colour (badges)",
-        "accentOnLight": "Accent colour on a white background (focus rings, icons)",
-        "accentAsText": "Accent colour used as link text on white",
-        "darkPrimaryFallback": "In the dark theme the primary colour is too close to the dark background: the default dark colour is used there.",
-        "darkAccentFallback": "In the dark theme the accent colour is too close to the dark background: the default dark colour is used there."
-      }
-    },
-    "preview": {
-      "title": "Preview",
-      "help": "A miniature public page, not saved until you press Save.",
-      "light": "Light theme",
-      "dark": "Dark theme",
-      "sample": "Send large files simply.",
-      "link": "Learn more",
-      "input": "Email address",
-      "button": "Download",
-      "badge": "New"
-    },
     "images": {
       "title": "Images",
+      "choose": "Choose image",
+      "noFile": "No file selected",
+      "chooseLabel": "Choose image: {{name}}",
       "description": "PNG, JPEG or WebP, up to {{size}} each. SVG is not accepted. Images are re-encoded and resized; the change is applied immediately.",
       "default": "Default",
       "currentAlt": "Current image: {{name}}",

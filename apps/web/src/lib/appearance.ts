@@ -59,7 +59,9 @@ export function appearanceCssVars(
   if (appearance.radius !== DEFAULT_APPEARANCE.radius) {
     vars['--radius'] = `${appearance.radius}rem`;
   }
-  if (appearance.font === 'system') {
+  if (appearance.font === 'ibm-plex-sans') {
+    vars['--app-font-sans'] = "'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif";
+  } else if (appearance.font === 'system') {
     vars['--app-font-sans'] = 'ui-sans-serif, system-ui, sans-serif';
   }
   return vars;

@@ -21,7 +21,7 @@ import { isApiError } from '@/lib/api/client';
 import { saveSmtp, testSmtp } from '@/lib/api/settings';
 import { errorMessage } from '@/lib/errors';
 import { notifySuccess } from '@/lib/toast';
-import { NativeSelect } from '../components/NativeSelect';
+import { SelectInput } from '@/components/common/SelectInput';
 
 const formSchema = z.object({
   host: z
@@ -187,13 +187,17 @@ export function SmtpSection({ smtp }: { smtp: SmtpSettingsPublic | null }) {
         label={t('admin.settings.smtp.security')}
       >
         {({ field, controlProps }) => (
-          <NativeSelect {...field} {...controlProps}>
-            {SMTP_SECURITY.map((value) => (
-              <option key={value} value={value}>
-                {t(`admin.settings.smtp.securityOptions.${value}`)}
-              </option>
-            ))}
-          </NativeSelect>
+          <SelectInput
+            {...controlProps}
+            name={field.name}
+            value={field.value}
+            onBlur={field.onBlur}
+            onValueChange={field.onChange}
+            options={SMTP_SECURITY.map((value) => ({
+              value: value,
+              label: t(`admin.settings.smtp.securityOptions.${value}`),
+            }))}
+          />
         )}
       </FormField>
       <div className="grid gap-4 sm:grid-cols-2">

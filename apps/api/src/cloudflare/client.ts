@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { AppError } from '../http/errors.js';
 import type { Logger } from '../logger.js';
 
-const API_BASE = 'https://api.cloudflare.com/client/v4';
 const TIMEOUT_MS = 15_000;
 
 /** Cloudflare error codes that mean "bad or insufficient API token". */
@@ -57,6 +56,8 @@ export function createCloudflareClient(
   fetchFn: typeof fetch,
   apiToken: string,
   logger: Logger,
+  /** API base URL without a trailing slash (`config.cloudflareApiBase`). */
+  apiBase: string,
 ): CloudflareClient {
   async function send<T>(
     method: Method,
@@ -67,7 +68,7 @@ export function createCloudflareClient(
     const logPath = path.split('?')[0];
     let response: Response;
     try {
-      response = await fetchFn(`${API_BASE}${path}`, {
+      response = await fetchFn(`${apiBase}${path}`, {
         method,
         headers: {
           Authorization: `Bearer ${apiToken}`,

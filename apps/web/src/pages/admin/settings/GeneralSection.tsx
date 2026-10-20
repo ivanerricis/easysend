@@ -8,13 +8,13 @@ import { z } from 'zod';
 import { useAppearance } from '@/app/providers/AppearanceProvider';
 import { queryKeys } from '@/app/query';
 import { FormErrorSummary } from '@/components/common/FormErrorSummary';
-import { FormField, TextField } from '@/components/common/FormField';
+import { FormField, SwitchField, TextField } from '@/components/common/FormField';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { updateGeneralSettings } from '@/lib/api/settings';
 import { errorMessage } from '@/lib/errors';
 import { notifySuccess } from '@/lib/toast';
-import { NativeSelect } from '../components/NativeSelect';
+import { SelectInput } from '@/components/common/SelectInput';
 
 const RESERVE_MAX_MB = 10_485_760;
 
@@ -30,6 +30,7 @@ const formSchema = z.object({
   diskReserveMb: wholeNumber(0, RESERVE_MAX_MB, 'admin.settings.general.errors.reserve'),
   chunkSizeMb: wholeNumber(1, CHUNK_SIZE_MB.max, 'admin.settings.general.errors.chunk'),
   defaultLocale: z.enum(LOCALES),
+  updateCheck: z.boolean(),
 });
 type FormValues = z.infer<typeof formSchema>;
 
@@ -38,6 +39,7 @@ function toFormValues(settings: GeneralSettings): FormValues {
     diskReserveMb: String(settings.diskReserveMb),
     chunkSizeMb: String(settings.chunkSizeMb),
     defaultLocale: settings.defaultLocale,
+    updateCheck: settings.updateCheck,
   };
 }
 
@@ -58,9 +60,12 @@ export function GeneralSection({ settings }: { settings: GeneralSettings }) {
         diskReserveMb: Number(values.diskReserveMb),
         chunkSizeMb: Number(values.chunkSizeMb),
         defaultLocale: values.defaultLocale,
+        updateCheck: values.updateCheck,
       }),
     onSuccess: async (response) => {
       queryClient.setQueryData(queryKeys.admin.settings, response);
+      // The update notice follows the setting at once.
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.updates });
       reset(toFormValues(response.general));
       await refresh();
       notifySuccess(t('admin.settings.savedToast'));
@@ -115,15 +120,26 @@ export function GeneralSection({ settings }: { settings: GeneralSettings }) {
         description={t('admin.settings.general.defaultLocaleHelp')}
       >
         {({ field, controlProps }) => (
-          <NativeSelect {...field} {...controlProps}>
-            {LOCALES.map((locale) => (
-              <option key={locale} value={locale}>
-                {t(`admin.locales.${locale}`)}
-              </option>
-            ))}
-          </NativeSelect>
+          <SelectInput
+            {...controlProps}
+            name={field.name}
+            value={field.value}
+            onBlur={field.onBlur}
+            onValueChange={field.onChange}
+            options={LOCALES.map((locale) => ({
+              value: locale,
+              label: t(`admin.locales.${locale}`),
+            }))}
+          />
         )}
       </FormField>
+      <SwitchField
+        control={control}
+        name="updateCheck"
+        idPrefix="general"
+        label={t('admin.settings.general.updateCheck')}
+        description={t('admin.settings.general.updateCheckHelp')}
+      />
       <Button type="submit" disabled={mutation.isPending} aria-busy={mutation.isPending}>
         {mutation.isPending ? t('common.actions.saving') : t('common.actions.save')}
       </Button>

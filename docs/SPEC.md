@@ -73,10 +73,10 @@ I destinatari NON hanno bisogno di un account. La pagina di download mostra nome
 - Secret TOTP e password SMTP cifrati nel database.
 
 ## 8. Impostazioni di aspetto (pannello admin)
-Sezione "Aspetto" nelle impostazioni admin, con anteprima dal vivo:
+Sezione "Aspetto" nelle impostazioni admin (senza anteprima dal vivo né verifica del contrasto: rimosse nella fase 6, le modifiche si vedono sulle pagine dopo il salvataggio):
 - Nome dell'istanza e testo del footer.
 - Logo per tema chiaro e tema scuro, favicon, immagine di sfondo opzionale per le pagine pubbliche (login e download). Accetta solo PNG, JPEG e WebP con limite di dimensione, verifica il tipo reale del file, ridimensiona lato server. Niente SVG caricati dagli utenti (rischio XSS).
-- Colore principale e colore di accento: applicati tramite le variabili CSS di shadcn/ui. Calcola automaticamente il colore del testo in contrasto e avvisa se il contrasto non rispetta WCAG AA.
+- Colore principale e colore di accento: applicati tramite le variabili CSS di shadcn/ui. Calcola automaticamente il colore del testo in contrasto.
 - Arrotondamento degli angoli (raggio dei componenti) e font tra un piccolo elenco di font inclusi nell'app (niente font esterni, per privacy e prestazioni).
 - Tema predefinito: chiaro, scuro o automatico secondo il sistema. Ogni utente può sovrascriverlo nel proprio profilo; nelle pagine pubbliche c'è un interruttore.
 - Pulsante "ripristina predefiniti".

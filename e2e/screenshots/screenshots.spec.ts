@@ -1,17 +1,16 @@
 // Screenshots + accessibility run (see scripts/screenshots.mjs). One serial test drives the whole
 // app on a fresh stack: setup wizard, admin, transfer, public download. Every page is captured in
 // light and dark and checked with axe-core; serious/critical violations and CSP violations fail it.
-import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { spawnSync } from 'node:child_process';
+import { type BrowserContextOptions, type Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import * as OTPAuth from 'otpauth';
+import { join } from 'node:path';
+import { analyzeA11y, type A11yFinding } from '../support/a11y.ts';
+import { readSetupCode } from '../support/compose.ts';
+import { expect, test } from '../support/fixtures.ts';
+import { repoRoot } from '../support/paths.ts';
+import { nextTotp } from '../support/totp.ts';
 
-const root = process.env.E2E_REPO_ROOT ?? join(dirname(fileURLToPath(import.meta.url)), '..');
-const outDir = join(root, 'docs', 'screenshots');
-const composeArgs = JSON.parse(process.env.E2E_COMPOSE_ARGS ?? '[]') as string[];
+const outDir = join(repoRoot, 'docs', 'screenshots');
 
 const ADMIN_EMAIL = 'admin@example.com';
 const ADMIN_NAME = 'Giulia Rossi';
@@ -24,61 +23,11 @@ type Theme = 'light' | 'dark';
 const DESKTOP = { width: 1280, height: 800 };
 const MOBILE = { width: 375, height: 812 };
 
-interface Finding {
+interface Finding extends A11yFinding {
   shot: string;
-  id: string;
-  impact: string;
-  help: string;
-  targets: string[];
 }
 const findings: Finding[] = [];
-const cspViolations: string[] = [];
-const consoleErrors: string[] = [];
 let axeRuns = 0;
-let axeActive = false;
-let axeEvalIgnored = 0;
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/** Records console errors and CSP violations of a page. */
-function track(page: Page): void {
-  page.on('console', (message) => {
-    const text = message.text();
-    if (message.type() !== 'error') return;
-    // axe-core evaluates code strings inside the page; that is the tool, not the app.
-    if (axeActive && /blocked=eval|unsafe-eval/.test(text)) {
-      axeEvalIgnored += 1;
-      return;
-    }
-    if (text.startsWith('CSPVIOLATION ') || /Content Security Policy/i.test(text)) {
-      cspViolations.push(`${page.url()} ${text}`);
-    } else {
-      consoleErrors.push(`${page.url()} ${text}`);
-    }
-  });
-  page.on('pageerror', (error) => consoleErrors.push(`${page.url()} pageerror: ${error.message}`));
-}
-
-async function newContext(
-  browser: Browser,
-  options: { viewport?: { width: number; height: number }; storageState?: unknown } = {},
-): Promise<{ context: BrowserContext; page: Page }> {
-  const context = await browser.newContext({
-    viewport: options.viewport ?? DESKTOP,
-    colorScheme: 'light',
-    ...(options.storageState ? { storageState: options.storageState as never } : {}),
-  });
-  await context.addInitScript(() => {
-    document.addEventListener('securitypolicyviolation', (event) => {
-      console.error(
-        `CSPVIOLATION ${event.violatedDirective} blocked=${event.blockedURI} sample=${event.sample}`,
-      );
-    });
-  });
-  const page = await context.newPage();
-  track(page);
-  return { context, page };
-}
 
 async function applyTheme(page: Page, theme: Theme): Promise<void> {
   // The app follows the system setting by default, so emulating it exercises the real code path
@@ -88,22 +37,8 @@ async function applyTheme(page: Page, theme: Theme): Promise<void> {
 }
 
 async function runAxe(page: Page, shot: string): Promise<void> {
-  axeActive = true;
   axeRuns += 1;
-  const result = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
-    .analyze();
-  await sleep(300);
-  axeActive = false;
-  for (const violation of result.violations) {
-    findings.push({
-      shot,
-      id: violation.id,
-      impact: violation.impact ?? 'unknown',
-      help: violation.help,
-      targets: violation.nodes.map((node) => node.target.join(' ')).slice(0, 6),
-    });
-  }
+  for (const violation of await analyzeA11y(page)) findings.push({ shot, ...violation });
 }
 
 interface CaptureOptions {
@@ -146,52 +81,19 @@ async function capture(page: Page, name: string, options: CaptureOptions = {}): 
   await restore?.();
 }
 
-/** TOTP codes for one secret; never returns the same 30 s window twice (server anti-replay). */
-function totpSource(secret: string): () => Promise<string> {
-  const totp = new OTPAuth.TOTP({
-    secret: OTPAuth.Secret.fromBase32(secret),
-    algorithm: 'SHA1',
-    digits: 6,
-    period: 30,
-  });
-  let last = -1;
-  return async () => {
-    for (;;) {
-      const counter = Math.floor(Date.now() / 30_000);
-      if (counter > last) {
-        last = counter;
-        return totp.generate();
-      }
-      await sleep(1000);
-    }
-  };
-}
-
-/** The setup code is printed by the API in its logs (warn line "Setup code: XXXX-XXXX-XXXX"). */
-async function readSetupCode(): Promise<string> {
-  for (let attempt = 0; attempt < 60; attempt += 1) {
-    const result = spawnSync('docker', [...composeArgs, 'logs', 'api', '--no-color'], {
-      cwd: root,
-      encoding: 'utf8',
-    });
-    const text = `${result.stdout}${result.stderr}`;
-    const matches = [...text.matchAll(/Setup code: ([A-Z2-7]{4}-[A-Z2-7]{4}-[A-Z2-7]{4})/g)];
-    const last = matches.at(-1);
-    if (last?.[1]) return last[1];
-    await sleep(1000);
-  }
-  throw new Error('Setup code not found in the api logs');
-}
-
 async function settle(page: Page): Promise<void> {
   await page.waitForLoadState('networkidle');
 }
 
 test.describe.configure({ mode: 'serial' });
 
-test('screenshots and accessibility', async ({ browser }) => {
+test('screenshots and accessibility', async ({ newSession }) => {
+  const newContext = async (options: BrowserContextOptions = {}) => {
+    const page = await newSession({ viewport: DESKTOP, ...options });
+    return { context: page.context(), page };
+  };
   // ---------------------------------------------------------------- setup wizard
-  const wizard = await newContext(browser);
+  const wizard = await newContext();
   const w = wizard.page;
   await w.goto('/setup');
   await expect(w.getByLabel('Codice di configurazione')).toBeVisible();
@@ -213,7 +115,7 @@ test('screenshots and accessibility', async ({ browser }) => {
   expect(secret).toMatch(/^[A-Z2-7]{16,}$/);
   await settle(w);
   await capture(w, '02-setup-admin-qr', { themes: ['light'] });
-  const nextAdminCode = totpSource(secret);
+  const nextAdminCode = () => nextTotp(secret);
   await w
     .getByLabel(/Inserisci il codice a 6 cifre/)
     .first()
@@ -248,7 +150,7 @@ test('screenshots and accessibility', async ({ browser }) => {
   await wizard.context.close();
 
   // ---------------------------------------------------------------- login + 2FA
-  const admin = await newContext(browser);
+  const admin = await newContext();
   const a = admin.page;
   await a.goto('/login');
   await expect(a.getByRole('heading', { name: 'Accedi' })).toBeVisible();
@@ -304,7 +206,7 @@ test('screenshots and accessibility', async ({ browser }) => {
   await capture(a, '09-transfer-detail', { full: true });
 
   // ---------------------------------------------------------------- public download
-  const visitor = await newContext(browser);
+  const visitor = await newContext();
   const v = visitor.page;
   await v.goto(shareUrl);
   await expect(v.getByText('Questo trasferimento è protetto')).toBeVisible();
@@ -333,7 +235,7 @@ test('screenshots and accessibility', async ({ browser }) => {
 
   // ---------------------------------------------------------------- mobile (375x812)
   const storageState = await admin.context.storageState();
-  const guest = await newContext(browser, { viewport: MOBILE });
+  const guest = await newContext({ viewport: MOBILE });
   await guest.page.goto('/login');
   await expect(guest.page.getByRole('heading', { name: 'Accedi' })).toBeVisible();
   await settle(guest.page);
@@ -347,7 +249,7 @@ test('screenshots and accessibility', async ({ browser }) => {
   await capture(guest.page, '19-download-unlocked-mobile', { full: true });
   await guest.context.close();
 
-  const phone = await newContext(browser, { viewport: MOBILE, storageState });
+  const phone = await newContext({ viewport: MOBILE, storageState });
   await phone.page.goto('/');
   await expect(phone.page.getByRole('heading', { name: 'Invia file' })).toBeVisible();
   await phone.page
@@ -364,12 +266,8 @@ test('screenshots and accessibility', async ({ browser }) => {
   // ---------------------------------------------------------------- report
   console.log(
     `
-axe runs: ${axeRuns}, violations: ${findings.length}, axe-core eval reports ignored: ${axeEvalIgnored}`,
+axe runs: ${axeRuns}, violations: ${findings.length}`,
   );
-  if (consoleErrors.length > 0) {
-    console.log(`\nConsole errors (${consoleErrors.length}):`);
-    for (const line of new Set(consoleErrors)) console.log(`  ${line}`);
-  }
   const blocking = findings.filter((f) => f.impact === 'serious' || f.impact === 'critical');
   const minor = findings.filter((f) => !blocking.includes(f));
   const print = (f: Finding) =>
@@ -382,11 +280,6 @@ axe runs: ${axeRuns}, violations: ${findings.length}, axe-core eval reports igno
     console.log(`\nAxe, serious/critical (${blocking.length}):`);
     blocking.forEach(print);
   }
-  if (cspViolations.length > 0) {
-    console.log(`\nCSP violations (${cspViolations.length}):`);
-    for (const line of cspViolations) console.log(`  ${line}`);
-  }
-  expect(cspViolations, 'CSP violations').toEqual([]);
   expect(
     blocking.map((f) => `${f.shot}: ${f.id}`),
     'serious/critical axe violations',

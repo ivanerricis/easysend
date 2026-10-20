@@ -15,12 +15,26 @@ COPY packages/shared/package.json packages/shared/package.json
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --filter "@easysend/api..."
 
+# The node binary ships with debug symbols: strip them. binutils stays in this stage.
+FROM base AS node-stripped
+RUN apk add --no-cache binutils \
+ && cp /usr/local/bin/node /node \
+ && strip --strip-unneeded /node \
+ && /node --version
+
 FROM deps AS build
 COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
 COPY apps/api apps/api
 RUN pnpm --filter @easysend/api build \
  && pnpm --filter @easysend/api deploy --prod /out
+# Everything except the native packages (better-sqlite3, sharp, @node-rs/argon2) is bundled into
+# dist/ by tsdown, so /out/node_modules holds only those and their dependencies. Drop what is not
+# needed at runtime (never LICENSE files): better-sqlite3 ships prebuilt addons for every platform
+# (keep only the musl ones), and the packages ship docs and typings.
+RUN find /out/node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3/prebuilds -type f ! -name 'linuxmusl-*.node' -delete \
+ && find /out/node_modules/ \( -name "*.md" -o -name "*.map" -o -name "*.d.ts" -o -name "*.d.mts" -o -name "*.d.cts" \) \
+      ! -iname "LICENSE*" -type f -delete
 
 # Runtime: plain Alpine plus the node binary (no npm, npx, yarn or corepack). Same Alpine/musl
 # line as the node image, so the native better-sqlite3 build matches.
@@ -34,7 +48,7 @@ ENV NODE_ENV=production \
 RUN apk add --no-cache libstdc++ libatomic \
  && addgroup -g 1000 node && adduser -u 1000 -G node -s /bin/sh -D node \
  && mkdir -p /data /shared /app && chown node:node /data /shared /app
-COPY --from=build /usr/local/bin/node /usr/local/bin/node
+COPY --from=node-stripped /node /usr/local/bin/node
 WORKDIR /app
 COPY --from=build --chown=node:node /out/node_modules ./node_modules
 COPY --from=build --chown=node:node /out/package.json ./package.json

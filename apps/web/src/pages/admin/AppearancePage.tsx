@@ -10,8 +10,8 @@ import {
 } from '@easysend/shared';
 import { useMutation } from '@tanstack/react-query';
 import { RotateCcw } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useAppearance } from '@/app/providers/AppearanceProvider';
@@ -22,15 +22,13 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { LoadingState } from '@/components/common/States';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Slider } from '@/components/ui/slider';
 import { resetAppearance, updateAppearance } from '@/lib/api/settings';
 import { errorMessage } from '@/lib/errors';
 import { notifyError, notifySuccess } from '@/lib/toast';
-import { NativeSelect } from './components/NativeSelect';
-import { AppearancePreview } from './appearance/AppearancePreview';
+import { SelectInput } from '@/components/common/SelectInput';
 import { BrandingImages } from './appearance/BrandingImages';
 import { ColorField } from './appearance/ColorField';
-import { ContrastPanel } from './appearance/ContrastPanel';
 
 const hexColor = (error: string) =>
   z
@@ -50,7 +48,8 @@ const formSchema = appearanceSchema.extend({
   accentColor: hexColor('admin.appearance.errors.color'),
 });
 
-const HEX = /^#[0-9a-fA-F]{6}$/;
+const formatRem = (value: number, locale: string) =>
+  new Intl.NumberFormat(locale, { maximumFractionDigits: 3 }).format(value);
 
 export default function AppearancePage() {
   const { t } = useTranslation();
@@ -74,7 +73,7 @@ export default function AppearancePage() {
 }
 
 function AppearanceForm({ initial }: { initial: Appearance }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { refresh } = useAppearance();
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -83,30 +82,6 @@ function AppearanceForm({ initial }: { initial: Appearance }) {
     defaultValues: initial,
   });
   const { control, handleSubmit, reset, formState } = form;
-  const values = useWatch({ control });
-
-  // Invalid colours (while typing) keep the last valid preview instead of breaking the page.
-  const preview = useMemo(
-    () => ({
-      instanceName: values.instanceName?.trim() || initial.instanceName,
-      footer: values.footer ?? '',
-      primaryColor: HEX.test(values.primaryColor ?? '')
-        ? values.primaryColor!
-        : initial.primaryColor,
-      accentColor: HEX.test(values.accentColor ?? '') ? values.accentColor! : initial.accentColor,
-      radius: values.radius ?? initial.radius,
-      font: values.font ?? initial.font,
-    }),
-    [
-      values.instanceName,
-      values.footer,
-      values.primaryColor,
-      values.accentColor,
-      values.radius,
-      values.font,
-      initial,
-    ],
-  );
 
   const save = useMutation({
     mutationFn: (body: Appearance) =>
@@ -198,27 +173,26 @@ function AppearanceForm({ initial }: { initial: Appearance }) {
         >
           {({ field, controlProps }) => (
             <div className="flex items-center gap-3">
-              <Input
-                type="range"
+              <Slider
                 min={0}
                 max={2}
                 step={0.125}
-                className="h-11 border-0 bg-transparent px-0 dark:bg-transparent"
                 name={field.name}
-                ref={field.ref}
+                value={[Number(field.value)]}
+                onValueChange={([next]) => field.onChange(next)}
                 onBlur={field.onBlur}
-                value={field.value}
-                onChange={(event) => field.onChange(Number(event.target.value))}
-                {...controlProps}
+                thumbProps={{
+                  ref: field.ref,
+                  'aria-label': t('admin.appearance.fields.radius'),
+                  'aria-valuetext': `${formatRem(Number(field.value), i18n.language)} rem`,
+                  ...controlProps,
+                }}
               />
               <output
                 htmlFor={controlProps.id}
                 className="w-20 shrink-0 text-right font-mono text-sm"
               >
-                {Number(field.value)
-                  .toFixed(3)
-                  .replace(/\.?0+$/, '')}{' '}
-                rem
+                {formatRem(Number(field.value), i18n.language)} rem
               </output>
             </div>
           )}
@@ -231,13 +205,17 @@ function AppearanceForm({ initial }: { initial: Appearance }) {
             label={t('admin.appearance.fields.font')}
           >
             {({ field, controlProps }) => (
-              <NativeSelect {...field} {...controlProps}>
-                {AVAILABLE_FONTS.map((font) => (
-                  <option key={font} value={font}>
-                    {t(`admin.appearance.fonts.${font}`)}
-                  </option>
-                ))}
-              </NativeSelect>
+              <SelectInput
+                {...controlProps}
+                name={field.name}
+                value={field.value}
+                onBlur={field.onBlur}
+                onValueChange={field.onChange}
+                options={AVAILABLE_FONTS.map((font) => ({
+                  value: font,
+                  label: t(`admin.appearance.fonts.${font}`),
+                }))}
+              />
             )}
           </FormField>
           <FormField
@@ -248,13 +226,17 @@ function AppearanceForm({ initial }: { initial: Appearance }) {
             description={t('admin.appearance.fields.defaultThemeHelp')}
           >
             {({ field, controlProps }) => (
-              <NativeSelect {...field} {...controlProps}>
-                {THEME_PREFERENCES.map((theme) => (
-                  <option key={theme} value={theme}>
-                    {t(`common.theme.${theme}`)}
-                  </option>
-                ))}
-              </NativeSelect>
+              <SelectInput
+                {...controlProps}
+                name={field.name}
+                value={field.value}
+                onBlur={field.onBlur}
+                onValueChange={field.onChange}
+                options={THEME_PREFERENCES.map((theme) => ({
+                  value: theme,
+                  label: t(`common.theme.${theme}`),
+                }))}
+              />
             )}
           </FormField>
         </div>
@@ -268,9 +250,6 @@ function AppearanceForm({ initial }: { initial: Appearance }) {
           </Button>
         </div>
       </form>
-
-      <ContrastPanel primaryColor={preview.primaryColor} accentColor={preview.accentColor} />
-      <AppearancePreview values={preview} />
 
       <ConfirmDialog
         open={confirmReset}

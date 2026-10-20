@@ -31,8 +31,37 @@ function withoutStyleInjection(name: string, pathPart: string, signature: string
   };
 }
 
+/**
+ * Empties the CSS text a dependency puts in an inline <style> (the empty element is allowed by the
+ * CSP hash; the rules themselves live in `src/index.css`). Same build-failure guard as above.
+ */
+function withoutInlineCss(name: string, pathPart: string, css: string): Plugin {
+  let seen = false;
+  let patched = false;
+  return {
+    name,
+    enforce: 'pre',
+    transform(code, id) {
+      if (!id.replaceAll('\\', '/').includes(pathPart)) return null;
+      seen = true;
+      if (!code.includes(css)) return null;
+      patched = true;
+      return code.replace(css, '');
+    },
+    buildEnd() {
+      if (seen && !patched) this.error(`${name}: inline CSS not found in ${pathPart}`);
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
+    // Radix Select hides the scrollbar of its viewport with an inline <style>: rules in index.css.
+    withoutInlineCss(
+      'select-viewport-no-inline-css',
+      '/@radix-ui/react-select/dist/',
+      '[data-radix-select-viewport]{scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;}[data-radix-select-viewport]::-webkit-scrollbar{display:none}',
+    ),
     // sonner: CSS imported from `src/index.css`.
     withoutStyleInjection(
       'sonner-no-style-injection',

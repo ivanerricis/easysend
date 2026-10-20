@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router';
 import { queryKeys } from '@/app/query';
 import { PageHeader } from '@/components/common/PageHeader';
 import { ErrorState, LoadingState } from '@/components/common/States';
@@ -9,6 +10,7 @@ import { getAdminSettings } from '@/lib/api/settings';
 import { GeneralSection } from './settings/GeneralSection';
 import { SmtpSection } from './settings/SmtpSection';
 import { TunnelSection } from './settings/TunnelSection';
+import { UpdatesSection } from './settings/UpdatesSection';
 
 function Section({
   id,
@@ -38,6 +40,13 @@ export default function SettingsPage() {
   const { t } = useTranslation();
   const settings = useQuery({ queryKey: queryKeys.admin.settings, queryFn: getAdminSettings });
   const tunnel = useQuery({ queryKey: queryKeys.admin.tunnel, queryFn: getTunnel });
+  const { hash } = useLocation();
+
+  // Deep link from the sidebar notice (`#settings-updates`): the router does not scroll to anchors.
+  useEffect(() => {
+    if (!hash) return;
+    document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView();
+  }, [hash]);
 
   return (
     <>
@@ -79,6 +88,13 @@ export default function SettingsPage() {
           ) : (
             <TunnelSection tunnel={tunnel.data} />
           )}
+        </Section>
+        <Section
+          id="settings-updates"
+          title={t('admin.settings.updates.title')}
+          description={t('admin.settings.updates.description')}
+        >
+          <UpdatesSection />
         </Section>
       </div>
     </>

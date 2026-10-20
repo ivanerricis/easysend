@@ -2,6 +2,7 @@ import type { TransferDetail } from '@easysend/shared';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { makeTransferDetail } from '@/features/upload/fixtures';
+import { chooseOption } from '@/test/select';
 import { apiError, makeAdmin, makeUser, renderApp } from '@/test/render';
 
 const emptyLog = { items: [], total: 0, page: 1, pageSize: 20 };
@@ -233,7 +234,7 @@ describe('EditTransferDialog', () => {
 
   it('restarts the expiry from now', async () => {
     const { api, dialog } = await openEdit(makeTransferDetail());
-    fireEvent.change(within(dialog).getByLabelText('Expiry'), { target: { value: '1m' } });
+    await chooseOption('Expiry', 'Expire 1 month from now', within(dialog));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(api.callsTo('PATCH /api/transfers/t1')).toHaveLength(1));
     expect(api.callsTo('PATCH /api/transfers/t1')[0]?.body).toEqual({ expiresIn: '1m' });

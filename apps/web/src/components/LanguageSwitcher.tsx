@@ -1,8 +1,15 @@
 import { useTranslation } from 'react-i18next';
+import { SelectInput } from '@/components/common/SelectInput';
 import { useLocale } from '@/i18n/LocaleProvider';
 import { SUPPORTED_LOCALES, type Locale } from '@/i18n';
 
 const NAMES: Record<Locale, string> = { it: 'Italiano', en: 'English' };
+
+const OPTIONS = SUPPORTED_LOCALES.map((option) => ({
+  value: option,
+  label: NAMES[option],
+  lang: option,
+}));
 
 /** Language select with a visually hidden label (44px high). Saves to the profile when logged in. */
 export function LanguageSwitcher({ className }: { className?: string }) {
@@ -14,18 +21,13 @@ export function LanguageSwitcher({ className }: { className?: string }) {
       <label htmlFor="language-select" className="sr-only">
         {t('common.language.label')}
       </label>
-      <select
+      <SelectInput
         id="language-select"
         value={locale}
-        onChange={(event) => changeLocale(event.target.value === 'it' ? 'it' : 'en')}
-        className="border-input bg-background text-foreground h-11 min-w-24 border px-2 text-sm"
-      >
-        {SUPPORTED_LOCALES.map((option) => (
-          <option key={option} value={option} lang={option}>
-            {NAMES[option]}
-          </option>
-        ))}
-      </select>
+        options={OPTIONS}
+        onValueChange={(next) => changeLocale(next === 'it' ? 'it' : 'en')}
+        className="w-auto min-w-28"
+      />
     </div>
   );
 }

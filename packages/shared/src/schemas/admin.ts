@@ -36,3 +36,28 @@ export const tunnelStatusResponseSchema = z.object({
   configuredAt: unixSecondsSchema.nullable(),
 });
 export type TunnelStatusResponse = z.infer<typeof tunnelStatusResponseSchema>;
+
+/** Query of `GET /api/admin/updates`. */
+export const updateStatusQuerySchema = z.object({
+  /** `true` bypasses the cached answer and asks GitHub again (rate limited). */
+  refresh: z.enum(['true', 'false']).optional(),
+});
+export type UpdateStatusQuery = z.infer<typeof updateStatusQuerySchema>;
+
+export const UPDATE_STATUSES = ['ok', 'disabled', 'unavailable'] as const;
+
+/** Result of the "is a newer release available" check. */
+export const updateStatusResponseSchema = z.object({
+  /** The `general.updateCheck` setting. */
+  enabled: z.boolean(),
+  /** Version of the running instance, as configured (may not be a release number). */
+  currentVersion: z.string(),
+  latestVersion: z.string().nullable(),
+  updateAvailable: z.boolean(),
+  releaseUrl: z.string().nullable(),
+  publishedAt: unixSecondsSchema.nullable(),
+  /** When the answer was obtained from GitHub (Unix seconds). */
+  checkedAt: unixSecondsSchema.nullable(),
+  status: z.enum(UPDATE_STATUSES),
+});
+export type UpdateStatusResponse = z.infer<typeof updateStatusResponseSchema>;

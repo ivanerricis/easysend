@@ -35,6 +35,7 @@ export const queryKeys = {
     storage: ['admin', 'storage'] as const,
     settings: ['admin', 'settings'] as const,
     tunnel: ['admin', 'tunnel'] as const,
+    updates: ['admin', 'updates'] as const,
   },
   setup: {
     status: ['setup', 'status'] as const,

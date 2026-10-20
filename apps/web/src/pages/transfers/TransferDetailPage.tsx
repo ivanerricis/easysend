@@ -8,6 +8,7 @@ import { useSession } from '@/app/providers/SessionProvider';
 import { queryKeys } from '@/app/query';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { CopyButton } from '@/components/common/CopyButton';
+import { HintText } from '@/components/common/HintTooltip';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/States';
 import { StatusBadge } from '@/components/common/StatusBadge';
@@ -237,10 +238,7 @@ export default function TransferDetailPage() {
             </Fact>
             {!isDraft ? (
               <Fact label={t('transfers.detail.expires')}>
-                <time
-                  dateTime={new Date(transfer.expiresAt * 1000).toISOString()}
-                  title={formatRelative(transfer.expiresAt, locale)}
-                >
+                <time dateTime={new Date(transfer.expiresAt * 1000).toISOString()}>
                   {formatDateTime(transfer.expiresAt, locale)}
                 </time>{' '}
                 <span className="text-muted-foreground">
@@ -294,9 +292,11 @@ export default function TransferDetailPage() {
                     {formatBytes(file.sizeBytes, locale)}
                   </span>
                   <span className="flex items-center">
-                    <code className="text-muted-foreground font-mono text-xs" title={file.sha256}>
-                      SHA-256 {file.sha256.slice(0, 12)}…
-                    </code>
+                    <HintText content={file.sha256}>
+                      <code className="text-muted-foreground font-mono text-xs">
+                        SHA-256 {file.sha256.slice(0, 12)}…
+                      </code>
+                    </HintText>
                     <CopyButton
                       value={file.sha256}
                       variant="ghost"

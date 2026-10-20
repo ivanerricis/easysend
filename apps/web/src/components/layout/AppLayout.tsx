@@ -1,5 +1,6 @@
 import {
   ChevronsUpDown,
+  ArrowUpCircle,
   HardDrive,
   LogOut,
   Palette,
@@ -18,6 +19,7 @@ import { useAppearance } from '@/app/providers/AppearanceProvider';
 import { useSession } from '@/app/providers/SessionProvider';
 import { MyQuotaMeter } from '@/components/common/QuotaMeter';
 import { LoadingState } from '@/components/common/States';
+import { Badge } from '@/components/ui/badge';
 import { SkipLink } from '@/components/layout/PublicLayout';
 import {
   DropdownMenu,
@@ -46,7 +48,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import { useUpdateStatus } from '@/hooks/use-update-status';
 import { SUPPORTED_LOCALES, type Locale } from '@/i18n';
 import { useLocale } from '@/i18n/LocaleProvider';
 import { notifyError } from '@/lib/toast';
@@ -191,6 +193,33 @@ function UserMenu() {
   );
 }
 
+/** Admin-only link to the updates settings, shown when a newer release is published. */
+function UpdateNotice() {
+  const { t } = useTranslation();
+  const { isAdmin } = useSession();
+  const { data } = useUpdateStatus(isAdmin);
+  if (!isAdmin || !data?.updateAvailable || !data.latestVersion) return null;
+  const text = t('common.updateNotice.label');
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild tooltip={`${text}: ${data.latestVersion}`}>
+          <Link
+            to="/admin/settings#settings-updates"
+            aria-label={t('common.updateNotice.aria', { version: data.latestVersion })}
+          >
+            <ArrowUpCircle aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate">{text}</span>
+            <Badge variant="secondary" className="font-mono group-data-[collapsible=icon]:hidden">
+              {data.latestVersion}
+            </Badge>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  );
+}
+
 function AppSidebar() {
   const { t } = useTranslation();
   const { isAdmin } = useSession();
@@ -231,6 +260,7 @@ function AppSidebar() {
         <div className="px-2 group-data-[collapsible=icon]:hidden">
           <MyQuotaMeter />
         </div>
+        <UpdateNotice />
         <SidebarMenu>
           <SidebarMenuItem>
             <UserMenu />
@@ -250,33 +280,31 @@ export function AppLayout({ children }: { children?: ReactNode }) {
   const { instanceName, appearance } = useAppearance();
 
   return (
-    <TooltipProvider>
-      <SidebarProvider>
-        <SkipLink />
-        <AppSidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="bg-background sticky top-0 z-10 flex h-14 items-center gap-3 border-b px-3 sm:px-4">
-            <SidebarTrigger />
-            <span className="truncate text-sm font-medium md:hidden">{instanceName}</span>
-          </header>
-          <main
-            id="main"
-            tabIndex={-1}
-            className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 outline-none sm:px-6 sm:py-8"
-          >
-            {children ?? (
-              <Suspense fallback={<LoadingState label={t('common.states.loadingPage')} />}>
-                <Outlet />
-              </Suspense>
-            )}
-          </main>
-          {appearance.footer ? (
-            <footer className="border-t">
-              <p className="text-muted-foreground px-4 py-4 text-sm sm:px-6">{appearance.footer}</p>
-            </footer>
-          ) : null}
-        </div>
-      </SidebarProvider>
-    </TooltipProvider>
+    <SidebarProvider>
+      <SkipLink />
+      <AppSidebar />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="bg-background sticky top-0 z-10 flex h-14 items-center gap-3 border-b px-3 sm:px-4">
+          <SidebarTrigger />
+          <span className="truncate text-sm font-medium md:hidden">{instanceName}</span>
+        </header>
+        <main
+          id="main"
+          tabIndex={-1}
+          className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 outline-none sm:px-6 sm:py-8"
+        >
+          {children ?? (
+            <Suspense fallback={<LoadingState label={t('common.states.loadingPage')} />}>
+              <Outlet />
+            </Suspense>
+          )}
+        </main>
+        {appearance.footer ? (
+          <footer className="border-t">
+            <p className="text-muted-foreground px-4 py-4 text-sm sm:px-6">{appearance.footer}</p>
+          </footer>
+        ) : null}
+      </div>
+    </SidebarProvider>
   );
 }
