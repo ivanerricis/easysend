@@ -1,0 +1,67 @@
+{
+  "title": "Scarica i file",
+  "loading": "Caricamento del trasferimento…",
+  "sentBy": "Inviato da {{name}}",
+  "untitled": "File condivisi con te",
+  "contents": "Contenuto",
+  "availability": "Disponibilità",
+  "messageLabel": "Messaggio del mittente",
+  "expires": "Disponibile fino al {{date}} ({{relative}})",
+  "counter": "Download",
+  "counterOf": "{{count}} usati su {{max}}",
+  "counterOnly": "{{count}} finora",
+  "limitLast": "Resta un solo download. Ogni download che parte dall'inizio viene conteggiato, anche se non lo completi.",
+  "limitNone": "Non restano download su questo link.",
+  "limitSoon": "Restano solo {{remaining}} download. Ogni download che parte dall'inizio viene conteggiato, anche se non lo completi.",
+  "attachmentNote": "I file vengono consegnati come allegati e non si aprono mai nel browser.",
+  "files": {
+    "heading": "File",
+    "selectAll": "Seleziona tutti i file",
+    "selectFile": "Seleziona {{name}}",
+    "selectedCount_one": "{{count}} file selezionato",
+    "selectedCount_other": "{{count}} file selezionati",
+    "download": "Scarica",
+    "downloadNamed": "Scarica {{name}} ({{size}})"
+  },
+  "zip": {
+    "all": "Scarica tutto in ZIP",
+    "selected": "Scarica la selezione in ZIP",
+    "needSelection": "Seleziona almeno un file per scaricare uno ZIP della selezione."
+  },
+  "started": "Download avviato. Il browser ne mostra l'avanzamento.",
+  "locked": {
+    "title": "Questo trasferimento è protetto",
+    "description": "Inserisci la password che ti ha dato il mittente per vedere e scaricare i file.",
+    "password": "Password",
+    "submit": "Sblocca",
+    "submitting": "Sblocco in corso…",
+    "retryIn": "Troppi tentativi. Riprova tra {{time}}.",
+    "required": "Inserisci la password."
+  },
+  "states": {
+    "notFound": {
+      "title": "Link non valido",
+      "description": "Questo link non esiste oppure il trasferimento è stato eliminato. Controlla di aver copiato l'indirizzo per intero."
+    },
+    "expired": {
+      "title": "Trasferimento scaduto",
+      "description": "I file non sono più disponibili. Chiedi al mittente di inviarli di nuovo."
+    },
+    "revoked": {
+      "title": "Trasferimento revocato",
+      "description": "Il mittente ha ritirato questo trasferimento. Se ti servono ancora i file, chiedigli di inviarli di nuovo."
+    },
+    "limit": {
+      "title": "Limite di download raggiunto",
+      "description": "Questo link ha raggiunto il numero massimo di download. Chiedi al mittente un nuovo link."
+    },
+    "rateLimited": {
+      "title": "Troppe richieste",
+      "description": "Attendi un momento e riprova."
+    },
+    "generic": {
+      "title": "Impossibile caricare il trasferimento",
+      "description": "Qualcosa è andato storto da parte nostra. Riprova tra un istante."
+    }
+  }
+}

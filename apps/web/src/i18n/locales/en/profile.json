@@ -1,0 +1,80 @@
+{
+  "title": "Profile",
+  "description": "Your account, preferences and security.",
+  "retryIn": "Too many attempts. Try again in {{time}}.",
+  "account": {
+    "title": "Account",
+    "email": "Email",
+    "role": "Role",
+    "roleAdmin": "Administrator",
+    "roleUser": "User",
+    "created": "Account created",
+    "lastLogin": "Last sign-in",
+    "never": "Never",
+    "displayName": "Display name",
+    "displayNameHelp": "Recipients see this name on the download page instead of the instance name. Leave it empty to show the instance name. Your email is never shown.",
+    "displayNameTooLong": "The name is too long.",
+    "saved": "Profile saved."
+  },
+  "preferences": {
+    "title": "Preferences",
+    "language": "Language",
+    "theme": "Theme",
+    "themeHelp": "Your choice is saved to your profile and follows you on every device."
+  },
+  "storage": {
+    "title": "Storage",
+    "unlimited": "You have no quota: uploads are limited only by the free disk space on the server."
+  },
+  "password": {
+    "title": "Password",
+    "description": "Choose a long, unique password.",
+    "current": "Current password",
+    "new": "New password",
+    "newHelp": "At least {{min}} characters.",
+    "confirm": "Confirm new password",
+    "submit": "Change password",
+    "submitting": "Changing…",
+    "success": "Password changed.",
+    "sessionsNote": "Password changed. You were signed out of all your other devices and browsers.",
+    "errors": {
+      "currentRequired": "Enter your current password.",
+      "tooShort": "The new password is too short.",
+      "tooLong": "The new password is too long.",
+      "confirmRequired": "Repeat the new password.",
+      "mismatch": "The two passwords do not match."
+    }
+  },
+  "twoFactor": {
+    "title": "Two-factor authentication",
+    "description": "A code from your authenticator app protects your account even if your password leaks.",
+    "statusOn": "Enabled",
+    "statusOff": "Disabled",
+    "enable": "Enable two-factor authentication",
+    "starting": "Preparing…",
+    "scan": "Scan the QR code with your authenticator app, then enter the 6-digit code it shows.",
+    "secretLabel": "Can't scan? Enter this key manually",
+    "copySecret": "Copy key",
+    "codeLabel": "Code from the app",
+    "verify": "Verify and enable",
+    "verifying": "Verifying…",
+    "cancel": "Cancel",
+    "codesDone": "Done",
+    "codesEnabledNote": "Two-factor authentication is now enabled. Save your recovery codes before continuing.",
+    "codesRegeneratedNote": "Your old recovery codes no longer work. Save the new ones before continuing.",
+    "regenerate": "Regenerate recovery codes",
+    "regenerateHelp": "Confirm with your password and a current code. The old recovery codes stop working.",
+    "regenerateSubmit": "Generate new codes",
+    "disable": "Disable two-factor authentication",
+    "disableHelp": "Confirm with your password and a current code.",
+    "disableSubmit": "Disable",
+    "adminRequired": "Two-factor authentication is mandatory for administrators and cannot be disabled.",
+    "reauthPassword": "Your password",
+    "reauthCode": "Code from the app",
+    "disabledDone": "Two-factor authentication disabled.",
+    "errors": {
+      "passwordRequired": "Enter your current password.",
+      "codeRequired": "Enter the 6-digit code."
+    }
+  }
+}

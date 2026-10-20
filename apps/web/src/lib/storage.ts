@@ -14,3 +14,11 @@ export function writeStorage(key: string, value: string): void {
     // Ignore: the preference simply will not persist.
   }
 }
+
+export function removeStorage(key: string): void {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore: nothing to remove.
+  }
+}
