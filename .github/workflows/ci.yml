@@ -1,4 +1,4 @@
-# The job names (lint, typecheck, test, build) are required status checks
+# The job names (lint, typecheck, test, build, e2e) are required status checks
 # on main (ruleset "protect-main"). Never rename them.
 name: CI
 
@@ -35,6 +35,10 @@ jobs:
           docker run --rm -v "$PWD:/repo" -w /repo \
             rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
             -color
+      - name: ShellCheck
+        run: |
+          shopt -s nullglob
+          shellcheck scripts/*.sh docker/cloudflared/entrypoint.sh
       - name: Validate release-please JSON
         run: jq empty release-please-config.json .release-please-manifest.json
       - name: Check for CRLF line endings
@@ -162,3 +166,66 @@ jobs:
           curl -fsS http://localhost:8080/health || fail "GET /health failed"
           echo
           curl -fsSI http://localhost:8080/ | grep -i content-security-policy || fail "CSP header missing"
+
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      # The build job writes the layer cache; this job only reads it.
+      - name: Build API image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+          load: true
+          tags: ghcr.io/ivanerricis/easysend-api:e2e
+          build-args: APP_VERSION=e2e
+          cache-from: type=gha,scope=api
+      - name: Build web image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: false
+          load: true
+          tags: ghcr.io/ivanerricis/easysend-web:e2e
+          cache-from: type=gha,scope=web
+      - name: Resolve Playwright version
+        id: playwright
+        run: |
+          version=$(pnpm --filter @easysend/e2e exec playwright --version | sed -E 's/^Version //')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - name: Install Chromium and system libraries
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @easysend/e2e exec playwright install --with-deps chromium
+      - name: Install system libraries only (browser cached)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @easysend/e2e exec playwright install-deps chromium
+      - name: End-to-end tests
+        env:
+          PW_CHANNEL: chromium
+          CI: 'true'
+        run: pnpm test:e2e -- --no-build
+      - name: Upload report and logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-output
+          path: e2e/.output/**
+          retention-days: 7
+          if-no-files-found: ignore
