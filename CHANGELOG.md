@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.1](https://github.com/ivanerricis/easysend/compare/v0.1.0...v0.1.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* **docs:** run VitePress on a patched vite 6 ([#21](https://github.com/ivanerricis/easysend/issues/21)) ([441dc27](https://github.com/ivanerricis/easysend/commit/441dc273cc1580292b320c97046df70407f807b3))
+* **web:** keep the focus in the field while typing after a failed submit ([#23](https://github.com/ivanerricis/easysend/issues/23)) ([40dabd3](https://github.com/ivanerricis/easysend/commit/40dabd3450bda65872e7cd3225139207fddbfb5d))
+
 ## 0.1.0 (2026-10-20)
 
 
