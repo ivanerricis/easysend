@@ -42,11 +42,17 @@ export function FormErrorSummary<TValues extends FieldValues>({
 }: FormErrorSummaryProps<TValues>) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
+  const focusedSubmit = useRef(0);
   const items = collect(errors);
   const hasErrors = items.length > 0;
 
+  // Focus moves here once per failed submit. Errors that disappear and come back while the user
+  // types (re-validation on change) must not steal the focus from the field being edited.
   useEffect(() => {
-    if (submitCount > 0 && hasErrors) ref.current?.focus();
+    if (submitCount > focusedSubmit.current && hasErrors) {
+      focusedSubmit.current = submitCount;
+      ref.current?.focus();
+    }
   }, [submitCount, hasErrors]);
 
   if (!hasErrors) return null;
