@@ -197,3 +197,4 @@ Regole:
 - Pubblicazione: `publish.yml` è chiamato da `release-please.yml` quando nasce una release (le release create con `GITHUB_TOKEN` non scatenano `release: published`) o a mano con un tag; immagini solo amd64 con tag `X.Y.Z`, `X.Y`, `latest` e `sha-…`, label OCI, provenance, SBOM, attestazione e scansione Trivy dopo il push.
 - CLI di backup del DB: `backup-db` (backup online `manual-<ts>.sqlite`, ultimi 10) e `restore-db` (solo nomi `manual-*`/`app-pre-*`, `integrity_check`, salva prima il DB attuale come `app-pre-restore-*`).
 - `create-admin` chiede la password due volte se non è passata con `--password`.
+- Skill di progetto in `.claude/skills/` (fine fase 6): `drizzle-migration`, `api-endpoint`, `release-and-deploy`, `e2e-spec`, `shadcn-component`. Vanno aggiornate quando cambia la procedura che descrivono; non prevalgono su questo file né su SPEC.
