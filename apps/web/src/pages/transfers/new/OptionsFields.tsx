@@ -163,6 +163,7 @@ export function OptionsFields({ form, config, disabled }: OptionsFieldsProps) {
             <FieldSet>
               <FieldLegend className={HEADING}>{t('transfers.new.mode')}</FieldLegend>
               <RadioGroup
+                name={field.name}
                 value={field.value}
                 onValueChange={(value) => {
                   field.onChange(value);
@@ -214,6 +215,7 @@ export function OptionsFields({ form, config, disabled }: OptionsFieldsProps) {
           <FieldSet>
             <FieldLegend className={HEADING}>{t('transfers.new.expiry')}</FieldLegend>
             <RadioGroup
+              name={field.name}
               value={field.value}
               onValueChange={field.onChange}
               disabled={disabled}

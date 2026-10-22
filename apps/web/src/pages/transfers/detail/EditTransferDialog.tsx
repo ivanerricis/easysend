@@ -184,7 +184,12 @@ function EditForm({
               <FieldLegend variant="label" className="text-sm font-medium">
                 {t('transfers.new.password')}
               </FieldLegend>
-              <RadioGroup value={field.value} onValueChange={field.onChange} className="gap-0">
+              <RadioGroup
+                name={field.name}
+                value={field.value}
+                onValueChange={field.onChange}
+                className="gap-0"
+              >
                 {(
                   ['keep', 'set', ...(transfer.hasPassword ? (['remove'] as const) : [])] as const
                 ).map((value) => (

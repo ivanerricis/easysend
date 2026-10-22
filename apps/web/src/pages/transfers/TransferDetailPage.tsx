@@ -219,6 +219,7 @@ export default function TransferDetailPage() {
           <Section id="share-heading" title={t('transfers.detail.shareLink')}>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input
+                id="share-url"
                 readOnly
                 aria-labelledby="share-heading"
                 value={transfer.shareUrl}
