@@ -1,11 +1,10 @@
 import { randomBytes } from 'node:crypto';
-import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
-import path from 'node:path';
 import { z } from 'zod';
 import type { CloudflareResponse } from '@easysend/shared';
 import { nowSeconds } from '../clock.js';
 import type { AppContext } from '../context.js';
 import { AppError } from '../http/errors.js';
+import { writeFileAtomic } from '../shared-dir.js';
 import { RECORD_EXISTS_CODES, createCloudflareClient } from './client.js';
 
 /** The web container, as seen from cloudflared inside the compose network. */
@@ -26,19 +25,6 @@ export interface ConfigureTunnelInput {
   domain: string;
   subdomain?: string | undefined;
   apiToken: string;
-}
-
-/** Writes the tunnel token atomically (tmp file in the same dir, mode 600, rename). */
-async function writeTokenFile(dir: string, token: string): Promise<void> {
-  await mkdir(dir, { recursive: true });
-  const tmp = path.join(dir, `.${TOKEN_FILE_NAME}.${randomBytes(6).toString('hex')}.tmp`);
-  try {
-    await writeFile(tmp, token, { mode: 0o600 });
-    await rename(tmp, path.join(dir, TOKEN_FILE_NAME));
-  } catch (error) {
-    await rm(tmp, { force: true });
-    throw error;
-  }
 }
 
 /**
@@ -167,7 +153,7 @@ export async function configureTunnel(
     `/accounts/${accountId}/cfd_tunnel/${tunnelId}/token`,
     { schema: tokenSchema, permission: 'Cloudflare Tunnel:Edit' },
   );
-  await writeTokenFile(ctx.config.sharedDir, tunnelToken);
+  await writeFileAtomic(ctx.config.sharedDir, TOKEN_FILE_NAME, tunnelToken, 0o600);
 
   ctx.settings.set('tunnel', {
     hostname,

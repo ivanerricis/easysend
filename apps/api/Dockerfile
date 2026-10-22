@@ -43,11 +43,12 @@ ARG APP_VERSION=0.0.0-dev
 ENV NODE_ENV=production \
     DATA_DIR=/data \
     SHARED_DIR=/shared \
+    UPDATE_DIR=/updates \
     PORT=3000 \
     APP_VERSION=${APP_VERSION}
 RUN apk add --no-cache libstdc++ libatomic \
  && addgroup -g 1000 node && adduser -u 1000 -G node -s /bin/sh -D node \
- && mkdir -p /data /shared /app && chown node:node /data /shared /app
+ && mkdir -p /data /shared /updates /app && chown node:node /data /shared /updates /app
 COPY --from=node-stripped /node /usr/local/bin/node
 WORKDIR /app
 COPY --from=build --chown=node:node /out/node_modules ./node_modules

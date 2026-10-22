@@ -53,6 +53,10 @@ export const ERROR_CODES = {
   CLOUDFLARE_API_ERROR: 502,
   NOT_APPLICABLE_IN_LOCAL_MODE: 409,
   INVALID_IMAGE: 422,
+  // One-click update
+  UPDATE_RUNNER_MISSING: 409,
+  UPDATE_IN_PROGRESS: 409,
+  UPDATE_VERSION_NOT_AVAILABLE: 422,
 } as const;
 
 export type ErrorCode = keyof typeof ERROR_CODES;

@@ -10,6 +10,7 @@ test-results/
 blob-report/
 .local-data/
 secrets/
+/updates/
 .env
 .env.*
 !.env.example

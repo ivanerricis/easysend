@@ -39,6 +39,8 @@ services:
       TMP_UPLOAD_DIR: ${TMP_UPLOAD_DIR:-/data/tmp}
       BRANDING_DIR: ${BRANDING_DIR:-/data/branding}
       SHARED_DIR: /shared
+      # Host folder of the one-click update protocol (request, status, runner marker).
+      UPDATE_DIR: /updates
       APP_SECRET_KEY: ${APP_SECRET_KEY:-}
       SESSION_SECRET: ${SESSION_SECRET:-}
       SETUP_CODE_TTL_MINUTES: ${SETUP_CODE_TTL_MINUTES:-60}
@@ -52,6 +54,7 @@ services:
     volumes:
       - easysend-data:/data
       - easysend-shared:/shared
+      - ./updates:/updates
     healthcheck:
       test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:3000/api/health']
       interval: 30s
