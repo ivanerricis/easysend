@@ -84,7 +84,7 @@ export function getUpdateStatus(refresh = false): Promise<UpdateStatusResponse> 
 
 /** State of the one-click update (runner, pending request, last run). */
 export function getUpdateRun(): Promise<UpdateRunResponse> {
-  return api.call('admin.updateRun', {});
+  return api.call('admin.updateRun', { skipAuthRedirect: true });
 }
 
 /** Asks the host runner to update to `version` (a release from `availableVersions`). */

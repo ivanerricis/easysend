@@ -274,7 +274,65 @@
       "commands": "Commands to run on the server",
       "docs": "Update guide",
       "docsUrl": "https://ivanerricis.github.io/easysend/guide/updates",
-      "refreshed": "Check completed."
+      "refreshed": "Check completed.",
+      "oneClick": {
+        "versionLabel": "Version to install",
+        "versionOption": "{{version}} · {{date}}",
+        "versionOptionNoDate": "{{version}}",
+        "start": "Update now",
+        "notesLink": "Release notes for {{version}}",
+        "confirmTitle": "Update from {{from}} to {{to}}?",
+        "confirmBody": "EasySend will be unreachable for a few minutes while it restarts. A database backup is taken first, and if the update fails the instance goes back to the current version automatically.",
+        "confirm": "Update",
+        "missingTitle": "One-click update",
+        "missingBody": "Install the update service on the server once to update from this page. Run this in the install folder:",
+        "installCommands": "Commands to install the update service",
+        "docsOneClickUrl": "https://ivanerricis.github.io/easysend/guide/updates#one-click-update",
+        "docsOneClick": "How the update service works",
+        "progressTitle": "Updating to {{version}}",
+        "progressLabel": "Update progress",
+        "stepsLabel": "Update steps",
+        "stepCount": "Step {{current}} of {{total}}: {{step}}",
+        "stepStatus": {
+          "done": "(done)",
+          "current": "(in progress)",
+          "todo": "(to do)"
+        },
+        "steps": {
+          "requested": "Request sent to the server",
+          "starting": "Starting the update",
+          "compose": "Downloading the release",
+          "backup": "Backing up the database",
+          "pull": "Downloading the images",
+          "restart": "Restarting the services",
+          "health": "Checking that the new version responds",
+          "rollback": "Going back to the previous version"
+        },
+        "restarting": "Restarting… this page reconnects by itself.",
+        "signedOut": "Your session ended during the update. Sign in again to see the result.",
+        "staleTitle": "The update service is not responding",
+        "staleBody": "The request was sent but the server has not picked it up. On the server check the service and its log:",
+        "staleCommands": "Commands to check the update service",
+        "requestAgain": "Request again",
+        "succeededTitle": "Updated to {{version}}",
+        "succeededBody": "The new version is running. Reload the page to load the new interface.",
+        "alreadyCurrentTitle": "Already on version {{version}}",
+        "alreadyCurrentBody": "Nothing was changed.",
+        "reload": "Reload page",
+        "rolledBackTitle": "The update to {{to}} failed",
+        "rolledBackBody": "The instance went back to {{from}} and its data was restored from the backup taken before the update. The log is on the server at:",
+        "failedTitle": "The update to {{version}} failed",
+        "logPath": "Log file",
+        "failed": {
+          "busy": "Another deploy was already running on the server, so nothing was changed.",
+          "invalid_request": "The server rejected the update request, so nothing was changed.",
+          "compose": "The release files could not be downloaded, so nothing was changed.",
+          "backup": "The database backup failed, so nothing was changed.",
+          "deploy": "The new version did not start correctly.",
+          "rollback_failed": "The update failed and the automatic rollback did not complete. Check the server with `docker compose ps` and read the log.",
+          "unknown": "The update did not complete."
+        }
+      }
     }
   },
   "appearance": {

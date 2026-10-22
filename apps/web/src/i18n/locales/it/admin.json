@@ -274,7 +274,65 @@
       "commands": "Comandi da eseguire sul server",
       "docs": "Guida all'aggiornamento",
       "docsUrl": "https://ivanerricis.github.io/easysend/it/guide/updates",
-      "refreshed": "Controllo completato."
+      "refreshed": "Controllo completato.",
+      "oneClick": {
+        "versionLabel": "Versione da installare",
+        "versionOption": "{{version}} · {{date}}",
+        "versionOptionNoDate": "{{version}}",
+        "start": "Aggiorna ora",
+        "notesLink": "Note di rilascio della {{version}}",
+        "confirmTitle": "Aggiornare dalla {{from}} alla {{to}}?",
+        "confirmBody": "EasySend sarà irraggiungibile per qualche minuto durante il riavvio. Prima viene fatto un backup del database e, se l'aggiornamento fallisce, l'istanza torna da sola alla versione attuale.",
+        "confirm": "Aggiorna",
+        "missingTitle": "Aggiornamento con un clic",
+        "missingBody": "Installa una volta sul server il servizio di aggiornamento per aggiornare da questa pagina. Esegui nella cartella di installazione:",
+        "installCommands": "Comandi per installare il servizio di aggiornamento",
+        "docsOneClickUrl": "https://ivanerricis.github.io/easysend/it/guide/updates#aggiornamento-con-un-clic",
+        "docsOneClick": "Come funziona il servizio di aggiornamento",
+        "progressTitle": "Aggiornamento alla {{version}}",
+        "progressLabel": "Avanzamento dell'aggiornamento",
+        "stepsLabel": "Passaggi dell'aggiornamento",
+        "stepCount": "Passaggio {{current}} di {{total}}: {{step}}",
+        "stepStatus": {
+          "done": "(completato)",
+          "current": "(in corso)",
+          "todo": "(da fare)"
+        },
+        "steps": {
+          "requested": "Richiesta inviata al server",
+          "starting": "Avvio dell'aggiornamento",
+          "compose": "Scaricamento della release",
+          "backup": "Backup del database",
+          "pull": "Scaricamento delle immagini",
+          "restart": "Riavvio dei servizi",
+          "health": "Verifica che la nuova versione risponda",
+          "rollback": "Ritorno alla versione precedente"
+        },
+        "restarting": "Riavvio in corso… la pagina si ricollega da sola.",
+        "signedOut": "La sessione è terminata durante l'aggiornamento. Accedi di nuovo per vedere il risultato.",
+        "staleTitle": "Il servizio di aggiornamento non risponde",
+        "staleBody": "La richiesta è stata inviata ma il server non l'ha presa in carico. Sul server controlla il servizio e il suo log:",
+        "staleCommands": "Comandi per controllare il servizio di aggiornamento",
+        "requestAgain": "Richiedi di nuovo",
+        "succeededTitle": "Aggiornato alla {{version}}",
+        "succeededBody": "La nuova versione è in esecuzione. Ricarica la pagina per caricare la nuova interfaccia.",
+        "alreadyCurrentTitle": "Già alla versione {{version}}",
+        "alreadyCurrentBody": "Non è stato cambiato nulla.",
+        "reload": "Ricarica la pagina",
+        "rolledBackTitle": "L'aggiornamento alla {{to}} è fallito",
+        "rolledBackBody": "L'istanza è tornata alla {{from}} e i dati sono stati ripristinati dal backup fatto prima dell'aggiornamento. Il log è sul server in:",
+        "failedTitle": "L'aggiornamento alla {{version}} è fallito",
+        "logPath": "File di log",
+        "failed": {
+          "busy": "Sul server era già in corso un altro deploy, quindi non è stato cambiato nulla.",
+          "invalid_request": "Il server ha rifiutato la richiesta di aggiornamento, quindi non è stato cambiato nulla.",
+          "compose": "Non è stato possibile scaricare i file della release, quindi non è stato cambiato nulla.",
+          "backup": "Il backup del database è fallito, quindi non è stato cambiato nulla.",
+          "deploy": "La nuova versione non si è avviata correttamente.",
+          "rollback_failed": "L'aggiornamento è fallito e il ripristino automatico non è stato completato. Controlla il server con `docker compose ps` e leggi il log.",
+          "unknown": "L'aggiornamento non si è concluso."
+        }
+      }
     }
   },
   "appearance": {
