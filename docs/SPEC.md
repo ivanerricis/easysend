@@ -107,12 +107,13 @@ Comportamento con APP_MODE=local:
 - Log strutturati (accessi, creazioni, download, eliminazioni, azioni admin) senza dati sensibili, IP solo come hash, con rotazione.
 - Segreti solo in variabili d'ambiente o file generati nel volume dati, mai nel repository.
 - Nessun antivirus integrato: nota nel README su come aggiungerlo in futuro.
+- Aggiornamento con un clic (opzionale, fase 7): niente socket Docker nei container. L'API scrive solo `updates/request` (id, versione, ora) nel volume condiviso `./updates`; un'unità systemd path sull'LXC avvia `scripts/update-runner.sh`, che valida la richiesta in modo rigoroso (spostata fuori dalla cartella scrivibile dal container prima di leggerla, niente `eval`, `status.json` scritto con rename) ed esegue `deploy.sh <versione> --yes`. Solo admin, CSRF, 5 richieste/ora, riga di audit `system.update_requested`, solo release ufficiali pubblicate e più recenti di quella in uso (ricontrollate su GitHub).
 
 ## 11. Variabili d'ambiente
 Nell'ambiente vanno solo i parametri di avvio. Tutto ciò che si configura nel wizard o nel pannello admin sta nella tabella settings. Fornisci un .env.example commentato:
 - APP_MODE (local|production, default production) e PUBLIC_URL (es. http://localhost:8080 in locale; in produzione viene impostato dal wizard in base al dominio).
 - TZ (default Europe/Rome), NODE_ENV (production), PORT (3000, interna), LOG_LEVEL (info), TRUST_PROXY (1 in locale con solo Nginx, 2 in produzione con cloudflared + Nginx).
-- DATA_DIR (/data), DB_PATH (/data/db/app.sqlite), STORAGE_DIR (/data/storage), TMP_UPLOAD_DIR (/data/tmp, stesso filesystem di STORAGE_DIR), BRANDING_DIR (/data/branding), SHARED_DIR (/shared).
+- DATA_DIR (/data), DB_PATH (/data/db/app.sqlite), STORAGE_DIR (/data/storage), TMP_UPLOAD_DIR (/data/tmp, stesso filesystem di STORAGE_DIR), BRANDING_DIR (/data/branding), SHARED_DIR (/shared), UPDATE_DIR (/updates, cartella condivisa con il runner dell'aggiornamento con un clic; impostata dal compose di produzione).
 - APP_SECRET_KEY: chiave master a 32 byte. Se assente viene generata al primo avvio in /data/secrets/app.key (permessi 600). Il README deve dire chiaramente di includerla nel backup: senza, file, secret TOTP e password SMTP non sono più leggibili.
 - SESSION_SECRET: stesso meccanismo.
 - SETUP_CODE_TTL_MINUTES (60), PASSWORD_RESET_TTL_MINUTES (30), LOG_RETENTION_DAYS (90), INCOMPLETE_UPLOAD_TTL_HOURS (24), CLEANUP_CRON ("0 * * * *").
@@ -199,7 +200,7 @@ Regole comuni: permessi minimi dichiarati per ogni job, azioni di terze parti fi
 Il docker-compose.yml di produzione legge la versione delle immagini da una variabile APP_VERSION nel file `.env` (es. `ghcr.io/<owner>/<repo>-api:${APP_VERSION}`), mai `latest`. Aggiornare significa cambiare APP_VERSION.
 Nella fase 0 proponimi le opzioni con pro e contro e fammi scegliere, poi implementa quella scelta nella fase 6:
 - Manuale: script `scripts/deploy.sh <versione>` sull'LXC (senza argomento usa l'ultima release, letta dalle API di GitHub) che salva la versione attuale per il rollback, fa backup del DB, aggiorna APP_VERSION in `.env`, esegue `docker compose pull` e `up -d`, controlla /health e, se il controllo fallisce, ripristina la versione e il backup precedenti. Prevedi anche `scripts/rollback.sh`.
-- Semiautomatico: lo stesso script eseguito da un timer systemd che controlla se esiste una nuova release.
+- Semiautomatico: lo stesso script eseguito da un timer systemd che controlla se esiste una nuova release. Realizzato nella fase 7 in un'altra forma: non un timer, ma una richiesta dal pannello admin (file `updates/request`) raccolta da un'unità systemd path (`easysend-update.path`) che avvia `update-runner.sh` e quindi `deploy.sh`; installazione facoltativa con `scripts/update-service.sh install`.
 - Automatico: runner self-hosted di GitHub Actions sull'LXC che esegue lo script alla pubblicazione di una release (spiegami i rischi di sicurezza, soprattutto con repository pubblico).
 
 ### 15.8 Prima release

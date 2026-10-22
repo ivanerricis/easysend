@@ -8,3 +8,4 @@
 - **Porte già occupate (locale)**: cambiale in `.env.local` ([Sviluppo in locale](../development/local)).
 - **Le email non arrivano**: usa la prova SMTP nelle impostazioni admin e guarda `docker compose logs api`. In locale apri Mailpit su http://localhost:8025.
 - **Un deploy è fallito ed è tornato indietro**: leggi `.deploy/history.log` e `docker compose logs api`, correggi la causa e rilancia il deploy.
+- **L'aggiornamento con un clic non parte o dice "non risponde"**: vedi [Log e risoluzione dei problemi](./updates#log-e-risoluzione-dei-problemi) (`systemctl status easysend-update.path`, `.deploy/update.log`).
