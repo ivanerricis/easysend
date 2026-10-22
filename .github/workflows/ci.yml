@@ -86,6 +86,8 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm test
       - run: pnpm test:mailpit
+      - name: Update scripts
+        run: bash scripts/tests/run.sh
 
   build:
     name: build
