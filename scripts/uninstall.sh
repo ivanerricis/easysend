@@ -25,6 +25,17 @@ Environment: EASYSEND_DIR.
 USAGE
 }
 
+# Removes the one-click update units (systemd) when they are installed.
+remove_update_service() {
+  local sdir="${EASYSEND_SYSTEMD_DIR:-/etc/systemd/system}"
+  [[ -f "$sdir/easysend-update.path" || -f "$sdir/easysend-update.service" ]] || return 0
+  if [[ "$(id -u)" == "0" ]]; then
+    EASYSEND_DIR="$EASYSEND_DIR" "$SCRIPT_DIR/update-service.sh" uninstall || warn "Could not remove the one-click update units."
+  else
+    warn "The one-click update units are still installed. Remove them as root: sudo $SCRIPT_DIR/update-service.sh uninstall"
+  fi
+}
+
 # Every version we know about (current, previous, .env), one per line.
 known_versions() {
   { state_get current-version; echo; state_get previous-version; echo; get_env_var APP_VERSION; } |
@@ -94,6 +105,7 @@ main() {
     confirm "Remove the EasySend containers and images (data is kept)?" || die "Aborted."
   fi
 
+  remove_update_service
   log "Removing containers and network..."
   if ((purge)); then
     APP_VERSION="${versions[0]}" dc --profile tunnel down --remove-orphans -v
@@ -104,6 +116,7 @@ main() {
 
   if ((purge)); then
     rm -rf "$DEPLOY_DIR"
+    rm -rf "$EASYSEND_DIR/updates"
     rm -f "$EASYSEND_DIR/.env"
     ok "Data volumes, .deploy/ and .env removed (the backups directory, if any, is kept)."
     cat <<'CF'

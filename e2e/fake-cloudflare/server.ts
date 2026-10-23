@@ -4,13 +4,15 @@
 //   node e2e/fake-cloudflare/server.ts
 //
 // /client/v4/*  -> FakeCloudflare.fetch (what the API calls through CLOUDFLARE_API_BASE)
-// /__fake/*     -> control routes used by the tests (health, state, reset, fail)
+// /__fake/*     -> control routes used by the tests (health, state, reset, fail, releases)
 import { createServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { FakeCloudflare } from '../../apps/api/test/fake-cloudflare.ts';
 
 const port = Number(process.env.PORT ?? '8787');
 let fake = new FakeCloudflare();
+// Release list served to the API update check (GitHub "list releases" format). Empty by default.
+let releases: unknown[] = [];
 
 async function readBody(req: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];
@@ -53,8 +55,22 @@ async function control(req: IncomingMessage, res: ServerResponse, path: string):
   const method = req.method ?? 'GET';
   if (method === 'GET' && path === '/__fake/health') return sendJson(res, 200, { ok: true });
   if (method === 'GET' && path === '/__fake/state') return sendJson(res, 200, snapshot());
+  // The update check reads this list; POST replaces it (a JSON array of GitHub-style releases).
+  if (method === 'GET' && path === '/__fake/releases') return sendJson(res, 200, releases);
+  if (method === 'POST' && path === '/__fake/releases') {
+    let body: unknown;
+    try {
+      body = JSON.parse(await readBody(req));
+    } catch {
+      return sendJson(res, 400, { error: 'invalid JSON' });
+    }
+    if (!Array.isArray(body)) return sendJson(res, 400, { error: 'expected an array' });
+    releases = body;
+    return sendJson(res, 200, releases);
+  }
   if (method === 'POST' && path === '/__fake/reset') {
     fake = new FakeCloudflare();
+    releases = [];
     return sendJson(res, 200, { ok: true });
   }
   if (method === 'POST' && path === '/__fake/fail') {

@@ -12,14 +12,20 @@ services:
   api:
     environment:
       APP_MODE: production
+      # The image tag stays :e2e, but the API reports a release number so the one-click update
+      # spec has newer versions to offer (availableVersions is empty for a non-semver build).
+      APP_VERSION: 0.1.0
       PUBLIC_URL: http://localhost:${E2E_WEB_PORT:-18090}
       TRUST_PROXY: 1
       # Tests only: the API talks to the in-memory fake instead of api.cloudflare.com.
       CLOUDFLARE_API_BASE: http://fake-cloudflare:8787/client/v4
-      # No calls to GitHub from tests: the fake answers 404, so the update check reads "unavailable".
-      UPDATE_CHECK_URL: http://fake-cloudflare:8787/__fake/no-releases
+      # No calls to GitHub from tests: the fake serves a switchable release list (empty by default).
+      UPDATE_CHECK_URL: http://fake-cloudflare:8787/__fake/releases
       # The hourly cleanup would delete the transfers the expiry test pushes into the past.
       CLEANUP_CRON: 0 3 1 1 *
+    # Named volume instead of the ./updates bind mount (same target path replaces it).
+    volumes:
+      - easysend-updates:/updates
     depends_on:
       fake-cloudflare:
         condition: service_healthy
@@ -74,3 +80,6 @@ services:
       interval: 2s
       timeout: 3s
       retries: 15
+
+volumes:
+  easysend-updates:

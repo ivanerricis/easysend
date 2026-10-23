@@ -44,12 +44,14 @@ describe('loadConfig', () => {
 
   it('uses the GitHub releases API for the update check unless UPDATE_CHECK_URL is set', () => {
     expect(loadConfig({}).updateCheckUrl).toBe(
-      'https://api.github.com/repos/ivanerricis/easysend/releases/latest',
+      'https://api.github.com/repos/ivanerricis/easysend/releases?per_page=30',
     );
     expect(
       loadConfig({ UPDATE_CHECK_URL: 'https://mirror.example.org/x.json' }).updateCheckUrl,
     ).toBe('https://mirror.example.org/x.json');
     expect(() => loadConfig({ UPDATE_CHECK_URL: 'nope' })).toThrow(ConfigError);
+    expect(loadConfig({}).updateDir).toBe('/updates');
+    expect(loadConfig({ UPDATE_DIR: '/x' }).updateDir).toBe('/x');
   });
 
   it('defaults PUBLIC_URL and TRUST_PROXY in local mode', () => {

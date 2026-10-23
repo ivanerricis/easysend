@@ -50,6 +50,11 @@ export const ERROR_MEANINGS: Record<ErrorCode, string> = {
   CLOUDFLARE_RECORD_EXISTS: 'A conflicting DNS record already exists for the hostname.',
   CLOUDFLARE_API_ERROR: 'Cloudflare returned an unexpected error.',
   NOT_APPLICABLE_IN_LOCAL_MODE: 'The operation needs `APP_MODE=production`.',
+  UPDATE_RUNNER_MISSING:
+    'The host update runner is not installed (no valid `runner.json` in the update folder).',
+  UPDATE_IN_PROGRESS: 'An update was already requested or is running.',
+  UPDATE_VERSION_NOT_AVAILABLE:
+    'The requested version is not a published release newer than the running one.',
   INVALID_IMAGE: 'The file is not a valid PNG, JPEG or WebP image (magic bytes checked).',
 };
 

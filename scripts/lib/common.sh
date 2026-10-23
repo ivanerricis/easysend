@@ -23,6 +23,20 @@ die() {
   exit 1
 }
 
+# Exit codes with a meaning for scripts/update-runner.sh (everything else is a plain 1):
+#   0 ok, 75 another deploy/rollback holds the lock, 20 compose file step failed and 21 database
+#   backup failed (both before any change to the running stack), 30 deploy failed and the
+#   automatic rollback succeeded, 31 deploy failed and the rollback did not complete.
+# shellcheck disable=SC2034 # used by the scripts that source this file
+EXIT_BUSY=75 EXIT_COMPOSE=20 EXIT_BACKUP=21 EXIT_ROLLED_BACK=30 EXIT_ROLLBACK_FAILED=31
+# die_code CODE message...: like die, with a specific exit code.
+die_code() {
+  local code="$1"
+  shift
+  err "$*"
+  exit "$code"
+}
+
 # --- Environment ---------------------------------------------------------------
 # Sets EASYSEND_DIR (install dir), DEPLOY_DIR (state dir) and moves into the install dir.
 # Compose must read APP_VERSION from .env, so a value inherited from the shell is dropped.
@@ -112,7 +126,7 @@ history_add() { printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >>"$DEPLO
 acquire_lock() {
   if command -v flock >/dev/null 2>&1; then
     exec 9>"$DEPLOY_DIR/lock"
-    flock -n 9 || die "Another deploy/rollback is already running."
+    flock -n 9 || die_code "$EXIT_BUSY" "Another deploy/rollback is already running."
   fi
 }
 
@@ -175,7 +189,7 @@ volume_real_name() {
 
 # --- Scripts self-update -------------------------------------------------------------
 # Files of the install dir that deploy.sh keeps in sync with the deployed release.
-SCRIPT_FILES=(scripts/deploy.sh scripts/rollback.sh scripts/backup.sh scripts/uninstall.sh scripts/lib/common.sh)
+SCRIPT_FILES=(scripts/deploy.sh scripts/rollback.sh scripts/backup.sh scripts/uninstall.sh scripts/update-runner.sh scripts/update-service.sh scripts/lib/common.sh)
 
 # Base URL of the raw repository files (overridable for forks and tests).
 raw_base() { printf '%s\n' "${EASYSEND_RAW_BASE:-https://raw.githubusercontent.com/$GITHUB_REPO}"; }
@@ -216,4 +230,52 @@ install_scripts_from() {
     [[ -f "$dir/$f" ]] || continue
     install_file "$dir/$f" "$EASYSEND_DIR/$f" "$(script_mode "$f")"
   done
+}
+
+# --- Update status (one-click update from the admin panel) --------------------------------
+# status.json lives in $EASYSEND_DIR/updates/, which the api container can also write: it is
+# always replaced by rename (never written through), so a planted symlink is overwritten, not followed.
+# JSON is built only from values validated here (hex id, semver, fixed words, integers): no escaping.
+UPDATE_STATES='running succeeded rolled_back failed'
+UPDATE_STEPS='starting compose backup pull restart health rollback done'
+UPDATE_ERRORS='busy invalid_request already_current compose backup deploy rollback_failed'
+
+_in_words() { [[ " $2 " == *" $1 "* ]]; }
+_json_str() { if [[ -n "$1" ]]; then printf '"%s"' "$1"; else printf 'null'; fi; }
+
+# write_update_status DEST STATE STEP ERROR STARTED FINISHED
+# Reads UPDATE_ID, UPDATE_TARGET and UPDATE_FROM from the caller's variables; empty means null.
+# Returns 1 (writing nothing) when a value is not valid.
+write_update_status() {
+  local dest="$1" state="$2" step="$3" error="${4:-}" started="${5:-}" finished="${6:-}" now tmp
+  local id="${UPDATE_ID:-}" target="${UPDATE_TARGET:-}" from="${UPDATE_FROM:-}"
+  local semver='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+  [[ -z "$id" || "$id" =~ ^[0-9a-f]{32}$ ]] || return 1
+  [[ -z "$target" || "$target" =~ $semver ]] || return 1
+  [[ -z "$from" || "$from" =~ $semver ]] || return 1
+  _in_words "$state" "$UPDATE_STATES" || return 1
+  _in_words "$step" "$UPDATE_STEPS" || return 1
+  [[ -z "$error" ]] || _in_words "$error" "$UPDATE_ERRORS" || return 1
+  [[ -z "$finished" || "$finished" =~ ^[0-9]{1,12}$ ]] || return 1
+  now="$(date +%s)"
+  [[ -n "$started" ]] || started="$now"
+  [[ "$started" =~ ^[0-9]{1,12}$ ]] || return 1
+  tmp="$(mktemp "$(dirname "$dest")/.status.XXXXXX")" || return 1
+  printf '{"id":%s,"targetVersion":%s,"fromVersion":%s,"state":"%s","step":"%s","error":%s,"startedAt":%s,"updatedAt":%s,"finishedAt":%s}\n' \
+    "$(_json_str "$id")" "$(_json_str "$target")" "$(_json_str "$from")" "$state" "$step" "$(_json_str "$error")" \
+    "$started" "$now" "${finished:-null}" >"$tmp" || { rm -f "$tmp"; return 1; }
+  if ! { chmod 644 "$tmp" && mv -f "$tmp" "$dest"; }; then
+    rm -f "$tmp"
+    return 1
+  fi
+}
+
+# update_step STEP: progress marker for the one-click update. A no-op unless the runner set
+# EASYSEND_UPDATE_STATUS (so manual deploys behave exactly as before); never fails the caller.
+update_step() {
+  [[ -n "${EASYSEND_UPDATE_STATUS:-}" ]] || return 0
+  local UPDATE_ID="${EASYSEND_UPDATE_ID:-}" UPDATE_TARGET="${EASYSEND_UPDATE_TARGET:-}" UPDATE_FROM="${EASYSEND_UPDATE_FROM:-}"
+  write_update_status "$EASYSEND_UPDATE_STATUS" running "$1" '' "${EASYSEND_UPDATE_STARTED:-}" '' ||
+    warn "Could not write the update status (step $1)."
+  return 0
 }

@@ -10,6 +10,7 @@ const status = (overrides: Record<string, unknown> = {}) => ({
   releaseUrl: 'https://github.com/ivanerricis/easysend/releases/tag/v0.2.0',
   publishedAt: 1_790_000_000,
   checkedAt: 1_790_000_100,
+  availableVersions: [],
   status: 'ok',
   ...overrides,
 });

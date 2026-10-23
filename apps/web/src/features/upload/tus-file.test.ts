@@ -86,6 +86,13 @@ describe('createFileUpload', () => {
     expect(options.removeFingerprintOnSuccess).toBe(true);
   });
 
+  it('omits the file type when the browser does not know it', () => {
+    const iso = new File(['x'], 'disk.iso', { type: '', lastModified: 123 });
+    createFileUpload({ file: iso, transferId: 'tr1', chunkSize: 1, onProgress: vi.fn() });
+    const options = tus.instances[tus.instances.length - 1]!.options as Options;
+    expect(options.metadata).toEqual({ transferId: 'tr1', filename: 'disk.iso' });
+  });
+
   it('binds the fingerprint to the transfer', async () => {
     const { options } = start();
     const a = await options.fingerprint(file);

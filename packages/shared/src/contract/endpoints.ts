@@ -1,8 +1,11 @@
 import type { z } from 'zod';
 import { ALLOWED_IMAGE_TYPES, BRANDING_MAX_BYTES } from '../constants.js';
 import {
+  startUpdateRequestSchema,
+  startUpdateResponseSchema,
   storageResponseSchema,
   tunnelStatusResponseSchema,
+  updateRunResponseSchema,
   updateStatusQuerySchema,
   updateStatusResponseSchema,
 } from '../schemas/admin.js';
@@ -954,7 +957,39 @@ export const endpoints: readonly EndpointDef[] = [
     query: updateStatusQuerySchema,
     response: json(200, updateStatusResponseSchema),
     notes:
-      'Asks the GitHub releases API for the latest published release, only when an admin calls this endpoint (no background job) and only when the `updateCheck` setting is on. A success is cached for 24 hours and a failure for 1 hour; `refresh=true` skips the success cache (at most 10 per hour). The request carries no data of the instance, only a `User-Agent` with the running version. A network error or an invalid answer is not an HTTP error: the response is 200 with `status: "unavailable"`. When the running version is not a release number (e.g. `0.0.0-dev`), `updateAvailable` is always false.',
+      'Asks the GitHub releases API for the latest published release, only when an admin calls this endpoint (no background job) and only when the `updateCheck` setting is on. A success is cached for 24 hours and a failure for 1 hour; `refresh=true` skips the success cache (at most 10 per hour). The request carries no data of the instance, only a `User-Agent` with the running version. The list endpoint of the GitHub releases API is read (30 releases); drafts, pre-releases and tags that are not `X.Y.Z` are ignored. `availableVersions` lists the releases newer than the running version, newest first (at most 30, `releaseUrl` always https); it is `[]` when the check is disabled or unavailable or the running version is not a release number. A network error or an invalid answer is not an HTTP error: the response is 200 with `status: "unavailable"`. When the running version is not a release number (e.g. `0.0.0-dev`), `updateAvailable` is always false.',
+  }),
+
+  defineEndpoint({
+    id: 'admin.updateRun',
+    tag: 'admin',
+    method: 'GET',
+    path: '/api/admin/updates/run',
+    summary: 'State of the one-click update',
+    auth: 'admin',
+    response: json(200, updateRunResponseSchema),
+    notes:
+      'Reads the file protocol shared with the host update runner (folder `UPDATE_DIR`, default `/updates`, a bind mount of `$EASYSEND_DIR/updates`). `runner` is `installed` when `runner.json` is valid, `missing` otherwise and `local` when `APP_MODE=local` (the update is not available there). `pending` is the request file written by the API and not yet taken over by the runner; it is `stale` after 2 minutes without a `status.json` of the same id (the runner is not picking it up). `run` is the validated `status.json` written by the runner (`state`: running, succeeded, rolled_back, failed; `step`; `error`), or null when it is missing, larger than 4 KiB or invalid. Only validated fields are returned. After a successful update the API restarts: the client should poll this endpoint until it answers again.',
+  }),
+  defineEndpoint({
+    id: 'admin.updateStart',
+    tag: 'admin',
+    method: 'POST',
+    path: '/api/admin/updates/run',
+    summary: 'Start the one-click update',
+    auth: 'admin',
+    csrf: true,
+    rateLimit: 'updateStart',
+    body: startUpdateRequestSchema,
+    response: json(202, startUpdateResponseSchema),
+    errors: [
+      'UPDATE_RUNNER_MISSING',
+      'UPDATE_IN_PROGRESS',
+      'UPDATE_VERSION_NOT_AVAILABLE',
+      'NOT_APPLICABLE_IN_LOCAL_MODE',
+    ],
+    notes:
+      'Does not update anything itself: it writes the file `request` (atomic rename, mode 640) in `UPDATE_DIR` with exactly `id=<32 hex>\\nversion=<X.Y.Z>\\nrequestedAt=<unix seconds>\\n`, which a systemd unit on the host picks up. There is no Docker socket in any container. Checks in this order: local mode (409 `NOT_APPLICABLE_IN_LOCAL_MODE`), runner not installed (409 `UPDATE_RUNNER_MISSING`), a request younger than 2 minutes still waiting or a `status.json` in state `running` updated in the last 45 minutes (409 `UPDATE_IN_PROGRESS`; an older pending request is replaced), and `version` not being a published release newer than the running one (422 `UPDATE_VERSION_NOT_AVAILABLE`, GitHub is asked again once if the version is not in the cached list). Downgrades and the current version are refused. Answers 202 with the request. The runner validates the request again before touching anything. At most 5 per hour. Audited as `system.update_requested`.',
   }),
 
   // ---- settings ------------------------------------------------------------

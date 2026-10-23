@@ -64,7 +64,8 @@ export function SelectInput({
   return (
     <Select
       value={internal}
-      name={name}
+      // `id` goes to the trigger: the hidden native <select> needs a name for browser autofill.
+      name={name ?? id}
       disabled={disabled}
       required={required}
       onValueChange={(next) => onValueChange(next === EMPTY_VALUE ? '' : next)}

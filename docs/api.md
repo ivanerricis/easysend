@@ -2,7 +2,7 @@
 
 # easysend API contract
 
-69 endpoints. Source of truth: the Zod schemas and the endpoint registry in `packages/shared`; this file is generated from them (`pnpm api:docs`, checked in CI).
+71 endpoints. Source of truth: the Zod schemas and the endpoint registry in `packages/shared`; this file is generated from them (`pnpm api:docs`, checked in CI).
 
 ## Decisions to approve
 
@@ -94,6 +94,9 @@
 | `CLOUDFLARE_API_ERROR` | 502 | Cloudflare returned an unexpected error. |
 | `NOT_APPLICABLE_IN_LOCAL_MODE` | 409 | The operation needs `APP_MODE=production`. |
 | `INVALID_IMAGE` | 422 | The file is not a valid PNG, JPEG or WebP image (magic bytes checked). |
+| `UPDATE_RUNNER_MISSING` | 409 | The host update runner is not installed (no valid `runner.json` in the update folder). |
+| `UPDATE_IN_PROGRESS` | 409 | An update was already requested or is running. |
+| `UPDATE_VERSION_NOT_AVAILABLE` | 422 | The requested version is not a published release newer than the running one. |
 
 ## Endpoint index
 
@@ -158,6 +161,8 @@
 | GET | `/api/admin/tunnel` | admin | Domain and Cloudflare tunnel status |
 | POST | `/api/admin/tunnel` | admin | Configure or change the domain and tunnel |
 | GET | `/api/admin/updates` | admin | Is a newer release available? |
+| GET | `/api/admin/updates/run` | admin | State of the one-click update |
+| POST | `/api/admin/updates/run` | admin | Start the one-click update |
 | GET | `/api/public/settings` | public | Public settings: appearance, branding images, setup state |
 | GET | `/api/assets/:kind` | public | Branding image |
 | GET | `/api/admin/settings` | admin | General and SMTP settings |
@@ -2496,12 +2501,91 @@ Is a newer release available?
   publishedAt: integer (min 0) | null
   checkedAt: integer (min 0) | null
   status: "ok" | "disabled" | "unavailable"
+  availableVersions: Array<{
+    version: string (pattern /^\d{1,9}\.\d{1,9}\.\d{1,9}$/)
+    releaseUrl: string
+    publishedAt: integer (min 0) | null
+  }> (max 30)
 }
 ```
 
 Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `FORBIDDEN`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`.
 
-**Notes:** Asks the GitHub releases API for the latest published release, only when an admin calls this endpoint (no background job) and only when the `updateCheck` setting is on. A success is cached for 24 hours and a failure for 1 hour; `refresh=true` skips the success cache (at most 10 per hour). The request carries no data of the instance, only a `User-Agent` with the running version. A network error or an invalid answer is not an HTTP error: the response is 200 with `status: "unavailable"`. When the running version is not a release number (e.g. `0.0.0-dev`), `updateAvailable` is always false.
+**Notes:** Asks the GitHub releases API for the latest published release, only when an admin calls this endpoint (no background job) and only when the `updateCheck` setting is on. A success is cached for 24 hours and a failure for 1 hour; `refresh=true` skips the success cache (at most 10 per hour). The request carries no data of the instance, only a `User-Agent` with the running version. The list endpoint of the GitHub releases API is read (30 releases); drafts, pre-releases and tags that are not `X.Y.Z` are ignored. `availableVersions` lists the releases newer than the running version, newest first (at most 30, `releaseUrl` always https); it is `[]` when the check is disabled or unavailable or the running version is not a release number. A network error or an invalid answer is not an HTTP error: the response is 200 with `status: "unavailable"`. When the running version is not a release number (e.g. `0.0.0-dev`), `updateAvailable` is always false.
+
+### `GET /api/admin/updates/run`
+
+State of the one-click update
+
+**Auth:** `admin` · **CSRF:** no · **Success:** `200` json · **Id:** `admin.updateRun`
+
+**Response `200`**
+
+```ts
+{
+  runner: "installed" | "missing" | "local"
+  pending:
+  | {
+      id: string
+      version: string (pattern /^\d{1,9}\.\d{1,9}\.\d{1,9}$/)
+      requestedAt: integer (min 0)
+      stale: boolean
+    }
+  | null
+  run:
+  | {
+      id: string | null
+      targetVersion: string | null
+      fromVersion: string | null
+      state: "running" | "succeeded" | "rolled_back" | "failed"
+      step: "starting" | "compose" | "backup" | "pull" | "restart" | "health" | "rollback" | "done"
+      error: "busy" | "invalid_request" | "already_current" | "compose" | "backup" | "deploy" | "rollback_failed" | null
+      startedAt: integer (min 0)
+      updatedAt: integer (min 0)
+      finishedAt: integer (min 0) | null
+    }
+  | null
+}
+```
+
+Also possible: `401` `UNAUTHENTICATED`, `403` `FORBIDDEN`, `500` `INTERNAL_ERROR`.
+
+**Notes:** Reads the file protocol shared with the host update runner (folder `UPDATE_DIR`, default `/updates`, a bind mount of `$EASYSEND_DIR/updates`). `runner` is `installed` when `runner.json` is valid, `missing` otherwise and `local` when `APP_MODE=local` (the update is not available there). `pending` is the request file written by the API and not yet taken over by the runner; it is `stale` after 2 minutes without a `status.json` of the same id (the runner is not picking it up). `run` is the validated `status.json` written by the runner (`state`: running, succeeded, rolled_back, failed; `step`; `error`), or null when it is missing, larger than 4 KiB or invalid. Only validated fields are returned. After a successful update the API restarts: the client should poll this endpoint until it answers again.
+
+### `POST /api/admin/updates/run`
+
+Start the one-click update
+
+**Auth:** `admin` · **CSRF:** required · **Rate limit:** `updateStart` · **Success:** `202` json · **Id:** `admin.updateStart`
+
+**Body** (`application/json`)
+
+```ts
+{
+  version: string (pattern /^\d{1,9}\.\d{1,9}\.\d{1,9}$/)
+}
+```
+
+**Response `202`**
+
+```ts
+{
+  id: string
+  version: string (pattern /^\d{1,9}\.\d{1,9}\.\d{1,9}$/)
+  requestedAt: integer (min 0)
+}
+```
+
+**Errors**
+
+- `409` `NOT_APPLICABLE_IN_LOCAL_MODE`: The operation needs `APP_MODE=production`.
+- `409` `UPDATE_RUNNER_MISSING`: The host update runner is not installed (no valid `runner.json` in the update folder).
+- `409` `UPDATE_IN_PROGRESS`: An update was already requested or is running.
+- `422` `UPDATE_VERSION_NOT_AVAILABLE`: The requested version is not a published release newer than the running one.
+
+Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `FORBIDDEN`, `403` `CSRF_INVALID`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`.
+
+**Notes:** Does not update anything itself: it writes the file `request` (atomic rename, mode 640) in `UPDATE_DIR` with exactly `id=<32 hex>\nversion=<X.Y.Z>\nrequestedAt=<unix seconds>\n`, which a systemd unit on the host picks up. There is no Docker socket in any container. Checks in this order: local mode (409 `NOT_APPLICABLE_IN_LOCAL_MODE`), runner not installed (409 `UPDATE_RUNNER_MISSING`), a request younger than 2 minutes still waiting or a `status.json` in state `running` updated in the last 45 minutes (409 `UPDATE_IN_PROGRESS`; an older pending request is replaced), and `version` not being a published release newer than the running one (422 `UPDATE_VERSION_NOT_AVAILABLE`, GitHub is asked again once if the version is not in the cached list). Downgrades and the current version are refused. Answers 202 with the request. The runner validates the request again before touching anything. At most 5 per hour. Audited as `system.update_requested`.
 
 ## Settings and appearance
 

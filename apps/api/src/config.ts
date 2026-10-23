@@ -23,7 +23,7 @@ const positiveInt = z.coerce.number().int().positive();
 const nonNegativeInt = z.coerce.number().int().nonnegative();
 
 const DEFAULT_UPDATE_CHECK_URL =
-  'https://api.github.com/repos/ivanerricis/easysend/releases/latest';
+  'https://api.github.com/repos/ivanerricis/easysend/releases?per_page=30';
 const DEFAULT_CLOUDFLARE_API_BASE = 'https://api.cloudflare.com/client/v4';
 
 const envSchema = z.object({
@@ -41,6 +41,7 @@ const envSchema = z.object({
   TMP_UPLOAD_DIR: z.string().min(1).optional(),
   BRANDING_DIR: z.string().min(1).optional(),
   SHARED_DIR: z.string().min(1).default('/shared'),
+  UPDATE_DIR: z.string().min(1).default('/updates'),
   SETUP_CODE_TTL_MINUTES: positiveInt.default(60),
   PASSWORD_RESET_TTL_MINUTES: positiveInt.default(30),
   LOG_RETENTION_DAYS: positiveInt.default(90),
@@ -58,7 +59,7 @@ const envSchema = z.object({
   APP_VERSION: z.string().min(1).optional(),
   // Automated tests only (the E2E stack points it at a fake server). Never set in production.
   CLOUDFLARE_API_BASE: z.url().default(DEFAULT_CLOUDFLARE_API_BASE),
-  // Where the admin update notice looks for the latest release (GitHub API format).
+  // Where the admin update notice lists releases (GitHub "list releases" API format). Tests only.
   UPDATE_CHECK_URL: z.url().default(DEFAULT_UPDATE_CHECK_URL),
 });
 
@@ -82,6 +83,8 @@ export interface AppConfig {
   brandingDir: string;
   secretsDir: string;
   sharedDir: string;
+  /** Folder of the file protocol with the host update runner (request, status.json, runner.json). */
+  updateDir: string;
   setupCodeTtlMinutes: number;
   passwordResetTtlMinutes: number;
   logRetentionDays: number;
@@ -94,7 +97,7 @@ export interface AppConfig {
   smtpDevPort: number | undefined;
   /** Cloudflare API base URL without a trailing slash (only tests override it). */
   cloudflareApiBase: string;
-  /** URL of the latest-release document (GitHub API format) used by the update notice. */
+  /** URL of the release list (GitHub API format) used by the update notice. */
   updateCheckUrl: string;
   version: string;
 }
@@ -140,6 +143,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     brandingDir: e.BRANDING_DIR ?? path.join(dataDir, 'branding'),
     secretsDir: path.join(dataDir, 'secrets'),
     sharedDir: e.SHARED_DIR,
+    updateDir: e.UPDATE_DIR,
     cloudflareApiBase: e.CLOUDFLARE_API_BASE.replace(/\/+$/, ''),
     updateCheckUrl: e.UPDATE_CHECK_URL,
     setupCodeTtlMinutes: e.SETUP_CODE_TTL_MINUTES,

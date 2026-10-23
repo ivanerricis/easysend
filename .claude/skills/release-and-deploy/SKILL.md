@@ -47,6 +47,15 @@ cd /opt/easysend
 `deploy.sh` backs up the DB, downloads the tag's compose file, pulls, updates `APP_VERSION`,
 starts with `--wait`, checks `/health` reports the new version, rolls back automatically on failure
 and then updates the scripts themselves (previous copies in `.deploy/previous-scripts/`).
+The same deploy can be started from the admin panel (Settings → Updates → choose a version → Update
+now) when the host runner is installed: `sudo ./scripts/update-service.sh install [--user U]` once
+(check with `sudo ./scripts/update-service.sh status`; `uninstall` removes it). The panel writes
+`updates/request`, the systemd unit `easysend-update.path` starts `scripts/update-runner.sh`, which
+runs `deploy.sh <version> --yes` (log `.deploy/update.log`, `journalctl -u easysend-update.service`;
+the lock is shared with manual deploys). Upgrading an install that is on 0.1.x: after deploying 0.2.0
+the user must fetch `update-runner.sh` and `update-service.sh` once by hand, see the guide section
+"One-click update" (`/it/guide/updates#aggiornamento-con-un-clic`). `bash scripts/tests/run.sh`
+tests these scripts.
 Problems: read `.deploy/history.log` and `docker compose logs api`. Manual rollback:
 `./scripts/rollback.sh` (restores DB and scripts) or `--keep-db`. A backup archive:
 `./scripts/backup.sh` (contains the master key: store it offline).

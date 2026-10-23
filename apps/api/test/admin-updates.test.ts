@@ -20,13 +20,22 @@ interface FakeRelease {
 /** `fetch` stand-in for the GitHub API that records requests and can be told to fail. */
 class FakeGithub {
   readonly requests: { url: string; headers: Record<string, string>; hasSignal: boolean }[] = [];
-  release: FakeRelease = {
-    tag_name: 'v0.2.0',
-    html_url: 'https://github.com/ivanerricis/easysend/releases/tag/v0.2.0',
-    published_at: '2026-10-01T10:00:00Z',
-    draft: false,
-    prerelease: false,
-  };
+  releases: unknown[] = [
+    {
+      tag_name: 'v0.2.0',
+      html_url: 'https://github.com/ivanerricis/easysend/releases/tag/v0.2.0',
+      published_at: '2026-10-01T10:00:00Z',
+      draft: false,
+      prerelease: false,
+    },
+  ];
+  /** The first (newest) release of the list. */
+  get release(): FakeRelease {
+    return this.releases[0] as FakeRelease;
+  }
+  set release(value: FakeRelease) {
+    this.releases = [value];
+  }
   mode: 'ok' | 'network' | 'timeout' | 'status' | 'invalid-json' | 'bad-shape' = 'ok';
 
   fetch: typeof fetch = (input, init) => {
@@ -47,7 +56,7 @@ class FakeGithub {
       case 'bad-shape':
         return Promise.resolve(Response.json({ tag_name: 42 }));
       default:
-        return Promise.resolve(Response.json(this.release));
+        return Promise.resolve(Response.json(this.releases));
     }
   };
 }
@@ -80,7 +89,9 @@ describe('GET /api/admin/updates', () => {
     });
     expect(body.checkedAt).toBeTypeOf('number');
     const [request] = github.requests;
-    expect(request!.url).toBe('https://api.github.com/repos/ivanerricis/easysend/releases/latest');
+    expect(request!.url).toBe(
+      'https://api.github.com/repos/ivanerricis/easysend/releases?per_page=30',
+    );
     expect(request!.headers).toMatchObject({
       Accept: 'application/vnd.github+json',
       'User-Agent': 'easysend/0.1.0',
@@ -99,7 +110,11 @@ describe('GET /api/admin/updates', () => {
 
   it('says up to date when the versions are equal or the instance is newer', async () => {
     const same = await setup({ APP_VERSION: '0.2.0' });
-    expect((await same.get()).body).toMatchObject({ updateAvailable: false, status: 'ok' });
+    expect((await same.get()).body).toMatchObject({
+      updateAvailable: false,
+      status: 'ok',
+      availableVersions: [],
+    });
     const newer = await setup({ APP_VERSION: '0.10.0' });
     expect((await newer.get()).body).toMatchObject({
       updateAvailable: false,
@@ -122,6 +137,7 @@ describe('GET /api/admin/updates', () => {
         currentVersion: version,
         latestVersion: '0.2.0',
         updateAvailable: false,
+        availableVersions: [],
         status: 'ok',
       });
     },
@@ -146,6 +162,7 @@ describe('GET /api/admin/updates', () => {
       publishedAt: null,
       checkedAt: null,
       status: 'disabled',
+      availableVersions: [],
     });
     expect(github.requests).toHaveLength(0);
   });
@@ -174,22 +191,73 @@ describe('GET /api/admin/updates', () => {
     },
   );
 
-  it('skips drafts, pre-releases, odd tags and non-https links', async () => {
+  it('skips drafts, pre-releases, odd tags and releases with non-https links', async () => {
     const { github, get } = await setup();
+    const base = {
+      tag_name: 'v0.2.0',
+      html_url: 'https://github.com/ivanerricis/easysend/releases/tag/v0.2.0',
+    };
     for (const patch of [
       { draft: true },
       { prerelease: true },
       { tag_name: 'nightly' },
+      { tag_name: 'v0.2.0-rc.1' },
       { html_url: 'javascript:alert(1)' },
     ]) {
-      github.release = { ...github.release, ...patch };
+      github.releases = [{ ...base, ...patch }];
       const { body } = await get('?refresh=true');
-      expect(body.status, JSON.stringify(patch)).toBe('unavailable');
-      github.release = {
-        tag_name: 'v0.2.0',
-        html_url: 'https://github.com/ivanerricis/easysend/releases/tag/v0.2.0',
-      };
+      expect(body.status, JSON.stringify(patch)).toBe('ok');
+      expect(body.latestVersion, JSON.stringify(patch)).toBeNull();
+      expect(body.availableVersions, JSON.stringify(patch)).toEqual([]);
     }
+  });
+
+  it('lists the newer releases, newest first, and reports the highest as latest', async () => {
+    const { github, get } = await setup({ APP_VERSION: '0.2.0' });
+    const rel = (tag: string, at: string | null, extra: object = {}) => ({
+      tag_name: tag,
+      html_url: `https://github.com/ivanerricis/easysend/releases/tag/${tag}`,
+      published_at: at,
+      ...extra,
+    });
+    github.releases = [
+      rel('v0.2.1', '2026-10-02T00:00:00Z'),
+      rel('v0.10.0', '2026-10-05T00:00:00Z'),
+      rel('v0.3.0', null),
+      rel('v0.4.0-rc.1', '2026-10-04T00:00:00Z', { prerelease: true }),
+      rel('v0.2.0', '2026-10-01T00:00:00Z'),
+      rel('v0.1.0', '2026-09-01T00:00:00Z'),
+      { garbage: true },
+    ];
+    const { body } = await get();
+    expect(body).toMatchObject({
+      latestVersion: '0.10.0',
+      updateAvailable: true,
+      releaseUrl: 'https://github.com/ivanerricis/easysend/releases/tag/v0.10.0',
+    });
+    expect(body.availableVersions.map((v) => v.version)).toEqual(['0.10.0', '0.3.0', '0.2.1']);
+    expect(body.availableVersions[0]).toEqual({
+      version: '0.10.0',
+      releaseUrl: 'https://github.com/ivanerricis/easysend/releases/tag/v0.10.0',
+      publishedAt: Math.floor(Date.parse('2026-10-05T00:00:00Z') / 1000),
+    });
+    expect(body.availableVersions[1]!.publishedAt).toBeNull();
+  });
+
+  it('caps the list at 30 versions', async () => {
+    const { github, get } = await setup({ APP_VERSION: '0.0.1' });
+    github.releases = Array.from({ length: 60 }, (_, i) => ({
+      tag_name: `v1.${i}.0`,
+      html_url: `https://github.com/ivanerricis/easysend/releases/tag/v1.${i}.0`,
+    }));
+    const { body } = await get();
+    expect(body.availableVersions).toHaveLength(30);
+    expect(body.availableVersions[0]!.version).toBe('1.59.0');
+  });
+
+  it('has no available versions when the running version is not a release number', async () => {
+    const { get } = await setup({ APP_VERSION: 'e2e' });
+    expect((await get()).body.availableVersions).toEqual([]);
   });
 
   it('caches the answer and refresh=true bypasses it', async () => {
@@ -304,6 +372,61 @@ describe('update service cache periods', () => {
     await status();
     github.mode = 'ok';
     expect((await status(true)).status).toBe('ok');
+  });
+});
+
+describe('update service isAvailable', () => {
+  const build = () => {
+    const github = new FakeGithub();
+    const clock = createTestClock();
+    const service = createUpdateService({
+      url: 'https://example.org/releases',
+      currentVersion: '0.1.0',
+      fetch: github.fetch,
+      clock,
+      logger: silentLogger,
+    });
+    return { github, clock, service };
+  };
+  const tag = (v: string) => ({
+    tag_name: `v${v}`,
+    html_url: `https://github.com/ivanerricis/easysend/releases/tag/v${v}`,
+  });
+
+  it('answers from the cache without another request', async () => {
+    const { github, service } = build();
+    await service.status({ enabled: true, refresh: false });
+    expect(await service.isAvailable('0.2.0', { enabled: true })).toBe(true);
+    expect(github.requests).toHaveLength(1);
+  });
+
+  it('refreshes once when the version is not in the cache', async () => {
+    const { github, service } = build();
+    await service.status({ enabled: true, refresh: false });
+    github.releases = [tag('0.3.0'), tag('0.2.0')];
+    expect(await service.isAvailable('0.3.0', { enabled: true })).toBe(true);
+    expect(github.requests).toHaveLength(2);
+    // Unknown version: one more request, then false.
+    expect(await service.isAvailable('0.9.0', { enabled: true })).toBe(false);
+    expect(github.requests).toHaveLength(3);
+  });
+
+  it('fetches once when nothing is cached', async () => {
+    const { github, service } = build();
+    expect(await service.isAvailable('0.9.0', { enabled: true })).toBe(false);
+    expect(github.requests).toHaveLength(1);
+  });
+
+  it('refuses the current version, older ones, and anything when disabled or unreachable', async () => {
+    const { github, service } = build();
+    github.releases = [tag('0.2.0'), tag('0.1.0'), tag('0.0.9')];
+    expect(await service.isAvailable('0.1.0', { enabled: true })).toBe(false);
+    expect(await service.isAvailable('0.0.9', { enabled: true })).toBe(false);
+    const before = github.requests.length;
+    expect(await service.isAvailable('0.2.0', { enabled: false })).toBe(false);
+    expect(github.requests).toHaveLength(before);
+    github.mode = 'network';
+    expect(await service.isAvailable('0.5.0', { enabled: true })).toBe(false);
   });
 });
 

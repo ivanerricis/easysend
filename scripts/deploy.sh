@@ -21,7 +21,7 @@ What it does:
   4. backs up the database (if the stack is running);
   5. pulls the images, updates APP_VERSION in .env, runs `docker compose up -d --wait`;
   6. checks /health and the reported version;
-  7. updates the scripts themselves (deploy, rollback, backup, uninstall, lib/common.sh) to the
+  7. updates the scripts themselves (deploy, rollback, backup, uninstall, update runner/service, lib/common.sh) to the
      ones of the release tag: they are downloaded, validated (`bash -n`), the current copies are
      saved in .deploy/previous-scripts/ and replaced atomically. A failure here only prints a
      warning with the manual command: it never fails or rolls back the deploy.
@@ -40,6 +40,11 @@ Environment:
   EASYSEND_SKIP_DOWNLOADS=1      do not download compose file and scripts (old name EASYSEND_SKIP_COMPOSE_DOWNLOAD works too)
   EASYSEND_RAW_BASE              base URL of raw files (default: https://raw.githubusercontent.com/$GITHUB_REPO)
   DEPLOY_WAIT_TIMEOUT            seconds to wait for healthy containers (default: 180)
+  EASYSEND_UPDATE_STATUS         set by scripts/update-runner.sh: path of updates/status.json, progress steps are written there
+
+Exit codes: 0 ok; 1 generic error; 75 another deploy/rollback is running; 20 compose file download/validation
+failed and 21 database backup failed (stack untouched); 30 deploy failed, automatic rollback succeeded;
+31 deploy failed and the rollback did not complete.
 EOF
 }
 
@@ -55,6 +60,7 @@ latest_version() {
 # Downloads the compose file of a release tag, validates it and installs it. Returns non-zero on failure.
 install_release_compose() {
   local version="$1" tmp
+  update_step compose
   if downloads_skipped; then
     log "Keeping the existing docker-compose.yml (downloads disabled)."
     return 0
@@ -130,6 +136,7 @@ maybe_update_scripts() {
 # Brings the stack to PREVIOUS after a failed deploy. Arguments: version, saved compose, db backup name.
 auto_rollback() {
   local prev="$1" prev_compose="$2" backup="$3"
+  update_step rollback
   warn "Rolling back to ${prev:-<nothing>}..."
   if [[ -z "$prev" ]]; then
     warn "This was the first install: nothing to go back to. Inspect with: docker compose logs"
@@ -151,17 +158,21 @@ auto_rollback() {
 # The actual switch. Every step returns non-zero on failure (called inside `if`, where set -e is off).
 switch_to() {
   local version="$1"
+  update_step pull
   log "Pulling images for $version..."
   set_env_var APP_VERSION "$version"
   dc pull --quiet || return 1
+  update_step restart
+  mkdir -p "$EASYSEND_DIR/updates" # so Docker never creates the bind mount source as root
   log "Starting the stack (waiting up to ${DEPLOY_WAIT_TIMEOUT:-180}s for healthy containers)..."
   dc up -d --wait --wait-timeout "${DEPLOY_WAIT_TIMEOUT:-180}" --remove-orphans || return 1
+  update_step health
   log "Checking /health..."
   wait_healthy "$version" 30 || return 1
 }
 
 main() {
-  local version='' force=0  
+  local version='' force=0
   while (($#)); do
     case "$1" in
       -h | --help) usage; exit 0 ;;
@@ -179,6 +190,7 @@ main() {
   check_docker
   check_env_file
   acquire_lock
+  mkdir -p "$EASYSEND_DIR/updates"
 
   if [[ -n "$version" ]]; then
     local raw="$version"
@@ -205,17 +217,18 @@ main() {
 
   install_release_compose "$version" || {
     cp -f "$DEPLOY_DIR/compose-before.yml" "$EASYSEND_DIR/docker-compose.yml" 2>/dev/null || true
-    die "Deploy aborted before any change to the running stack."
+    die_code "$EXIT_COMPOSE" "Deploy aborted before any change to the running stack."
   }
 
   local backup=''
   if [[ -z "$current" ]]; then
     log "First install: no database to back up."
   elif api_running; then
+    update_step backup
     log "Backing up the database..."
     backup="$(db_backup)" || {
       cp -f "$DEPLOY_DIR/compose-before.yml" "$EASYSEND_DIR/docker-compose.yml" 2>/dev/null || true
-      die "Deploy aborted: could not back up the database (stack untouched)."
+      die_code "$EXIT_BACKUP" "Deploy aborted: could not back up the database (stack untouched)."
     }
     ok "Database backup: $backup"
   else
@@ -241,10 +254,10 @@ main() {
   history_add "deploy ${current:-none} -> $version FAILED backup=${backup:-none}"
   if auto_rollback "$previous_for_rollback" "$DEPLOY_DIR/compose-before.yml" "$backup"; then
     history_add "auto-rollback to $previous_for_rollback ok"
-    die "Version $version did not start; the stack is back on $previous_for_rollback with its database."
+    die_code "$EXIT_ROLLED_BACK" "Version $version did not start; the stack is back on $previous_for_rollback with its database."
   fi
   history_add "auto-rollback to ${previous_for_rollback:-none} FAILED"
-  die "Deploy failed and the automatic rollback did not complete. Check 'docker compose ps' and 'docker compose logs'."
+  die_code "$EXIT_ROLLBACK_FAILED" "Deploy failed and the automatic rollback did not complete. Check 'docker compose ps' and 'docker compose logs'."
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

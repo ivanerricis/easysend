@@ -47,6 +47,9 @@
   "CLOUDFLARE_API_ERROR": "Cloudflare ha risposto con un errore. Riprova più tardi.",
   "NOT_APPLICABLE_IN_LOCAL_MODE": "Questa funzione non è disponibile in modalità locale.",
   "INVALID_IMAGE": "Immagine non valida. Usa un file PNG, JPEG o WebP delle dimensioni consentite.",
+  "UPDATE_RUNNER_MISSING": "L'helper di aggiornamento non è installato sul server. Installalo prima sull'host.",
+  "UPDATE_IN_PROGRESS": "Un aggiornamento è già stato richiesto o è in corso.",
+  "UPDATE_VERSION_NOT_AVAILABLE": "Questa versione non è un aggiornamento disponibile.",
   "retryAfterSeconds": "Riprova tra {{count}} secondi.",
   "retryAfterMinutes": "Riprova tra circa {{count}} minuti."
 }
