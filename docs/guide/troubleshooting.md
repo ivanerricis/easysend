@@ -8,3 +8,4 @@
 - **Ports already in use (local)**: change them in `.env.local` ([Local development](../development/local)).
 - **Emails do not arrive**: use the SMTP test in the admin settings and look at `docker compose logs api`. Locally, open Mailpit on http://localhost:8025.
 - **A deploy failed and rolled back**: read `.deploy/history.log` and `docker compose logs api`, fix the cause, then deploy again.
+- **The one-click update does not start or says "not responding"**: see [Logs and troubleshooting](./updates#logs-and-troubleshooting) (`systemctl status easysend-update.path`, `.deploy/update.log`).

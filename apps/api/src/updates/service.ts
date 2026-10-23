@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { UpdateStatusResponse } from '@easysend/shared';
+import type { AvailableVersion, UpdateStatusResponse } from '@easysend/shared';
 import type { Clock } from '../clock.js';
 import type { Logger } from '../logger.js';
 import { compareSemver, parseSemver, stripV } from './semver.js';
@@ -8,7 +8,7 @@ const TIMEOUT_MS = 10_000;
 const SUCCESS_TTL_MS = 24 * 60 * 60 * 1000;
 const FAILURE_TTL_MS = 60 * 60 * 1000;
 
-/** Only the fields in use of the GitHub "latest release" answer. */
+/** Only the fields in use of a GitHub release. */
 const releaseSchema = z.object({
   tag_name: z.string().min(1).max(64),
   html_url: z.url().refine((value) => value.startsWith('https://'), 'must be https'),
@@ -16,8 +16,13 @@ const releaseSchema = z.object({
   draft: z.boolean().optional(),
   prerelease: z.boolean().optional(),
 });
+/** The "list releases" answer: at most 100 entries, each one checked on its own. */
+const releaseListSchema = z.array(z.unknown()).max(100);
 
-interface LatestRelease {
+/** The most releases the service keeps and reports. */
+const MAX_RELEASES = 30;
+
+interface Release {
   version: string;
   url: string;
   publishedAt: number | null;
@@ -26,8 +31,8 @@ interface LatestRelease {
 interface CacheEntry {
   /** Milliseconds since the epoch. */
   at: number;
-  /** Null = the check failed. */
-  release: LatestRelease | null;
+  /** Published releases with a plain `X.Y.Z` tag, newest first. Null = the check failed. */
+  releases: Release[] | null;
 }
 
 export interface UpdateService {
@@ -36,6 +41,12 @@ export interface UpdateService {
    * and not more than once per cache period unless `refresh` is set.
    */
   status(options: { enabled: boolean; refresh: boolean }): Promise<UpdateStatusResponse>;
+  /**
+   * Whether `version` is a published release newer than the running one. Looks in the cache and,
+   * when it is not there, asks GitHub once more (the list may be older than the release). Returns
+   * false when the check is disabled or GitHub cannot be reached. Never throws.
+   */
+  isAvailable(version: string, options: { enabled: boolean }): Promise<boolean>;
 }
 
 export interface UpdateServiceDeps {
@@ -48,11 +59,12 @@ export interface UpdateServiceDeps {
 
 export function createUpdateService(deps: UpdateServiceDeps): UpdateService {
   const { url, currentVersion, clock, logger, fetch: fetchFn } = deps;
+  const current = parseSemver(currentVersion);
   let cache: CacheEntry | undefined;
   let inFlight: Promise<CacheEntry> | undefined;
 
   /** One request to GitHub. Never throws and never logs a response body. */
-  const fetchLatest = async (): Promise<LatestRelease | null> => {
+  const fetchReleases = async (): Promise<Release[] | null> => {
     try {
       const response = await fetchFn(url, {
         headers: {
@@ -65,26 +77,33 @@ export function createUpdateService(deps: UpdateServiceDeps): UpdateService {
         logger.warn({ status: response.status }, 'update check failed');
         return null;
       }
-      const parsed = releaseSchema.safeParse(await response.json());
-      if (!parsed.success) {
+      const list = releaseListSchema.safeParse(await response.json());
+      if (!list.success) {
         logger.warn({ reason: 'invalid response' }, 'update check failed');
         return null;
       }
-      const release = parsed.data;
-      if (release.draft === true || release.prerelease === true) {
-        logger.warn({ reason: 'latest release is a draft or pre-release' }, 'update check failed');
-        return null;
+      const releases: (Release & { parsed: NonNullable<ReturnType<typeof parseSemver>> })[] = [];
+      for (const item of list.data) {
+        const parsed = releaseSchema.safeParse(item);
+        if (!parsed.success) continue;
+        const release = parsed.data;
+        if (release.draft === true || release.prerelease === true) continue;
+        const semver = parseSemver(release.tag_name);
+        if (!semver) continue;
+        const published = release.published_at ? Date.parse(release.published_at) : Number.NaN;
+        releases.push({
+          version: stripV(release.tag_name),
+          url: release.html_url,
+          publishedAt: Number.isFinite(published) ? Math.floor(published / 1000) : null,
+          parsed: semver,
+        });
       }
-      if (!parseSemver(release.tag_name)) {
-        logger.warn({ reason: 'unexpected tag format' }, 'update check failed');
-        return null;
-      }
-      const published = release.published_at ? Date.parse(release.published_at) : Number.NaN;
-      return {
-        version: stripV(release.tag_name),
-        url: release.html_url,
-        publishedAt: Number.isFinite(published) ? Math.floor(published / 1000) : null,
-      };
+      releases.sort((a, b) => compareSemver(b.parsed, a.parsed));
+      return releases.slice(0, MAX_RELEASES).map(({ version, url: href, publishedAt }) => ({
+        version,
+        url: href,
+        publishedAt,
+      }));
     } catch (error) {
       logger.warn(
         { reason: error instanceof Error ? error.name : 'unknown' },
@@ -95,9 +114,9 @@ export function createUpdateService(deps: UpdateServiceDeps): UpdateService {
   };
 
   const refreshCache = (): Promise<CacheEntry> => {
-    inFlight ??= fetchLatest()
-      .then((release) => {
-        const entry: CacheEntry = { at: clock(), release };
+    inFlight ??= fetchReleases()
+      .then((releases) => {
+        const entry: CacheEntry = { at: clock(), releases };
         cache = entry;
         return entry;
       })
@@ -108,7 +127,16 @@ export function createUpdateService(deps: UpdateServiceDeps): UpdateService {
   };
 
   const isFresh = (entry: CacheEntry): boolean =>
-    clock() - entry.at < (entry.release ? SUCCESS_TTL_MS : FAILURE_TTL_MS);
+    clock() - entry.at < (entry.releases ? SUCCESS_TTL_MS : FAILURE_TTL_MS);
+
+  /** Releases newer than the running version, newest first. Empty when it is not a release number. */
+  const newerThanCurrent = (releases: Release[]): Release[] =>
+    current === null
+      ? []
+      : releases.filter((release) => {
+          const semver = parseSemver(release.version);
+          return semver !== null && compareSemver(semver, current) > 0;
+        });
 
   const empty = {
     currentVersion,
@@ -117,6 +145,7 @@ export function createUpdateService(deps: UpdateServiceDeps): UpdateService {
     releaseUrl: null,
     publishedAt: null,
     checkedAt: null,
+    availableVersions: [] as AvailableVersion[],
   } as const;
 
   return {
@@ -124,20 +153,38 @@ export function createUpdateService(deps: UpdateServiceDeps): UpdateService {
       if (!enabled) return { ...empty, enabled: false, status: 'disabled' };
       const entry = cache && !refresh && isFresh(cache) ? cache : await refreshCache();
       const checkedAt = Math.floor(entry.at / 1000);
-      if (!entry.release) return { ...empty, enabled: true, checkedAt, status: 'unavailable' };
+      if (!entry.releases) return { ...empty, enabled: true, checkedAt, status: 'unavailable' };
 
-      const current = parseSemver(currentVersion);
-      const latest = parseSemver(entry.release.version);
+      const latest = entry.releases[0];
+      const newer = newerThanCurrent(entry.releases);
+      const availableVersions: AvailableVersion[] = newer.map((release) => ({
+        version: release.version,
+        releaseUrl: release.url,
+        publishedAt: release.publishedAt,
+      }));
       return {
         enabled: true,
         currentVersion,
-        latestVersion: entry.release.version,
-        updateAvailable: current !== null && latest !== null && compareSemver(latest, current) > 0,
-        releaseUrl: entry.release.url,
-        publishedAt: entry.release.publishedAt,
+        latestVersion: latest?.version ?? null,
+        updateAvailable: newer.length > 0,
+        releaseUrl: latest?.url ?? null,
+        publishedAt: latest?.publishedAt ?? null,
         checkedAt,
         status: 'ok',
+        availableVersions,
       };
+    },
+
+    async isAvailable(version, { enabled }) {
+      if (!enabled) return false;
+      const has = (entry: CacheEntry): boolean =>
+        entry.releases !== null &&
+        newerThanCurrent(entry.releases).some((r) => r.version === version);
+      const usable = cache && isFresh(cache) ? cache : undefined;
+      if (usable && has(usable)) return true;
+      // Not in the cache (or no usable cache): one request, unless one was just made for this call.
+      const fetched = await refreshCache();
+      return has(fetched);
     },
   };
 }

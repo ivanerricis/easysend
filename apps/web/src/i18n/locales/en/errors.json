@@ -47,6 +47,9 @@
   "CLOUDFLARE_API_ERROR": "Cloudflare returned an error. Please try again later.",
   "NOT_APPLICABLE_IN_LOCAL_MODE": "This feature is not available in local mode.",
   "INVALID_IMAGE": "Invalid image. Use a PNG, JPEG or WebP file within the allowed size.",
+  "UPDATE_RUNNER_MISSING": "The update helper is not installed on the server. Install it on the host first.",
+  "UPDATE_IN_PROGRESS": "An update is already requested or running.",
+  "UPDATE_VERSION_NOT_AVAILABLE": "This version is not an available update.",
   "retryAfterSeconds": "Try again in {{count}} seconds.",
   "retryAfterMinutes": "Try again in about {{count}} minutes."
 }

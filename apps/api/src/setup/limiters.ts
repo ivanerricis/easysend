@@ -13,6 +13,8 @@ export interface SetupLimiters {
   cloudflare: Limiter;
   /** Forced update checks, single key `refresh`. Use `consume`. */
   updateCheck: Limiter;
+  /** Update requests, single key `start`. Use `consume`. */
+  updateStart: Limiter;
 }
 
 export function createSetupLimiters(): SetupLimiters {
@@ -23,5 +25,6 @@ export function createSetupLimiters(): SetupLimiters {
     smtpTest: createLimiter(limits.smtpTest),
     cloudflare: createLimiter(limits.cloudflare),
     updateCheck: createLimiter(limits.updateCheck),
+    updateStart: createLimiter(limits.updateStart),
   };
 }

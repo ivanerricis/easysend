@@ -5,8 +5,10 @@ import type {
   DeleteUserQuery,
   ListUsersQuery,
   ListUsersResponse,
+  StartUpdateResponse,
   StorageResponse,
   TunnelStatusResponse,
+  UpdateRunResponse,
   UpdateStatusResponse,
   UpdateUserRequest,
   createUserRequestSchema,
@@ -24,6 +26,8 @@ const api = createApi([
   'admin.tunnelGet',
   'admin.tunnelSet',
   'admin.updates',
+  'admin.updateRun',
+  'admin.updateStart',
 ] as const);
 
 export const USED_ENDPOINTS = api.ids;
@@ -76,4 +80,14 @@ export function setTunnel(body: CloudflareRequest): Promise<CloudflareResponse> 
  */
 export function getUpdateStatus(refresh = false): Promise<UpdateStatusResponse> {
   return api.call('admin.updates', refresh ? { query: { refresh: true } } : {});
+}
+
+/** State of the one-click update (runner, pending request, last run). */
+export function getUpdateRun(): Promise<UpdateRunResponse> {
+  return api.call('admin.updateRun', { skipAuthRedirect: true });
+}
+
+/** Asks the host runner to update to `version` (a release from `availableVersions`). */
+export function startUpdate(version: string): Promise<StartUpdateResponse> {
+  return api.call('admin.updateStart', { body: { version } });
 }

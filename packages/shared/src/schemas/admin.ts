@@ -46,6 +46,17 @@ export type UpdateStatusQuery = z.infer<typeof updateStatusQuerySchema>;
 
 export const UPDATE_STATUSES = ['ok', 'disabled', 'unavailable'] as const;
 
+/** Plain release number `X.Y.Z` (no `v`, no pre-release label). */
+export const releaseVersionSchema = z.string().regex(/^\d{1,9}\.\d{1,9}\.\d{1,9}$/);
+
+/** A published release newer than the running version. */
+export const availableVersionSchema = z.object({
+  version: releaseVersionSchema,
+  releaseUrl: z.string(),
+  publishedAt: unixSecondsSchema.nullable(),
+});
+export type AvailableVersion = z.infer<typeof availableVersionSchema>;
+
 /** Result of the "is a newer release available" check. */
 export const updateStatusResponseSchema = z.object({
   /** The `general.updateCheck` setting. */
@@ -59,5 +70,76 @@ export const updateStatusResponseSchema = z.object({
   /** When the answer was obtained from GitHub (Unix seconds). */
   checkedAt: unixSecondsSchema.nullable(),
   status: z.enum(UPDATE_STATUSES),
+  /** Releases newer than the running version, newest first (at most 30). Empty when unknown. */
+  availableVersions: z.array(availableVersionSchema).max(30),
 });
 export type UpdateStatusResponse = z.infer<typeof updateStatusResponseSchema>;
+
+// ---- one-click update (request/status file protocol with the host runner) ------------------
+
+export const UPDATE_RUN_STATES = ['running', 'succeeded', 'rolled_back', 'failed'] as const;
+export const UPDATE_RUN_STEPS = [
+  'starting',
+  'compose',
+  'backup',
+  'pull',
+  'restart',
+  'health',
+  'rollback',
+  'done',
+] as const;
+export const UPDATE_RUN_ERRORS = [
+  'busy',
+  'invalid_request',
+  'already_current',
+  'compose',
+  'backup',
+  'deploy',
+  'rollback_failed',
+] as const;
+
+/** Contents of `status.json`, written by the host runner. */
+export const updateRunStatusSchema = z.object({
+  id: z.string().nullable(),
+  targetVersion: z.string().nullable(),
+  fromVersion: z.string().nullable(),
+  state: z.enum(UPDATE_RUN_STATES),
+  step: z.enum(UPDATE_RUN_STEPS),
+  error: z.enum(UPDATE_RUN_ERRORS).nullable(),
+  startedAt: unixSecondsSchema,
+  updatedAt: unixSecondsSchema,
+  finishedAt: unixSecondsSchema.nullable(),
+});
+export type UpdateRunStatus = z.infer<typeof updateRunStatusSchema>;
+
+export const UPDATE_RUNNER_STATES = ['installed', 'missing', 'local'] as const;
+
+/** Request written by the API and not yet picked up (or not yet reported) by the runner. */
+export const pendingUpdateSchema = z.object({
+  id: z.string(),
+  version: releaseVersionSchema,
+  requestedAt: unixSecondsSchema,
+  /** Older than 2 minutes with no status of the same id: the runner is not picking it up. */
+  stale: z.boolean(),
+});
+export type PendingUpdate = z.infer<typeof pendingUpdateSchema>;
+
+/** Response of `GET /api/admin/updates/run`. */
+export const updateRunResponseSchema = z.object({
+  runner: z.enum(UPDATE_RUNNER_STATES),
+  pending: pendingUpdateSchema.nullable(),
+  run: updateRunStatusSchema.nullable(),
+});
+export type UpdateRunResponse = z.infer<typeof updateRunResponseSchema>;
+
+/** Body of `POST /api/admin/updates/run`. */
+export const startUpdateRequestSchema = z.object({ version: releaseVersionSchema });
+export type StartUpdateRequest = z.infer<typeof startUpdateRequestSchema>;
+
+/** Response (202) of `POST /api/admin/updates/run`. */
+export const startUpdateResponseSchema = z.object({
+  id: z.string(),
+  version: releaseVersionSchema,
+  requestedAt: unixSecondsSchema,
+});
+export type StartUpdateResponse = z.infer<typeof startUpdateResponseSchema>;

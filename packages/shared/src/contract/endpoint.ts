@@ -40,6 +40,7 @@ export const RATE_LIMITS = [
   'download',
   'setupCode',
   'updateCheck',
+  'updateStart',
 ] as const;
 export type RateLimitName = (typeof RATE_LIMITS)[number];
 
