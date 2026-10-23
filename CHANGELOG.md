@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0](https://github.com/ivanerricis/easysend/compare/v0.1.1...v0.2.0) (2026-10-23)
+
+
+### Features
+
+* one-click update from the admin panel (phase 7) ([#26](https://github.com/ivanerricis/easysend/issues/26)) ([e24e7cd](https://github.com/ivanerricis/easysend/commit/e24e7cd949d2e0379ac70181dfa609815baf1eb8))
+
+
+### Bug Fixes
+
+* **upload:** accept files whose type the browser does not know ([#24](https://github.com/ivanerricis/easysend/issues/24)) ([bc69949](https://github.com/ivanerricis/easysend/commit/bc699499328299d825b2c40b6436ac77cb9fbdce))
+* **web:** give every form field an id or name ([#25](https://github.com/ivanerricis/easysend/issues/25)) ([7386e44](https://github.com/ivanerricis/easysend/commit/7386e446891a2f94815be8c8b1be0da640dd8e51))
+
 ## [0.1.1](https://github.com/ivanerricis/easysend/compare/v0.1.0...v0.1.1) (2026-10-21)
 
 
