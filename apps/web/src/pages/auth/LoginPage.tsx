@@ -249,7 +249,7 @@ function PasswordStep({
       <Button type="submit" className="w-full" disabled={formState.isSubmitting}>
         {formState.isSubmitting ? t('auth.signingIn') : t('auth.signIn')}
       </Button>
-      <p className="text-center">
+      <p>
         <Link to="/forgot-password" className={linkClass}>
           {t('auth.forgotLink')}
         </Link>
