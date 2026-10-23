@@ -12,6 +12,9 @@ services:
   api:
     environment:
       APP_MODE: production
+      # The image tag stays :e2e, but the API reports a release number so the one-click update
+      # spec has newer versions to offer (availableVersions is empty for a non-semver build).
+      APP_VERSION: 0.1.0
       PUBLIC_URL: http://localhost:${E2E_WEB_PORT:-18090}
       TRUST_PROXY: 1
       # Tests only: the API talks to the in-memory fake instead of api.cloudflare.com.
