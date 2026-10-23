@@ -40,6 +40,7 @@ export function ChoiceField<TValues extends FieldValues, TName extends FieldPath
             </p>
           ) : null}
           <RadioGroup
+            name={field.name}
             value={String(field.value ?? '')}
             onValueChange={field.onChange}
             onBlur={field.onBlur}

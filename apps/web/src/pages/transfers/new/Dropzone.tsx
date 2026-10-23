@@ -77,6 +77,7 @@ export function Dropzone({ onFiles, disabled, describedBy, invalid, buttonId }: 
       <input
         ref={inputRef}
         type="file"
+        name="files"
         multiple
         hidden
         data-testid="file-input"

@@ -55,6 +55,7 @@ export function RecoveryCodes({ codes, confirmed, onConfirmedChange }: RecoveryC
       <div className="flex min-h-11 items-start gap-3">
         <Checkbox
           id={checkboxId}
+          name="recovery-codes-saved"
           className="mt-3"
           checked={confirmed}
           onCheckedChange={(checked) => onConfirmedChange(checked === true)}
