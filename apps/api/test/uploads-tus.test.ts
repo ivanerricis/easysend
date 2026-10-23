@@ -195,6 +195,19 @@ describe('tus metadata and ownership', () => {
     expect(bodyAs<{ error: { details?: unknown } }>(res).error.details).toBeDefined();
   });
 
+  it('accepts a metadata key without a value (file of unknown type)', async () => {
+    const t = await createUploadApp();
+    const { client } = await userWithClient(t);
+    const draft = await createDraft(client);
+    const res = await tusRequest(t, client, 'post', '/api/uploads', {
+      headers: {
+        'Upload-Length': '10',
+        'Upload-Metadata': `transferId ${Buffer.from(draft.id).toString('base64')},filename YS5pc28=,filetype`,
+      },
+    });
+    expect(res.status).toBe(201);
+  });
+
   it('rejects a deferred length', async () => {
     const t = await createUploadApp();
     const { client } = await userWithClient(t);

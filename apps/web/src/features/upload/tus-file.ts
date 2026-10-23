@@ -43,7 +43,8 @@ export function createFileUpload(options: FileUploadOptions): FileUploadHandle {
     endpoint: TUS_ENDPOINT,
     chunkSize,
     retryDelays: RETRY_DELAYS,
-    metadata: { transferId, filename: file.name, filetype: file.type },
+    // Browsers report an empty type for unknown extensions (e.g. .iso on Windows): omit it.
+    metadata: { transferId, filename: file.name, ...(file.type ? { filetype: file.type } : {}) },
     storeFingerprintForResuming: true,
     removeFingerprintOnSuccess: true,
     fingerprint: (f) => Promise.resolve(uploadFingerprint(f, transferId)),
