@@ -172,7 +172,10 @@ export function uploadsRouter(ctx: AppContext): Router {
   }
 
   function parseMetadata(upload: { metadata?: Record<string, string | null | undefined> }) {
-    const parsed = tusUploadMetadataSchema.safeParse(upload.metadata ?? {});
+    // A key sent without a value (tus allows it, e.g. `filetype` for a file of unknown type) is
+    // decoded as null: treat it as absent.
+    const present = Object.entries(upload.metadata ?? {}).filter(([, value]) => value != null);
+    const parsed = tusUploadMetadataSchema.safeParse(Object.fromEntries(present));
     if (!parsed.success) {
       throw new AppError('INVALID_UPLOAD_METADATA', 'Invalid upload metadata', {
         issues: parsed.error.issues.map((issue) => ({
