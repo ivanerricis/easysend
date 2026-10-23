@@ -135,6 +135,7 @@ export function ResumeBanner({ draft, onGone, onDiscarded, onResume }: ResumeBan
         <input
           ref={inputRef}
           type="file"
+          name="resume-files"
           multiple
           hidden
           tabIndex={-1}

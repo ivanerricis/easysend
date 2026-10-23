@@ -526,6 +526,7 @@ function DeleteUserForm({ user, onDone }: { user: AdminUser; onDone: () => void 
       <fieldset className="space-y-2">
         <legend className="mb-2 text-sm font-medium">{t('admin.users.delete.question')}</legend>
         <RadioGroup
+          name="delete-mode"
           value={mode}
           onValueChange={(value) => setMode(value === 'reassign' ? 'reassign' : 'delete')}
         >

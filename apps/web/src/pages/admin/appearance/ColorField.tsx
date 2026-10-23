@@ -39,6 +39,7 @@ export function ColorField<TValues extends FieldValues, TName extends FieldPath<
           <div className="flex gap-2">
             <input
               type="color"
+              id={`${controlProps.id}-picker`}
               aria-label={t('admin.appearance.fields.pickColor', { name: label })}
               value={HEX.test(value) ? value.toLowerCase() : '#000000'}
               onChange={(event) => field.onChange(event.target.value)}

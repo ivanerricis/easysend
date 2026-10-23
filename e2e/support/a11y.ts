@@ -59,6 +59,15 @@ export async function checkA11y(page: Page, label: string): Promise<A11yFinding[
       contentType: 'application/json',
     });
   }
+  // Chrome flags form fields with neither id nor name (autofill cannot identify them).
+  const unnamedFields = await page
+    .locator('input, select, textarea')
+    .evaluateAll((elements) =>
+      elements
+        .filter((el) => !el.id && !el.getAttribute('name'))
+        .map((el) => el.outerHTML.slice(0, 160)),
+    );
+  expect.soft(unnamedFields, `form fields without id or name on "${label}"`).toEqual([]);
   const blocking = findings.filter((f) => f.impact === 'serious' || f.impact === 'critical');
   expect(
     blocking.map((f) => `[${f.impact}] ${label}: ${f.id} - ${f.help} (${f.targets.join(' | ')})`),
