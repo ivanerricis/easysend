@@ -29,7 +29,7 @@ catalog:
   prettier: 3.9.10
   tsx: 4.23.15
   typescript: 6.0.3
-  typescript-eslint: 8.71.2
+  typescript-eslint: 8.72.0
   vitest: 5.0.5
   # shared / api
   zod: 4.6.7
@@ -41,7 +41,7 @@ catalog:
   drizzle-orm: 0.45.4
   drizzle-kit: 0.31.11
   better-sqlite3: 13.0.3
-  tsdown: 0.23.1
+  tsdown: 0.23.2
   supertest: 7.3.1
   '@types/express': 5.0.6
   '@types/supertest': 7.2.1
@@ -50,7 +50,7 @@ catalog:
   otpauth: 9.5.2
   rate-limiter-flexible: 11.2.3
   cookie: 2.0.1
-  nodemailer: 10.1.7
+  nodemailer: 10.2.1
   '@tus/server': 2.4.6
   '@tus/file-store': 2.1.1
   node-cron: 4.6.0
@@ -65,17 +65,17 @@ catalog:
   radix-ui: 1.8.1
   shadcn: 4.22.1
   tw-animate-css: 1.4.0
-  lucide-react: 1.59.0
+  lucide-react: 1.61.0
   react: 19.3.1
   react-dom: 19.3.1
   '@types/react': 19.3.0
   '@types/react-dom': 19.3.0
-  vite: 8.3.4
+  vite: 8.3.5
   '@vitejs/plugin-react': 6.1.2
   tailwindcss: 4.3.3
   '@tailwindcss/vite': 4.3.3
-  i18next: 26.5.2
-  react-i18next: 17.1.0
+  i18next: 26.5.7
+  react-i18next: 17.1.4
   '@fontsource/ibm-plex-sans': 5.3.0
   '@fontsource-variable/plus-jakarta-sans': 5.3.0
   '@fontsource-variable/jetbrains-mono': 5.3.0
@@ -83,8 +83,8 @@ catalog:
   '@testing-library/react': 16.3.3
   '@testing-library/jest-dom': 7.0.1
   '@testing-library/dom': 10.4.2
-  react-router: 8.4.0
-  '@tanstack/react-query': 5.104.3
+  react-router: 8.5.0
+  '@tanstack/react-query': 5.104.5
   react-hook-form: 7.90.0
   '@hookform/resolvers': 5.9.1
   tus-js-client: 4.3.1
@@ -95,7 +95,7 @@ catalog:
   vitepress: 1.6.4
   # e2e (screenshots and axe, phase 5; full E2E in phase 6)
   '@playwright/test': 1.64.1
-  '@axe-core/playwright': 4.13.0
+  '@axe-core/playwright': 4.14.0
 
 # Redis lockers of @tus/server and @tus/file-store: optional, never used (file store only).
 ignoredOptionalDependencies:
