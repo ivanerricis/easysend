@@ -8,8 +8,7 @@ import {
   type UpdateMeRequest,
 } from '@easysend/shared';
 import { generateTotpEnrollment, verifyTotp } from '../auth/totp.js';
-import { audit } from '../audit.js';
-import { nowSeconds } from '../clock.js';
+import { auditRequest } from '../audit.js';
 import type { AppContext } from '../context.js';
 import { decryptSecret, encryptSecret } from '../crypto/aead.js';
 import { users } from '../db/schema/index.js';
@@ -90,13 +89,10 @@ export function meRouter(ctx: AppContext): Router {
     // Every other device is logged out; the current one gets a fresh session id.
     ctx.sessions.revokeAllForUser(user.id, req.auth!.session.id);
     ctx.sessions.start(req, res, { userId: user.id, mfaVerified: true });
-    audit(db, {
+    auditRequest(ctx, req, 'auth.password_changed', {
       actorId: user.id,
-      action: 'auth.password_changed',
       targetType: 'user',
       targetId: user.id,
-      ipHash: ctx.ipHashOf(req),
-      now: nowSeconds(ctx.clock),
     });
     res.status(204).end();
   });
@@ -139,14 +135,13 @@ export function meRouter(ctx: AppContext): Router {
         .where(eq(users.id, user.id))
         .run();
       const created = replaceRecoveryCodes(ctx, tx, user.id);
-      audit(tx, {
-        actorId: user.id,
-        action: 'auth.2fa_enabled',
-        targetType: 'user',
-        targetId: user.id,
-        ipHash: ctx.ipHashOf(req),
-        now: nowSeconds(ctx.clock),
-      });
+      auditRequest(
+        ctx,
+        req,
+        'auth.2fa_enabled',
+        { actorId: user.id, targetType: 'user', targetId: user.id },
+        tx,
+      );
       return created;
     });
     sendJson(res, 'me.2faEnable', 200, { recoveryCodes: codes });
@@ -162,14 +157,13 @@ export function meRouter(ctx: AppContext): Router {
 
     db.transaction((tx) => {
       clearTwoFactor(tx, user.id);
-      audit(tx, {
-        actorId: user.id,
-        action: 'auth.2fa_disabled',
-        targetType: 'user',
-        targetId: user.id,
-        ipHash: ctx.ipHashOf(req),
-        now: nowSeconds(ctx.clock),
-      });
+      auditRequest(
+        ctx,
+        req,
+        'auth.2fa_disabled',
+        { actorId: user.id, targetType: 'user', targetId: user.id },
+        tx,
+      );
     });
     res.status(204).end();
   });
@@ -184,14 +178,13 @@ export function meRouter(ctx: AppContext): Router {
       const userId = req.auth!.user.id;
       const codes = db.transaction((tx) => {
         const created = replaceRecoveryCodes(ctx, tx, userId);
-        audit(tx, {
-          actorId: userId,
-          action: 'auth.recovery_regenerated',
-          targetType: 'user',
-          targetId: userId,
-          ipHash: ctx.ipHashOf(req),
-          now: nowSeconds(ctx.clock),
-        });
+        auditRequest(
+          ctx,
+          req,
+          'auth.recovery_regenerated',
+          { actorId: userId, targetType: 'user', targetId: userId },
+          tx,
+        );
         return created;
       });
       sendJson(res, 'me.recoveryCodes', 200, { recoveryCodes: codes });

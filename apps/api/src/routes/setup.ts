@@ -8,7 +8,7 @@ import type {
   SmtpSettings,
   SmtpSettingsPublic,
 } from '@easysend/shared';
-import { audit, type AuditAction } from '../audit.js';
+import { auditRequest } from '../audit.js';
 import { tunnelHandler } from '../cloudflare/handler.js';
 import { generateTotpEnrollment, verifyTotp } from '../auth/totp.js';
 import { nowSeconds } from '../clock.js';
@@ -33,20 +33,6 @@ export function setupRouter(ctx: AppContext): Router {
 
   const adminExists = (): boolean =>
     (db.select({ n: count() }).from(users).where(eq(users.role, 'admin')).get()?.n ?? 0) > 0;
-
-  const record = (
-    req: Parameters<AppContext['ipHashOf']>[0],
-    action: AuditAction,
-    actorId: string | null,
-  ): void => {
-    audit(db, {
-      actorId,
-      action,
-      targetType: 'settings',
-      ipHash: ctx.ipHashOf(req),
-      now: nowSeconds(clock),
-    });
-  };
 
   const steps = () => ({
     admin: adminExists(),
@@ -145,14 +131,13 @@ export function setupRouter(ctx: AppContext): Router {
         .get();
       const codes = replaceRecoveryCodes(ctx, tx, created.id);
       settings.delete('setup_admin_pending');
-      audit(tx, {
-        actorId: created.id,
-        action: 'setup.admin_created',
-        targetType: 'user',
-        targetId: created.id,
-        ipHash: ipKey,
-        now: nowSeconds(clock),
-      });
+      auditRequest(
+        ctx,
+        req,
+        'setup.admin_created',
+        { actorId: created.id, targetType: 'user', targetId: created.id },
+        tx,
+      );
       return { row: created, recoveryCodes: codes };
     });
 
@@ -205,7 +190,7 @@ export function setupRouter(ctx: AppContext): Router {
 
   router.put('/setup/smtp', ...guards('setup.smtpSave'), (req, res) => {
     const saved = saveVerifiedSmtpSettings(ctx, validBody<SmtpSettings>(req));
-    record(req, 'setup.smtp_saved', req.auth?.user.id ?? null);
+    auditRequest(ctx, req, 'setup.smtp_saved', { targetType: 'settings' });
     sendJson(res, 'setup.smtpSave', 200, saved);
   });
 
@@ -213,7 +198,7 @@ export function setupRouter(ctx: AppContext): Router {
     const { instanceName, defaultTheme, ...general } = validBody<SetupGeneralRequest>(req);
     settings.set('general', general);
     settings.set('appearance', { ...settings.getAppearance(), instanceName, defaultTheme });
-    record(req, 'setup.general_saved', req.auth?.user.id ?? null);
+    auditRequest(ctx, req, 'setup.general_saved', { targetType: 'settings' });
     sendJson(res, 'setup.general', 200, { ok: true });
   });
 
@@ -232,7 +217,7 @@ export function setupRouter(ctx: AppContext): Router {
     settings.set('setup_completed', true);
     settings.delete('setup_admin_pending');
     clearSetupCookie(res);
-    record(req, 'setup.completed', req.auth?.user.id ?? null);
+    auditRequest(ctx, req, 'setup.completed', { targetType: 'settings' });
     sendJson(res, 'setup.complete', 200, { ok: true });
   });
 

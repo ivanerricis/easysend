@@ -1,3 +1,6 @@
+import type { Request } from 'express';
+import { nowSeconds } from './clock.js';
+import type { AppContext } from './context.js';
 import type { Db } from './db/client.js';
 import { auditLog } from './db/schema/index.js';
 
@@ -68,4 +71,34 @@ export function audit(db: Pick<Db, 'insert'>, entry: AuditEntry): void {
       createdAt: entry.now,
     })
     .run();
+}
+
+export interface AuditRequestOptions {
+  /** Defaults to the authenticated user of the request, or null for anonymous requests. */
+  actorId?: string | null;
+  targetType?: AuditEntry['targetType'];
+  targetId?: string;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Writes the audit row of an HTTP request: actor (the session user unless overridden), hashed
+ * client IP and the time of the injected clock. Pass a transaction as `writer` to make it atomic.
+ */
+export function auditRequest(
+  ctx: Pick<AppContext, 'db' | 'clock' | 'ipHashOf'>,
+  req: Request,
+  action: AuditAction,
+  options: AuditRequestOptions = {},
+  writer: Pick<Db, 'insert'> = ctx.db,
+): void {
+  audit(writer, {
+    actorId: options.actorId !== undefined ? options.actorId : (req.auth?.user.id ?? null),
+    action,
+    ...(options.targetType ? { targetType: options.targetType } : {}),
+    ...(options.targetId !== undefined ? { targetId: options.targetId } : {}),
+    ...(options.metadata ? { metadata: options.metadata } : {}),
+    ipHash: ctx.ipHashOf(req),
+    now: nowSeconds(ctx.clock),
+  });
 }

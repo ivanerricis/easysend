@@ -15,7 +15,6 @@ const notice = {
   totalBytes: 5 * 1024 * 1024 + 300_000,
 };
 
-
 describe('transfer emails', () => {
   it('sends the link to a recipient in Italian (the instance default)', async () => {
     const app = await createTestApp();

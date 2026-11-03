@@ -1,7 +1,6 @@
 import type { RequestHandler } from 'express';
 import type { CloudflareRequest } from '@easysend/shared';
-import { audit } from '../audit.js';
-import { nowSeconds } from '../clock.js';
+import { auditRequest } from '../audit.js';
 import type { AppContext } from '../context.js';
 import { assertNotLimited } from '../http/rate-limit.js';
 import { sendJson, validBody } from '../http/validate.js';
@@ -16,13 +15,9 @@ export function tunnelHandler(
     const body = validBody<CloudflareRequest>(req);
     assertNotLimited(res, await ctx.setupLimiters.cloudflare.consume('global'));
     const result = await configureTunnel(ctx, body);
-    audit(ctx.db, {
-      actorId: req.auth?.user.id ?? null,
-      action: 'tunnel.configured',
+    auditRequest(ctx, req, 'tunnel.configured', {
       targetType: 'settings',
       metadata: { hostname: result.hostname, tunnelId: result.tunnelId },
-      ipHash: ctx.ipHashOf(req),
-      now: nowSeconds(ctx.clock),
     });
     sendJson(res, endpointId, 200, result);
   };

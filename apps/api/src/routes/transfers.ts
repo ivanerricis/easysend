@@ -7,7 +7,7 @@ import {
   type ListTransfersQuery,
   type UpdateTransferRequest,
 } from '@easysend/shared';
-import { audit, type AuditAction } from '../audit.js';
+import { auditRequest, type AuditAction } from '../audit.js';
 import { nowSeconds } from '../clock.js';
 import type { AppContext } from '../context.js';
 import {
@@ -55,16 +55,17 @@ export function transfersRouter(ctx: AppContext): Router {
     metadata: Record<string, unknown> = {},
     writer: Pick<typeof db, 'insert'> = db,
   ): void {
-    const actorId = req.auth!.user.id;
-    audit(writer, {
-      actorId,
+    auditRequest(
+      ctx,
+      req,
       action,
-      targetType: 'transfer',
-      targetId: row.id,
-      metadata: { ...metadata, ...(actorId !== row.ownerId ? { byAdmin: true } : {}) },
-      ipHash: ctx.ipHashOf(req),
-      now: nowSeconds(ctx.clock),
-    });
+      {
+        targetType: 'transfer',
+        targetId: row.id,
+        metadata: { ...metadata, ...(req.auth!.user.id !== row.ownerId ? { byAdmin: true } : {}) },
+      },
+      writer,
+    );
   }
 
   async function limitCreation(res: Response, userId: string): Promise<void> {

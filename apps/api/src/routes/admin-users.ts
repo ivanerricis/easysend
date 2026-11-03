@@ -1,5 +1,5 @@
 import { and, desc, asc, count, eq, inArray, sql, type SQL } from 'drizzle-orm';
-import { Router, type Request } from 'express';
+import { Router } from 'express';
 import type {
   CreateUserRequest,
   DeleteUserQuery,
@@ -7,7 +7,7 @@ import type {
   UpdateUserRequest,
 } from '@easysend/shared';
 import { AUTH_POLICY } from '../auth/policy.js';
-import { audit } from '../audit.js';
+import { auditRequest } from '../audit.js';
 import { nowSeconds } from '../clock.js';
 import type { AppContext } from '../context.js';
 import { randomToken, sha256Hex } from '../crypto/hash.js';
@@ -62,12 +62,6 @@ export function adminUsersRouter(ctx: AppContext): Router {
       .get()!;
     return toAdminUser(ctx, row, n);
   };
-
-  const auditBase = (req: Request) => ({
-    actorId: req.auth?.user.id ?? null,
-    ipHash: ctx.ipHashOf(req),
-    now: nowSeconds(ctx.clock),
-  });
 
   router.get('/admin/users', ...endpointGuards(ctx.csrf, 'users.list'), (req, res) => {
     const { q, role, page, pageSize } = validQuery<ListUsersQuery>(req);
@@ -135,13 +129,17 @@ export function adminUsersRouter(ctx: AppContext): Router {
           })
           .run();
       }
-      audit(tx, {
-        ...auditBase(req),
-        action: 'admin.user_created',
-        targetType: 'user',
-        targetId: created.id,
-        metadata: { role: body.role, welcomeEmail: welcomeToken !== undefined },
-      });
+      auditRequest(
+        ctx,
+        req,
+        'admin.user_created',
+        {
+          targetType: 'user',
+          targetId: created.id,
+          metadata: { role: body.role, welcomeEmail: welcomeToken !== undefined },
+        },
+        tx,
+      );
       return created.id;
     });
 
@@ -186,13 +184,17 @@ export function adminUsersRouter(ctx: AppContext): Router {
       const nowDisabled = body.disabled === true && !target.disabled;
       if (roleChanged || nowDisabled) ctx.sessions.revokeAllForUser(id);
 
-      audit(tx, {
-        ...auditBase(req),
-        action: 'admin.user_updated',
-        targetType: 'user',
-        targetId: id,
-        metadata: { fields: Object.keys(changes) },
-      });
+      auditRequest(
+        ctx,
+        req,
+        'admin.user_updated',
+        {
+          targetType: 'user',
+          targetId: id,
+          metadata: { fields: Object.keys(changes) },
+        },
+        tx,
+      );
     });
     sendJson(res, 'users.update', 200, adminView(id));
   });
@@ -206,12 +208,16 @@ export function adminUsersRouter(ctx: AppContext): Router {
         findUser(id);
         clearTwoFactor(tx, id);
         ctx.sessions.revokeAllForUser(id);
-        audit(tx, {
-          ...auditBase(req),
-          action: 'admin.2fa_reset',
-          targetType: 'user',
-          targetId: id,
-        });
+        auditRequest(
+          ctx,
+          req,
+          'admin.2fa_reset',
+          {
+            targetType: 'user',
+            targetId: id,
+          },
+          tx,
+        );
       });
       res.status(204).end();
     },
@@ -292,16 +298,20 @@ export function adminUsersRouter(ctx: AppContext): Router {
 
         // Sessions, recovery codes and reset tokens go with the user (ON DELETE CASCADE).
         tx.delete(users).where(eq(users.id, id)).run();
-        audit(tx, {
-          ...auditBase(req),
-          action: 'admin.user_deleted',
-          targetType: 'user',
-          targetId: id,
-          metadata: {
-            transfers: query.transfers,
-            ...(query.transfers === 'reassign' ? { reassignTo: query.reassignTo } : {}),
+        auditRequest(
+          ctx,
+          req,
+          'admin.user_deleted',
+          {
+            targetType: 'user',
+            targetId: id,
+            metadata: {
+              transfers: query.transfers,
+              ...(query.transfers === 'reassign' ? { reassignTo: query.reassignTo } : {}),
+            },
           },
-        });
+          tx,
+        );
       });
       for (const file of filesToRemove) await removeFileQuietly(file, ctx.logger);
       res.status(204).end();
