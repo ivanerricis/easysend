@@ -43,9 +43,7 @@
       "actions": "Actions"
     },
     "actions": {
-      "edit": "Edit {{email}}",
-      "reset2fa": "Reset 2FA of {{email}}",
-      "delete": "Delete {{email}}"
+      "menu": "Actions for {{email}}"
     },
     "fields": {
       "email": "Email",

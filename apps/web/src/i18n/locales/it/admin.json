@@ -43,9 +43,7 @@
       "actions": "Azioni"
     },
     "actions": {
-      "edit": "Modifica {{email}}",
-      "reset2fa": "Azzera il 2FA di {{email}}",
-      "delete": "Elimina {{email}}"
+      "menu": "Azioni per {{email}}"
     },
     "fields": {
       "email": "Email",

@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useSession } from '@/app/providers/SessionProvider';
 import { queryKeys } from '@/app/query';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { RowActionsMenu } from '@/components/common/RowActionsMenu';
 import { Pager } from '@/components/common/Pager';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/States';
@@ -207,41 +208,33 @@ export default function UsersPage() {
                         : t('admin.users.never')}
                     </DataCell>
                     <DataCell>
-                      <div className="flex flex-wrap gap-2 max-lg:w-full max-lg:justify-end">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          aria-label={t('admin.users.actions.edit', { email: user.email })}
-                          onClick={() => setEditing(user)}
-                        >
-                          <Pencil aria-hidden="true" />
-                          {t('common.actions.edit')}
-                        </Button>
-                        {user.totpEnabled ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            aria-label={t('admin.users.actions.reset2fa', { email: user.email })}
-                            onClick={() => setResetting(user)}
-                          >
-                            <KeyRound aria-hidden="true" />
-                            {t('admin.users.reset2fa.action')}
-                          </Button>
-                        ) : null}
-                        {isSelf ? null : (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            aria-label={t('admin.users.actions.delete', { email: user.email })}
-                            onClick={() => setDeleting(user)}
-                          >
-                            <Trash2 aria-hidden="true" />
-                            {t('common.actions.delete')}
-                          </Button>
-                        )}
+                      <div className="max-lg:flex max-lg:w-full max-lg:justify-end">
+                        <RowActionsMenu
+                          label={t('admin.users.actions.menu', { email: user.email })}
+                          actions={[
+                            {
+                              key: 'edit',
+                              label: t('common.actions.edit'),
+                              icon: Pencil,
+                              onSelect: () => setEditing(user),
+                            },
+                            {
+                              key: 'reset2fa',
+                              label: t('admin.users.reset2fa.action'),
+                              icon: KeyRound,
+                              onSelect: () => setResetting(user),
+                              hidden: !user.totpEnabled,
+                            },
+                            {
+                              key: 'delete',
+                              label: t('common.actions.delete'),
+                              icon: Trash2,
+                              destructive: true,
+                              onSelect: () => setDeleting(user),
+                              hidden: isSelf,
+                            },
+                          ]}
+                        />
                       </div>
                     </DataCell>
                   </DataRow>

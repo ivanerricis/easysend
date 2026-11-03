@@ -2,8 +2,15 @@
   "title": "Transfers",
   "newTitle": "Send files",
   "detailTitle": "Transfer details",
-  "mode": { "link": "Link", "email": "Email" },
-  "expiry": { "3d": "3 days", "1w": "1 week", "1m": "1 month" },
+  "mode": {
+    "link": "Link",
+    "email": "Email"
+  },
+  "expiry": {
+    "3d": "3 days",
+    "1w": "1 week",
+    "1m": "1 month"
+  },
   "new": {
     "description": "Choose the files, set the options and get a link to share. Files are encrypted on the server.",
     "filesHeading": "Files",
@@ -211,7 +218,12 @@
     "downloadLog": "Download log",
     "noDownloads": "Nobody has downloaded this transfer yet.",
     "zipArchive": "ZIP archive",
-    "log": { "date": "Date", "target": "File", "bytes": "Sent", "userAgent": "Browser" }
+    "log": {
+      "date": "Date",
+      "target": "File",
+      "bytes": "Sent",
+      "userAgent": "Browser"
+    }
   },
   "edit": {
     "title": "Edit transfer",
@@ -228,5 +240,9 @@
     "password_set_replace": "Replace the password",
     "password_remove": "Remove the password",
     "newPassword": "New password"
+  },
+  "actions": {
+    "menu": "Actions for {{title}}",
+    "open": "Open details"
   }
 }
