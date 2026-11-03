@@ -22,6 +22,7 @@ export type UserRole = (typeof USER_ROLES)[number];
 export const THEME_PREFERENCES = ['light', 'dark', 'system'] as const;
 export type ThemePreference = (typeof THEME_PREFERENCES)[number];
 
+/** `expired` and `deleted` are reserved: never stored (expiry is derived, deleting removes the row). */
 export const TRANSFER_STATUSES = ['uploading', 'active', 'revoked', 'expired', 'deleted'] as const;
 export type TransferStatus = (typeof TRANSFER_STATUSES)[number];
 

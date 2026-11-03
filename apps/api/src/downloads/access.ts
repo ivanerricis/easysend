@@ -15,12 +15,12 @@ export const RESUME_COOKIE = 'es_dlr';
 
 /**
  * Why a link cannot be used right now, as the error to answer, or null when it is usable.
- * `uploading` (draft) and `deleted` read as not found. The download limit also stops Range
+ * `uploading` (draft) reads as not found. The download limit also stops Range
  * requests (project decision).
  */
 export function unavailableError(row: TransferRow, nowSec: number): AppError | null {
   const status = effectiveStatus(row, nowSec);
-  if (status === 'uploading' || status === 'deleted') {
+  if (status === 'uploading') {
     return new AppError('TRANSFER_NOT_FOUND', 'Transfer not found');
   }
   if (status === 'revoked') return new AppError('TRANSFER_REVOKED', 'Transfer revoked');

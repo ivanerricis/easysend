@@ -373,10 +373,8 @@ function statusCondition(status: TransferStatus, nowSec: number): SQL | undefine
     return and(eq(transfers.status, 'active'), gt(transfers.expiresAt, nowSec));
   }
   if (status === 'expired') {
-    return or(
-      eq(transfers.status, 'expired'),
-      and(eq(transfers.status, 'active'), lte(transfers.expiresAt, nowSec)),
-    );
+    // `expired` is never stored: it is an active transfer past its expiry.
+    return and(eq(transfers.status, 'active'), lte(transfers.expiresAt, nowSec));
   }
   return eq(transfers.status, status);
 }
@@ -401,14 +399,33 @@ export function listTransfersPage(
   );
   const total = ctx.db.select({ n: count() }).from(transfers).where(where).get()!.n;
   const rows = ctx.db
-    .select()
+    .select({
+      row: transfers,
+      ownerEmail: users.email,
+      fileCount: sql<number>`(SELECT COUNT(*) FROM ${transferFiles} WHERE ${transferFiles.transferId} = ${transfers.id})`,
+      recipientCount: sql<number>`(SELECT COUNT(*) FROM ${transferRecipients} WHERE ${transferRecipients.transferId} = ${transfers.id})`,
+    })
     .from(transfers)
+    .leftJoin(users, eq(users.id, transfers.ownerId))
     .where(where)
     .orderBy(desc(transfers.createdAt), desc(transfers.id))
     .limit(filter.pageSize)
     .offset((filter.page - 1) * filter.pageSize)
     .all();
-  return { items: rows.map((row) => toTransferSummary(ctx, row, nowSec)), total };
+  return {
+    items: rows.map(({ row, ownerEmail, fileCount, recipientCount }) =>
+      summaryFrom(
+        row,
+        {
+          ownerEmail: ownerEmail ?? '',
+          fileCount: Number(fileCount),
+          recipientCount: Number(recipientCount),
+        },
+        nowSec,
+      ),
+    ),
+    total,
+  };
 }
 
 /**

@@ -1,6 +1,6 @@
 import { opendir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { and, eq, inArray, isNotNull, lte, or, sql } from 'drizzle-orm';
+import { and, eq, isNotNull, lte, or, sql } from 'drizzle-orm';
 import { schedule, validate } from 'node-cron';
 import { nowSeconds } from '../clock.js';
 import type { AppContext } from '../context.js';
@@ -67,7 +67,7 @@ const mtimeSeconds = async (file: string): Promise<number | undefined> => {
 };
 
 /**
- * Transfers to delete: expired `active` ones, `revoked`/`expired`/`deleted` ones, and drafts
+ * Transfers to delete: expired `active` ones, `revoked` ones, and drafts
  * (`uploading`) idle for longer than the TTL. Draft activity is the latest of the transfer's
  * creation and its uploads' `last_activity_at`; a draft with an upload still `processing` is
  * never touched (the worker is encrypting its file).
@@ -85,7 +85,7 @@ function selectDoomedTransfers(
     .where(
       or(
         and(eq(transfers.status, 'active'), lte(transfers.expiresAt, now)),
-        inArray(transfers.status, ['revoked', 'expired', 'deleted']),
+        eq(transfers.status, 'revoked'),
       ),
     )
     .all()
