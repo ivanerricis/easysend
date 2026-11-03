@@ -20,6 +20,7 @@ const item = {
   downloadCount: 1,
   maxDownloads: 5,
   hasPassword: true,
+  shareUrl: null,
 };
 
 function renderPage() {

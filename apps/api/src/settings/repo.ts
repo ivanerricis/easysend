@@ -55,14 +55,12 @@ export const brandingAssetEntrySchema = z.object({
   updatedAt: z.number().int(),
   fileName: z.string().min(1),
 });
-export type BrandingAssetEntry = z.infer<typeof brandingAssetEntrySchema>;
 
 /**
  * `emailLogo` is not a public asset kind: it is the PNG rendition of the light logo embedded in
  * emails (always PNG, hence no content type).
  */
 export const emailLogoEntrySchema = brandingAssetEntrySchema.omit({ contentType: true });
-export type EmailLogoEntry = z.infer<typeof emailLogoEntrySchema>;
 
 const brandingAssetsSettingSchema = z.object({
   ...(Object.fromEntries(
@@ -115,6 +113,8 @@ export interface SettingsRepo {
   get<K extends SettingKey>(key: K): SettingValues[K] | undefined;
   set<K extends SettingKey>(key: K, value: SettingInputs[K]): void;
   delete(key: SettingKey): void;
+  /** True when a row exists for the key (without reading, decrypting or validating its value). */
+  has(key: SettingKey): boolean;
   /** Instance default language (`general.defaultLocale`), `it` when unset. */
   getDefaultLocale(): Locale;
   /** Instance name (`appearance.instanceName`), `EasySend` when unset. */
@@ -137,22 +137,36 @@ export function createSettingsRepo(deps: {
     throw new Error(`No key available for setting purpose ${purpose}`);
   };
 
+  // Read-through cache: a single API process owns the database (CLIs run with the API stopped),
+  // and every write goes through `set` / `delete`, which drop the entry. Values are cloned on
+  // the way out so callers cannot corrupt it.
+  const cache = new Map<SettingKey, { value: unknown }>();
+
+  const read = <K extends SettingKey>(key: K): SettingValues[K] | undefined => {
+    const row = db.select().from(settings).where(eq(settings.key, key)).get();
+    if (!row) return undefined;
+    let value: unknown = row.value;
+    const purpose = ENCRYPTED_KEYS[key];
+    if (row.isEncrypted) {
+      if (!purpose || typeof value !== 'string') return undefined;
+      try {
+        value = JSON.parse(decryptSecret(keyFor(purpose), purpose, value));
+      } catch {
+        return undefined;
+      }
+    }
+    const parsed = SETTING_SCHEMAS[key].safeParse(value);
+    return parsed.success ? (parsed.data as SettingValues[K]) : undefined;
+  };
+
   const repo: SettingsRepo = {
     get(key) {
-      const row = db.select().from(settings).where(eq(settings.key, key)).get();
-      if (!row) return undefined;
-      let value: unknown = row.value;
-      const purpose = ENCRYPTED_KEYS[key];
-      if (row.isEncrypted) {
-        if (!purpose || typeof value !== 'string') return undefined;
-        try {
-          value = JSON.parse(decryptSecret(keyFor(purpose), purpose, value));
-        } catch {
-          return undefined;
-        }
+      let entry = cache.get(key);
+      if (!entry) {
+        entry = { value: read(key) };
+        cache.set(key, entry);
       }
-      const parsed = SETTING_SCHEMAS[key].safeParse(value);
-      return parsed.success ? (parsed.data as SettingValues[typeof key]) : undefined;
+      return entry.value === undefined ? undefined : structuredClone(entry.value as never);
     },
 
     set(key, value) {
@@ -162,6 +176,7 @@ export function createSettingsRepo(deps: {
         : value;
       const updatedAt = nowSeconds(clock);
       const isEncrypted = purpose !== undefined;
+      cache.delete(key);
       db.insert(settings)
         .values({ key, value: stored, isEncrypted, updatedAt })
         .onConflictDoUpdate({
@@ -172,7 +187,15 @@ export function createSettingsRepo(deps: {
     },
 
     delete(key) {
+      cache.delete(key);
       db.delete(settings).where(eq(settings.key, key)).run();
+    },
+
+    has(key) {
+      return (
+        db.select({ key: settings.key }).from(settings).where(eq(settings.key, key)).get() !==
+        undefined
+      );
     },
 
     getDefaultLocale: () => repo.get('general')?.defaultLocale ?? DEFAULT_LOCALE,

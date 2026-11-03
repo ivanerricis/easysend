@@ -1,10 +1,6 @@
 import { z } from 'zod';
-import {
-  APP_MODES,
-  CLOUDFLARE_TOKEN_MAX_LENGTH,
-  CLOUDFLARE_TOKEN_MIN_LENGTH,
-} from '../constants.js';
-import { emailSchema } from './common.js';
+import { CLOUDFLARE_TOKEN_MAX_LENGTH, CLOUDFLARE_TOKEN_MIN_LENGTH } from '../constants.js';
+import { appModeSchema, emailSchema } from './common.js';
 import {
   displayNameSchema,
   recoveryCodeSchema,
@@ -18,7 +14,7 @@ import { appearanceSchema, generalSettingsSchema, smtpSettingsPublicSchema } fro
 // ---- Status and setup code ---------------------------------------------------
 export const setupStatusResponseSchema = z.object({
   setupCompleted: z.boolean(),
-  appMode: z.enum(APP_MODES),
+  appMode: appModeSchema,
   /** The setup code was accepted for this browser (valid `es_setup` cookie). */
   codeVerified: z.boolean(),
   steps: z.object({

@@ -28,6 +28,3 @@ export function createAuthLimiters(): AuthLimiters {
     reauth: createLimiter(limits.reauth),
   };
 }
-
-/** Key for per-account limiters: emails are case-insensitive. */
-export const accountKey = (email: string): string => email.trim().toLowerCase();

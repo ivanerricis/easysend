@@ -1,10 +1,8 @@
-import { Writable } from 'node:stream';
 import { describe, expect, it } from 'vitest';
 import type { UpdateStatusResponse } from '@easysend/shared';
-import { createLogger } from '../src/logger.js';
 import { createUpdateService } from '../src/updates/service.js';
 import { compareSemver, parseSemver } from '../src/updates/semver.js';
-import { bodyAs, createTestApp, createTestClock, silentLogger } from './helpers.js';
+import { bodyAs, createTestApp, createTestClock, memoryLogger, silentLogger } from './helpers.js';
 import { loginAs } from './session-helpers.js';
 
 const URL_UPDATES = '/api/admin/updates';
@@ -275,17 +273,7 @@ describe('GET /api/admin/updates', () => {
   });
 
   it('does not log response bodies', async () => {
-    const lines: string[] = [];
-    const logger = createLogger(
-      { logLevel: 'trace', nodeEnv: 'test', logPretty: false },
-      {},
-      new Writable({
-        write(chunk: Buffer, _enc, cb) {
-          lines.push(chunk.toString());
-          cb();
-        },
-      }),
-    );
+    const { lines, logger } = memoryLogger();
     const github = new FakeGithub();
     github.mode = 'status';
     const t = await createTestApp({ logger, deps: { updateFetch: github.fetch } });

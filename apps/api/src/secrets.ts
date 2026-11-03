@@ -1,5 +1,13 @@
 import { randomBytes } from 'node:crypto';
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  fsyncSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 
 const KEY_BYTES = 32;
@@ -28,7 +36,11 @@ export function parseKey(raw: string, source: string): Buffer {
   throw new SecretError(source);
 }
 
-function readKeyFile(file: string): Buffer | undefined {
+/** Key stored in a file, or undefined when the file does not exist. */
+export function readKeyFile(
+  file: string,
+  source: string = `file ${path.basename(file)}`,
+): Buffer | undefined {
   let content: string;
   try {
     content = readFileSync(file, 'utf8');
@@ -36,7 +48,21 @@ function readKeyFile(file: string): Buffer | undefined {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
     throw error;
   }
-  return parseKey(content, `file ${path.basename(file)}`);
+  return parseKey(content, source);
+}
+
+/**
+ * Writes a key as hex, readable by the owner only, and flushes it to disk. Flag `wx` fails if
+ * the file already exists.
+ */
+export function writeKeyFile(file: string, key: Buffer, flag: 'w' | 'wx' = 'w'): void {
+  writeFileSync(file, `${key.toString('hex')}\n`, { flag, mode: 0o600 });
+  const fd = openSync(file, 'r+');
+  try {
+    fsyncSync(fd);
+  } finally {
+    closeSync(fd);
+  }
 }
 
 function resolveSecret(envValue: string | undefined, envName: string, file: string): Buffer {
@@ -48,7 +74,7 @@ function resolveSecret(envValue: string | undefined, envName: string, file: stri
   const key = randomBytes(KEY_BYTES);
   try {
     // Flag 'wx' fails if another process created the file in the meantime.
-    writeFileSync(file, `${key.toString('hex')}\n`, { flag: 'wx', mode: 0o600 });
+    writeKeyFile(file, key, 'wx');
     return key;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;

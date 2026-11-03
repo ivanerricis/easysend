@@ -46,3 +46,10 @@ export function tusFilePaths(
   const data = path.join(config.tmpUploadDir, uploadId);
   return { data, info: `${data}.json` };
 }
+
+/** tus data and metadata files of an upload; empty for ids that are not valid storage names. */
+export function tusPathList(config: Pick<AppConfig, 'tmpUploadDir'>, uploadId: string): string[] {
+  if (!isStorageName(uploadId)) return [];
+  const { data, info } = tusFilePaths(config, uploadId);
+  return [data, info];
+}

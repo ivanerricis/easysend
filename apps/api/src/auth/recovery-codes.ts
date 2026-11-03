@@ -1,19 +1,11 @@
-import { randomBytes } from 'node:crypto';
+import { groupWithDashes, randomBase32 } from '../crypto/base32-code.js';
 import { hmacBase64url, timingSafeEqualStrings } from '../crypto/hash.js';
 import { AUTH_POLICY } from './policy.js';
-
-const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; // RFC 4648 base32
 
 /** One code: 12 base32 characters (60 bits) as `XXXX-XXXX-XXXX`. */
 export function generateRecoveryCode(): string {
   const { groups, groupLength } = AUTH_POLICY.recoveryCodes;
-  const length = groups * groupLength;
-  const bytes = randomBytes(length);
-  let chars = '';
-  for (let i = 0; i < length; i++) chars += ALPHABET[(bytes[i] as number) & 31];
-  const parts: string[] = [];
-  for (let g = 0; g < groups; g++) parts.push(chars.slice(g * groupLength, (g + 1) * groupLength));
-  return parts.join('-');
+  return groupWithDashes(randomBase32(groups * groupLength), groupLength);
 }
 
 export function generateRecoveryCodes(count: number = AUTH_POLICY.recoveryCodes.count): string[] {

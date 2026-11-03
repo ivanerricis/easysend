@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import { PASSWORD_MAX_LENGTH } from '../constants.js';
-import { emailSchema } from './common.js';
+import { currentPasswordSchema, emailSchema } from './common.js';
 import {
   passwordSchema,
   recoveryCodeSchema,
@@ -26,7 +25,7 @@ export type SessionResponse = z.infer<typeof sessionResponseSchema>;
 
 export const loginRequestSchema = z.object({
   email: emailSchema,
-  password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
+  password: currentPasswordSchema,
 });
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
 

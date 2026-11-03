@@ -195,13 +195,9 @@ Liveness and readiness probe
 }
 ```
 
-**Errors**
-
-- `503` `SERVICE_UNAVAILABLE`: The service is not ready (e.g. database unavailable).
-
 Also possible: `500` `INTERNAL_ERROR`.
 
-**Notes:** Answers 503 `SERVICE_UNAVAILABLE` when the database check fails. nginx also exposes the alias `/health`.
+**Notes:** Answers 503 when the database check fails; the body is then the same health body with `db` set to the failure. nginx also exposes the alias `/health`.
 
 ## Setup wizard
 
@@ -1421,8 +1417,8 @@ Create a draft transfer
   downloadCount: integer (min 0)
   maxDownloads: integer (min 1, max 100000) | null
   hasPassword: boolean
-  message: string | null
   shareUrl: string | null
+  message: string | null
   firstDownloadedAt: integer (min 0) | null
   files: Array<{
     id: string (min 1, max 64)
@@ -1482,8 +1478,8 @@ Activate a draft: make the link valid and send the emails
   downloadCount: integer (min 0)
   maxDownloads: integer (min 1, max 100000) | null
   hasPassword: boolean
-  message: string | null
   shareUrl: string | null
+  message: string | null
   firstDownloadedAt: integer (min 0) | null
   files: Array<{
     id: string (min 1, max 64)
@@ -1555,6 +1551,7 @@ List your transfers
     downloadCount: integer (min 0)
     maxDownloads: integer (min 1, max 100000) | null
     hasPassword: boolean
+    shareUrl: string | null
   }>
   total: integer (min 0)
   page: integer (min 1)
@@ -1598,8 +1595,8 @@ Transfer details with files, recipients and uploads
   downloadCount: integer (min 0)
   maxDownloads: integer (min 1, max 100000) | null
   hasPassword: boolean
-  message: string | null
   shareUrl: string | null
+  message: string | null
   firstDownloadedAt: integer (min 0) | null
   files: Array<{
     id: string (min 1, max 64)
@@ -1676,8 +1673,8 @@ Edit title, message, expiry, download limit or password
   downloadCount: integer (min 0)
   maxDownloads: integer (min 1, max 100000) | null
   hasPassword: boolean
-  message: string | null
   shareUrl: string | null
+  message: string | null
   firstDownloadedAt: integer (min 0) | null
   files: Array<{
     id: string (min 1, max 64)
@@ -1743,8 +1740,8 @@ Revoke the link
   downloadCount: integer (min 0)
   maxDownloads: integer (min 1, max 100000) | null
   hasPassword: boolean
-  message: string | null
   shareUrl: string | null
+  message: string | null
   firstDownloadedAt: integer (min 0) | null
   files: Array<{
     id: string (min 1, max 64)
@@ -1809,8 +1806,8 @@ Send the notification email again (email mode)
   downloadCount: integer (min 0)
   maxDownloads: integer (min 1, max 100000) | null
   hasPassword: boolean
-  message: string | null
   shareUrl: string | null
+  message: string | null
   firstDownloadedAt: integer (min 0) | null
   files: Array<{
     id: string (min 1, max 64)
@@ -1987,6 +1984,7 @@ List the transfers of all users
     downloadCount: integer (min 0)
     maxDownloads: integer (min 1, max 100000) | null
     hasPassword: boolean
+    shareUrl: string | null
   }>
   total: integer (min 0)
   page: integer (min 1)

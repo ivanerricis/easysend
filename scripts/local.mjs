@@ -1,50 +1,12 @@
 // Local try-out of the full stack in Docker: `node scripts/local.mjs up|down|reset [--yes]`.
 // Cross-platform, no dependencies.
-import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { copyFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
-import { fileURLToPath } from 'node:url';
+import { ensureDocker, localComposeArgs, readEnvFile, root, run as docker } from './lib/node.mjs';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const envFile = join(root, '.env.local');
-/** Minimal KEY=VALUE parser for .env.local (comments and blank lines ignored, quotes stripped). */
-function readEnvFile(file) {
-  const values = {};
-  if (!existsSync(file)) return values;
-  for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
-    if (line.trimStart().startsWith('#')) continue;
-    const match = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/.exec(line);
-    if (match) values[match[1]] = match[2].replace(/^(['"])(.*)\1$/, '$2');
-  }
-  return values;
-}
-
-const composeArgs = [
-  'compose',
-  '-f',
-  'docker-compose.yml',
-  '-f',
-  'docker-compose.override.yml',
-  '-f',
-  'docker-compose.local.yml',
-  '--env-file',
-  '.env.local',
-  '-p',
-  'easysend-local',
-];
-
-function docker(args, options = {}) {
-  return spawnSync('docker', args, { cwd: root, stdio: 'inherit', shell: false, ...options });
-}
-
-function ensureDocker() {
-  const result = docker(['info'], { stdio: 'ignore' });
-  if (result.error || result.status !== 0) {
-    console.error('Docker is not reachable. Start Docker Desktop and retry.');
-    process.exit(1);
-  }
-}
+const composeArgs = localComposeArgs('.env.local', 'easysend-local');
 
 function ensureEnvFile() {
   if (!existsSync(envFile)) {

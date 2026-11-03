@@ -14,10 +14,10 @@ import {
   storagePath,
   tusFilePaths,
 } from '../storage/paths.js';
-import { removeFileQuietly } from '../storage/remove.js';
+import { removeFileQuietly, removeTusFiles } from '../storage/remove.js';
 
 /**
- * Background queue that hashes and encrypts finished tus uploads (phase 3, WP2). One job at a
+ * Background queue that hashes and encrypts finished tus uploads. One job at a
  * time keeps CPU and disk use predictable on a small machine.
  */
 export interface UploadWorker {
@@ -142,7 +142,6 @@ export function createUploadWorker(ctx: AppContext): UploadWorker {
 
   async function processUpload(uploadId: string): Promise<void> {
     const { db, config, logger } = ctx;
-    const tus = tusFilePaths(config, uploadId);
     try {
       await encryptAndRecord(uploadId);
     } catch (error) {
@@ -150,8 +149,7 @@ export function createUploadWorker(ctx: AppContext): UploadWorker {
       db.update(uploads).set({ status: 'aborted' }).where(eq(uploads.id, uploadId)).run();
     }
     // Plaintext copy: gone in every case (success, stale, failure).
-    await removeFileQuietly(tus.data, logger);
-    await removeFileQuietly(tus.info, logger);
+    await removeTusFiles(config, uploadId, logger);
   }
 
   async function pump(): Promise<void> {

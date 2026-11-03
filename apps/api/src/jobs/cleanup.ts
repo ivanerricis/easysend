@@ -1,6 +1,6 @@
 import { opendir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { and, eq, inArray, isNotNull, lte, or, sql } from 'drizzle-orm';
+import { and, eq, isNotNull, lte, or, sql } from 'drizzle-orm';
 import { schedule, validate } from 'node-cron';
 import { nowSeconds } from '../clock.js';
 import type { AppContext } from '../context.js';
@@ -12,8 +12,8 @@ import {
   transfers,
   uploads,
 } from '../db/schema/index.js';
-import { isStorageName, isStorageEntry, PART_SUFFIX, tusFilePaths } from '../storage/paths.js';
-import { removeFileQuietly } from '../storage/remove.js';
+import { isStorageName, isStorageEntry, PART_SUFFIX } from '../storage/paths.js';
+import { removeFileQuietly, removeTusFiles } from '../storage/remove.js';
 import { deleteTransfer, recomputeUsedBytes } from '../transfers/service.js';
 
 /** Counters of one cleanup run, one entry per step. */
@@ -67,7 +67,7 @@ const mtimeSeconds = async (file: string): Promise<number | undefined> => {
 };
 
 /**
- * Transfers to delete: expired `active` ones, `revoked`/`expired`/`deleted` ones, and drafts
+ * Transfers to delete: expired `active` ones, `revoked` ones, and drafts
  * (`uploading`) idle for longer than the TTL. Draft activity is the latest of the transfer's
  * creation and its uploads' `last_activity_at`; a draft with an upload still `processing` is
  * never touched (the worker is encrypting its file).
@@ -85,7 +85,7 @@ function selectDoomedTransfers(
     .where(
       or(
         and(eq(transfers.status, 'active'), lte(transfers.expiresAt, now)),
-        inArray(transfers.status, ['revoked', 'expired', 'deleted']),
+        eq(transfers.status, 'revoked'),
       ),
     )
     .all()
@@ -114,13 +114,6 @@ async function cleanTransfers(ctx: AppContext, now: number): Promise<number> {
   return deleted;
 }
 
-async function removeTusFiles(ctx: AppContext, uploadId: string): Promise<void> {
-  if (!isStorageName(uploadId)) return;
-  const { data, info } = tusFilePaths(ctx.config, uploadId);
-  await removeFileQuietly(data, ctx.logger);
-  await removeFileQuietly(info, ctx.logger);
-}
-
 /**
  * `in_progress` uploads past their expiry and `aborted` ones idle past the TTL: tus files and
  * row go. `processing` rows and their files are never touched. (@tus/server's own
@@ -140,7 +133,7 @@ async function cleanUploads(ctx: AppContext, now: number): Promise<number> {
     )
     .all();
   for (const { id } of rows) {
-    await removeTusFiles(ctx, id);
+    await removeTusFiles(ctx.config, id, ctx.logger);
     db.delete(uploads).where(eq(uploads.id, id)).run();
   }
   return rows.length;

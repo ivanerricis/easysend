@@ -1,11 +1,16 @@
 import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { Writable } from 'node:stream';
 import { describe, expect, it } from 'vitest';
 import type { CloudflareResponse, TunnelStatusResponse } from '@easysend/shared';
-import { createLogger } from '../src/logger.js';
 import { FAKE_TUNNEL_TOKEN, FakeCloudflare } from './fake-cloudflare.js';
-import { bodyAs, createTestApp, errorCode, makeTempDir, type TestApp } from './helpers.js';
+import {
+  bodyAs,
+  createTestApp,
+  errorCode,
+  makeTempDir,
+  memoryLogger,
+  type TestApp,
+} from './helpers.js';
 import { loginAs } from './session-helpers.js';
 
 const API_TOKEN = 'cf-api-token-SECRET-0123456789abcdef';
@@ -258,18 +263,7 @@ describe('POST /api/admin/tunnel', () => {
 
 describe('the Cloudflare API token never leaks', () => {
   it('stays out of logs, the database and error bodies', async () => {
-    const lines: string[] = [];
-    const stream = new Writable({
-      write(chunk: Buffer, _enc, cb) {
-        lines.push(chunk.toString());
-        cb();
-      },
-    });
-    const logger = createLogger(
-      { logLevel: 'trace', nodeEnv: 'test', logPretty: false },
-      {},
-      stream,
-    );
+    const { lines, logger } = memoryLogger();
     const fake = new FakeCloudflare();
     const t: TestApp = await createTestApp({
       env: { APP_MODE: 'production', SHARED_DIR: makeTempDir() },

@@ -1,19 +1,10 @@
-import { Writable } from 'node:stream';
-import { pino } from 'pino';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp, isLoopbackHost } from '../src/app.js';
-import { migratedMemoryDb, TEST_SECRETS, testConfig } from './helpers.js';
+import { memoryLogger, migratedMemoryDb, TEST_SECRETS, testConfig } from './helpers.js';
 
 async function makeApp() {
-  const lines: string[] = [];
-  const stream = new Writable({
-    write(chunk: Buffer, _enc, cb) {
-      lines.push(chunk.toString());
-      cb();
-    },
-  });
-  const logger = pino({ level: 'warn' }, stream);
+  const { lines, logger } = memoryLogger('warn');
   const config = testConfig({ PUBLIC_URL: 'http://localhost:8080' });
   const app = createApp({ config, db: await migratedMemoryDb(), logger, secrets: TEST_SECRETS });
   return { app, lines };

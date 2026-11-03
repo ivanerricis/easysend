@@ -14,10 +14,6 @@ export const SETUP_POLICY = {
     smtpTest: { points: 10, durationSeconds: HOUR, blockSeconds: HOUR },
     /** Cloudflare tunnel configuration attempts (wizard and admin panel), single key. */
     cloudflare: { points: 10, durationSeconds: HOUR, blockSeconds: HOUR },
-    /** Forced "check for updates now" requests of the admin panel, single key. */
-    updateCheck: { points: 10, durationSeconds: HOUR, blockSeconds: HOUR },
-    /** One-click update requests of the admin panel, single key. */
-    updateStart: { points: 5, durationSeconds: HOUR, blockSeconds: HOUR },
   } satisfies Record<string, LimitPolicy>,
   /** Validity of the `es_setup` cookie that authorises the wizard after the code. */
   setupCookieSeconds: 12 * HOUR,

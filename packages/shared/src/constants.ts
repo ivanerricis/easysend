@@ -22,6 +22,7 @@ export type UserRole = (typeof USER_ROLES)[number];
 export const THEME_PREFERENCES = ['light', 'dark', 'system'] as const;
 export type ThemePreference = (typeof THEME_PREFERENCES)[number];
 
+/** `expired` and `deleted` are reserved: never stored (expiry is derived, deleting removes the row). */
 export const TRANSFER_STATUSES = ['uploading', 'active', 'revoked', 'expired', 'deleted'] as const;
 export type TransferStatus = (typeof TRANSFER_STATUSES)[number];
 
@@ -71,7 +72,7 @@ export const BRANDING_ASSET_KINDS = ['logoLight', 'logoDark', 'favicon', 'backgr
 export type BrandingAssetKind = (typeof BRANDING_ASSET_KINDS)[number];
 
 /** Maximum size of an uploaded branding image, in bytes. */
-export const BRANDING_MAX_BYTES = 2 * 1024 * 1024;
+export const BRANDING_MAX_BYTES = 2 * BYTES_PER_MB;
 
 /** Only raster images: no SVG, to avoid stored XSS. */
 export const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const;

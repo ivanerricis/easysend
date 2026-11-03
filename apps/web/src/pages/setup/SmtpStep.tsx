@@ -28,7 +28,6 @@ export function SmtpStep(props: StepProps) {
   const query = useQuery({
     queryKey: queryKeys.setup.smtp,
     queryFn: getSetupSmtp,
-    refetchOnWindowFocus: false,
     staleTime: Infinity,
   });
   if (query.isPending) {

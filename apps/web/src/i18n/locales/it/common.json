@@ -1,5 +1,4 @@
 {
-  "appName": "EasySend",
   "skipToContent": "Vai al contenuto principale",
   "notifications": "Notifiche",
   "toggleSidebar": "Apri o chiudi il menu",
@@ -24,8 +23,7 @@
     "profile": "Profilo",
     "theme": "Tema",
     "language": "Lingua",
-    "logout": "Esci",
-    "loggingOut": "Uscita in corso…"
+    "logout": "Esci"
   },
   "theme": {
     "label": "Tema",
@@ -46,7 +44,6 @@
     "delete": "Elimina",
     "edit": "Modifica",
     "retry": "Riprova",
-    "back": "Indietro",
     "next": "Avanti",
     "continue": "Continua",
     "copy": "Copia",
@@ -61,7 +58,6 @@
     "search": "Cerca",
     "clear": "Cancella",
     "add": "Aggiungi",
-    "apply": "Applica",
     "reset": "Ripristina",
     "details": "Dettagli",
     "open": "Apri",
@@ -81,9 +77,7 @@
     "recipients_one": "{{count}} destinatario",
     "recipients_other": "{{count}} destinatari",
     "downloads_one": "{{count}} download",
-    "downloads_other": "{{count}} download",
-    "results_one": "{{count}} risultato",
-    "results_other": "{{count}} risultati"
+    "downloads_other": "{{count}} download"
   },
   "states": {
     "loading": "Caricamento in corso…",
@@ -123,8 +117,7 @@
     "hide": "Nascondi la password"
   },
   "otp": {
-    "label": "Codice a 6 cifre",
-    "hint": "Inserisci il codice generato dalla tua app di autenticazione."
+    "label": "Codice a 6 cifre"
   },
   "qr": {
     "label": "Codice QR da scansionare con la tua app di autenticazione"
@@ -141,9 +134,6 @@
   "confirmDialog": {
     "confirm": "Conferma",
     "cancel": "Annulla"
-  },
-  "route": {
-    "titleSuffix": "{{title}} · {{name}}"
   },
   "updateNotice": {
     "label": "Aggiornamento disponibile",
