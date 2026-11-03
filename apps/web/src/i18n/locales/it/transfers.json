@@ -2,8 +2,15 @@
   "title": "Trasferimenti",
   "newTitle": "Invia file",
   "detailTitle": "Dettaglio trasferimento",
-  "mode": { "link": "Link", "email": "Email" },
-  "expiry": { "3d": "3 giorni", "1w": "1 settimana", "1m": "1 mese" },
+  "mode": {
+    "link": "Link",
+    "email": "Email"
+  },
+  "expiry": {
+    "3d": "3 giorni",
+    "1w": "1 settimana",
+    "1m": "1 mese"
+  },
   "new": {
     "description": "Scegli i file, imposta le opzioni e ottieni un link da condividere. I file sono cifrati sul server.",
     "filesHeading": "File",
@@ -155,7 +162,8 @@
       "files": "File",
       "downloads": "Download",
       "created": "Creato",
-      "expires": "Scade"
+      "expires": "Scade",
+      "actions": "Azioni"
     }
   },
   "detail": {
@@ -211,7 +219,12 @@
     "downloadLog": "Registro dei download",
     "noDownloads": "Nessuno ha ancora scaricato questo trasferimento.",
     "zipArchive": "Archivio ZIP",
-    "log": { "date": "Data", "target": "File", "bytes": "Inviati", "userAgent": "Browser" }
+    "log": {
+      "date": "Data",
+      "target": "File",
+      "bytes": "Inviati",
+      "userAgent": "Browser"
+    }
   },
   "edit": {
     "title": "Modifica trasferimento",
@@ -228,5 +241,9 @@
     "password_set_replace": "Sostituisci la password",
     "password_remove": "Rimuovi la password",
     "newPassword": "Nuova password"
+  },
+  "actions": {
+    "menu": "Azioni per {{title}}",
+    "open": "Apri i dettagli"
   }
 }

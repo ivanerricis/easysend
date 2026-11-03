@@ -1,26 +1,41 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface PagerProps {
   page: number;
   pageSize: number;
   total: number;
   onPageChange: (page: number) => void;
+  /** Shows the total count next to the page number (default). Turn off if shown elsewhere. */
+  showTotal?: boolean;
+  className?: string;
 }
 
 /** Previous / next navigation with "Page X of Y" and the total count. */
-export function Pager({ page, pageSize, total, onPageChange }: PagerProps) {
+export function Pager({
+  page,
+  pageSize,
+  total,
+  onPageChange,
+  showTotal = true,
+  className,
+}: PagerProps) {
   const { t } = useTranslation();
   const pages = Math.max(1, Math.ceil(total / pageSize));
   return (
     <nav
       aria-label={t('common.pagination.label')}
-      className="flex flex-wrap items-center justify-between gap-3"
+      className={cn('flex flex-wrap items-center justify-between gap-3', className)}
     >
       <p className="text-muted-foreground text-sm" aria-live="polite">
-        <span className="font-mono">{t('common.pagination.total', { count: total })}</span>
-        {' · '}
+        {showTotal ? (
+          <>
+            <span className="font-mono">{t('common.pagination.total', { count: total })}</span>
+            {' · '}
+          </>
+        ) : null}
         {t('common.pagination.pageOf', { page, pages })}
       </p>
       <div className="flex gap-2">

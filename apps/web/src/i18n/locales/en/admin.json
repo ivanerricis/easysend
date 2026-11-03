@@ -43,9 +43,7 @@
       "actions": "Actions"
     },
     "actions": {
-      "edit": "Edit {{email}}",
-      "reset2fa": "Reset 2FA of {{email}}",
-      "delete": "Delete {{email}}"
+      "menu": "Actions for {{email}}"
     },
     "fields": {
       "email": "Email",
@@ -133,7 +131,8 @@
       "status": "Status",
       "content": "Content",
       "downloads": "Downloads",
-      "expires": "Expires"
+      "expires": "Expires",
+      "actions": "Actions"
     }
   },
   "storage": {
@@ -190,32 +189,10 @@
     "smtp": {
       "title": "Outgoing email (SMTP)",
       "description": "Used for download notifications, welcome and password reset emails. Send a test email before saving.",
-      "host": "Server",
-      "port": "Port",
-      "security": "Security",
-      "securityOptions": {
-        "none": "None",
-        "starttls": "STARTTLS",
-        "tls": "TLS (SSL)"
-      },
-      "username": "Username",
-      "password": "Password",
-      "passwordKept": "A password is saved. Leave the field empty to keep it.",
-      "fromEmail": "Sender email",
-      "fromName": "Sender name",
       "test": "Send test email",
       "testing": "Sending…",
       "testFirst": "Send a test email with these values to enable saving. Any change requires a new test.",
-      "testOk": "Test email sent to {{email}}. Check your inbox, then save.",
-      "testFailedReason": "The test email could not be sent (code {{reason}}). Check the server, port, security and credentials.",
-      "errors": {
-        "host": "Enter the mail server address (255 characters at most).",
-        "port": "Enter a port from 1 to 65535.",
-        "username": "The username is too long.",
-        "password": "The password is too long.",
-        "fromEmail": "Enter a valid sender email address.",
-        "fromName": "The sender name is too long (100 characters at most)."
-      }
+      "testOk": "Test email sent to {{email}}. Check your inbox, then save."
     },
     "tunnel": {
       "title": "Domain and tunnel",
@@ -228,12 +205,6 @@
       "hostname": "Address",
       "publicUrl": "Public URL",
       "configuredAt": "Configured on",
-      "domain": "Domain",
-      "domainHelp": "A domain managed by your Cloudflare account, for example example.com.",
-      "subdomain": "Subdomain",
-      "subdomainHelp": "For example “send” for send.example.com. Empty uses the domain itself.",
-      "apiToken": "Cloudflare API token",
-      "apiTokenHelp": "Used only for this operation: it is never saved.",
       "permissionsTitle": "Create the token with these minimal permissions",
       "permTunnel": "Account > Cloudflare Tunnel: Edit",
       "permDns": "Zone > DNS: Edit",
@@ -243,12 +214,7 @@
       "reconfigureWarning": "Changing the domain changes the public address: links already shared with the old address will stop working.",
       "configure": "Configure tunnel",
       "reconfigure": "Change domain",
-      "savedToast": "Tunnel configured: {{url}}",
-      "errors": {
-        "domain": "Enter a valid domain, for example example.com.",
-        "subdomain": "Use only letters, numbers and hyphens.",
-        "token": "Enter the Cloudflare API token (at least 20 characters)."
-      }
+      "savedToast": "Tunnel configured: {{url}}"
     },
     "updates": {
       "title": "Updates",
@@ -333,6 +299,12 @@
           "unknown": "The update did not complete."
         }
       }
+    },
+    "nav": {
+      "general": "General",
+      "email": "Email",
+      "cloudflare": "Cloudflare",
+      "updates": "Updates"
     }
   },
   "appearance": {

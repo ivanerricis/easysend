@@ -1,43 +1,20 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { domainSchema, subdomainSchema, type TunnelStatusResponse } from '@easysend/shared';
+import type { TunnelStatusResponse } from '@easysend/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, ExternalLink, Info } from 'lucide-react';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
 import { useAppearance } from '@/app/providers/AppearanceProvider';
 import { queryKeys } from '@/app/query';
 import { FormErrorSummary } from '@/components/common/FormErrorSummary';
-import { FormField, TextField } from '@/components/common/FormField';
-import { PasswordInput } from '@/components/common/PasswordInput';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { setTunnel } from '@/lib/api/admin';
 import { errorMessage, hasErrorCode } from '@/lib/errors';
 import { formatDateTime } from '@/lib/format';
 import { notifySuccess } from '@/lib/toast';
-
-const formSchema = z.object({
-  domain: z
-    .string()
-    .trim()
-    .refine((value) => domainSchema.safeParse(value).success, {
-      error: 'admin.settings.tunnel.errors.domain',
-    }),
-  subdomain: z
-    .string()
-    .trim()
-    .refine((value) => value === '' || subdomainSchema.safeParse(value).success, {
-      error: 'admin.settings.tunnel.errors.subdomain',
-    }),
-  apiToken: z
-    .string()
-    .trim()
-    .min(20, { error: 'admin.settings.tunnel.errors.token' })
-    .max(256, { error: 'admin.settings.tunnel.errors.token' }),
-});
-type FormValues = z.infer<typeof formSchema>;
+import { useZodForm } from '../../auth/form-errors';
+import { CLOUDFLARE_FORM_DEFAULTS, cloudflareFormSchema } from '../../settings-forms/cloudflare';
+import { CloudflareFields, cloudflareFieldLabels } from '../../settings-forms/CloudflareFields';
 
 export function TunnelSection({ tunnel }: { tunnel: TunnelStatusResponse }) {
   const { t, i18n } = useTranslation();
@@ -45,19 +22,13 @@ export function TunnelSection({ tunnel }: { tunnel: TunnelStatusResponse }) {
   const { refresh } = useAppearance();
   const isLocal = tunnel.appMode === 'local';
   const [formError, setFormError] = useState<string | null>(null);
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: { domain: '', subdomain: '', apiToken: '' },
-  });
-  const { control, handleSubmit, setError, setValue, formState } = form;
+  const { control, handleSubmit, setError, setValue, formState } = useZodForm(
+    cloudflareFormSchema,
+    { defaultValues: CLOUDFLARE_FORM_DEFAULTS },
+  );
 
   const mutation = useMutation({
-    mutationFn: (values: FormValues) =>
-      setTunnel({
-        domain: values.domain,
-        ...(values.subdomain ? { subdomain: values.subdomain } : {}),
-        apiToken: values.apiToken,
-      }),
+    mutationFn: setTunnel,
     onSuccess: async (response) => {
       setValue('apiToken', '');
       await queryClient.invalidateQueries({ queryKey: queryKeys.admin.tunnel });
@@ -136,6 +107,7 @@ export function TunnelSection({ tunnel }: { tunnel: TunnelStatusResponse }) {
           errors={formState.errors}
           submitCount={formState.submitCount}
           idPrefix="tunnel"
+          labels={cloudflareFieldLabels(t)}
         />
         {formError ? (
           <Alert variant="destructive">
@@ -143,36 +115,7 @@ export function TunnelSection({ tunnel }: { tunnel: TunnelStatusResponse }) {
           </Alert>
         ) : null}
         <fieldset disabled={isLocal} className="space-y-4">
-          <TextField
-            control={control}
-            name="domain"
-            idPrefix="tunnel"
-            autoComplete="off"
-            placeholder="example.com"
-            label={t('admin.settings.tunnel.domain')}
-            description={t('admin.settings.tunnel.domainHelp')}
-          />
-          <TextField
-            control={control}
-            name="subdomain"
-            idPrefix="tunnel"
-            autoComplete="off"
-            optional
-            placeholder="send"
-            label={t('admin.settings.tunnel.subdomain')}
-            description={t('admin.settings.tunnel.subdomainHelp')}
-          />
-          <FormField
-            control={control}
-            name="apiToken"
-            idPrefix="tunnel"
-            label={t('admin.settings.tunnel.apiToken')}
-            description={t('admin.settings.tunnel.apiTokenHelp')}
-          >
-            {({ field, controlProps }) => (
-              <PasswordInput autoComplete="off" spellCheck={false} {...field} {...controlProps} />
-            )}
-          </FormField>
+          <CloudflareFields control={control} idPrefix="tunnel" />
 
           <div className="space-y-2 text-sm">
             <p className="font-medium">{t('admin.settings.tunnel.permissionsTitle')}</p>

@@ -13,7 +13,8 @@ import type { UploadItem } from '@/features/upload/runner';
 import type { RunnerEvent } from '@/features/upload/types';
 import { useUploadSession } from '@/features/upload/useUploadSession';
 import { isApiError } from '@/lib/api/client';
-import { getConfig, getMe } from '@/lib/api/me';
+import { getConfig } from '@/lib/api/me';
+import { useMe } from '@/hooks/use-me';
 import { deleteTransfer } from '@/lib/api/transfers';
 import { formatBytes } from '@/lib/format';
 import { notifySuccess } from '@/lib/toast';
@@ -38,7 +39,7 @@ export default function NewTransferPage() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const config = useQuery({ queryKey: queryKeys.config, queryFn: getConfig, staleTime: 60_000 });
-  const me = useQuery({ queryKey: queryKeys.me, queryFn: getMe });
+  const me = useMe();
 
   const [files, setFiles] = useState<File[]>([]);
   const [filesError, setFilesError] = useState<string | null>(null);

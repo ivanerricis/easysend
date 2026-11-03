@@ -34,3 +34,25 @@ export function useDebouncedValue<T>(value: T, delay = 300): T {
   }, [value, delay]);
   return debounced;
 }
+
+/**
+ * Search box bound to the `q` URL param: the URL (and so the list query) changes only after
+ * typing stops, and the box follows back/forward navigation without rewriting what is being typed.
+ */
+export function useUrlSearch(
+  q: string,
+  update: (patch: Record<string, string | undefined>) => void,
+) {
+  const [search, setSearch] = useState(q);
+  const [syncedQ, setSyncedQ] = useState(q);
+  if (q !== syncedQ) {
+    setSyncedQ(q);
+    if (q !== search.trim()) setSearch(q);
+  }
+  const debounced = useDebouncedValue(search.trim());
+  useEffect(() => {
+    if (debounced !== q) update({ q: debounced });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to the typed value
+  }, [debounced]);
+  return [search, setSearch] as const;
+}

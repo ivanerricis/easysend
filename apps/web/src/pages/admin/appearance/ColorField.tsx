@@ -1,9 +1,8 @@
+import { HEX_COLOR_REGEX } from '@easysend/shared';
 import type { Control, FieldPath, FieldValues } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
-
-const HEX = /^#[0-9a-fA-F]{6}$/;
 
 interface ColorFieldProps<TValues extends FieldValues, TName extends FieldPath<TValues>> {
   control: Control<TValues>;
@@ -41,7 +40,7 @@ export function ColorField<TValues extends FieldValues, TName extends FieldPath<
               type="color"
               id={`${controlProps.id}-picker`}
               aria-label={t('admin.appearance.fields.pickColor', { name: label })}
-              value={HEX.test(value) ? value.toLowerCase() : '#000000'}
+              value={HEX_COLOR_REGEX.test(value) ? value.toLowerCase() : '#000000'}
               onChange={(event) => field.onChange(event.target.value)}
               onBlur={field.onBlur}
               className="border-input bg-background size-11 shrink-0 cursor-pointer border p-1"

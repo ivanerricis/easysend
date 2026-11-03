@@ -164,8 +164,10 @@ describe('ProfilePage two-factor', () => {
     });
     await ready();
     fireEvent.click(screen.getByRole('button', { name: 'Enable two-factor authentication' }));
-    await screen.findByText('JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP');
-    fireEvent.change(screen.getByLabelText('Code from the app'), { target: { value: '123456' } });
+    await screen.findByText('JBSW Y3DP EHPK 3PXP JBSW Y3DP EHPK 3PXP');
+    fireEvent.change(screen.getByLabelText(/Enter the 6-digit code/), {
+      target: { value: '123456' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Verify and enable' }));
     await screen.findByText('aaaa-bbbb-cccc');
     expect(api.callsTo('POST /api/me/2fa/enable')[0]?.body).toEqual({ code: '123456' });
@@ -190,8 +192,10 @@ describe('ProfilePage two-factor', () => {
     });
     await ready();
     fireEvent.click(screen.getByRole('button', { name: 'Enable two-factor authentication' }));
-    await screen.findByText('JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP');
-    fireEvent.change(screen.getByLabelText('Code from the app'), { target: { value: '000000' } });
+    await screen.findByText('JBSW Y3DP EHPK 3PXP JBSW Y3DP EHPK 3PXP');
+    fireEvent.change(screen.getByLabelText(/Enter the 6-digit code/), {
+      target: { value: '000000' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Verify and enable' }));
     expect(await screen.findByText('The code is incorrect or has expired.')).toBeInTheDocument();
   });

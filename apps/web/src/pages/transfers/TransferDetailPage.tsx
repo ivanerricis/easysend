@@ -15,16 +15,11 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { isApiError } from '@/lib/api/client';
-import {
-  deleteTransfer,
-  deleteTransferFile,
-  getTransfer,
-  resendTransfer,
-  revokeTransfer,
-} from '@/lib/api/transfers';
+import { deleteTransferFile, getTransfer } from '@/lib/api/transfers';
 import { errorMessage } from '@/lib/errors';
 import { formatBytes, formatDateTime, formatRelative } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/toast';
+import { useTransferActions } from './actions/useTransferActions';
 import { DownloadLog } from './detail/DownloadLog';
 import { EditTransferDialog } from './detail/EditTransferDialog';
 import { downloadsText, transferTitle } from './list-utils';
@@ -58,7 +53,6 @@ export default function TransferDetailPage() {
   const [editing, setEditing] = useState(false);
   const [confirm, setConfirm] = useState<'revoke' | 'delete' | null>(null);
   const [fileToDelete, setFileToDelete] = useState<TransferDetail['files'][number] | null>(null);
-  const [resending, setResending] = useState(false);
   const locale = i18n.language;
 
   const query = useQuery({
@@ -68,10 +62,13 @@ export default function TransferDetailPage() {
     refetchInterval: (q) => (q.state.data?.status === 'uploading' ? 5000 : false),
   });
 
-  const refreshLists = () => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.transfers.all });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.me });
-  };
+  const {
+    revoke,
+    remove: removeTransfer,
+    resend,
+    resending,
+    refreshLists,
+  } = useTransferActions(id, { isDraft: query.data?.status === 'uploading' });
 
   if (query.isPending) {
     return (
@@ -110,31 +107,8 @@ export default function TransferDetailPage() {
   const isActive = transfer.status === 'active';
   const showOwner = isAdmin && user !== null && transfer.ownerId !== user.id;
 
-  const setDetail = (updated: TransferDetail) => {
-    queryClient.setQueryData(queryKeys.transfers.detail(id), updated);
-    refreshLists();
-  };
-
-  const revoke = async () => {
-    try {
-      setDetail(await revokeTransfer(id));
-      notifySuccess(t('transfers.detail.revoked'));
-    } catch (error) {
-      notifyError(errorMessage(t, error));
-      throw error;
-    }
-  };
-
   const remove = async () => {
-    try {
-      await deleteTransfer(id);
-    } catch (error) {
-      notifyError(errorMessage(t, error));
-      throw error;
-    }
-    queryClient.removeQueries({ queryKey: queryKeys.transfers.detail(id) });
-    refreshLists();
-    notifySuccess(t(isDraft ? 'transfers.detail.draftDeleted' : 'transfers.detail.deleted'));
+    await removeTransfer();
     void navigate('/transfers');
   };
 
@@ -149,18 +123,6 @@ export default function TransferDetailPage() {
     notifySuccess(t('transfers.detail.fileDeleted'));
     await queryClient.invalidateQueries({ queryKey: queryKeys.transfers.detail(id) });
     refreshLists();
-  };
-
-  const resend = async () => {
-    setResending(true);
-    try {
-      setDetail(await resendTransfer(id));
-      notifySuccess(t('transfers.detail.resent'));
-    } catch (error) {
-      notifyError(errorMessage(t, error));
-    } finally {
-      setResending(false);
-    }
   };
 
   const title = transferTitle(transfer, t('transfers.list.untitled'));

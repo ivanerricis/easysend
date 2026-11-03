@@ -41,7 +41,8 @@ export const displayNameSchema = z.string().trim().min(1).max(DISPLAY_NAME_MAX_L
 export const passwordSchema = z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH);
 
 /** TOTP code of `TOTP_CODE_LENGTH` digits. */
-export const totpCodeSchema = z.string().regex(new RegExp(`^[0-9]{${TOTP_CODE_LENGTH}}$`));
+export const TOTP_CODE_REGEX = new RegExp(`^[0-9]{${TOTP_CODE_LENGTH}}$`);
+export const totpCodeSchema = z.string().regex(TOTP_CODE_REGEX);
 
 /** One-time recovery code as shown to the user (the server ignores dashes and case). */
 export const recoveryCodeSchema = z.string().min(8).max(32);
