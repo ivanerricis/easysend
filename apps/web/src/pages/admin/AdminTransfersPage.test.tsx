@@ -84,4 +84,16 @@ describe('AdminTransfersPage', () => {
         .map((entry) => entry.textContent),
     ).toEqual(['Open details', 'Edit', 'Revoke', 'Delete']);
   });
+
+  it('returns the focus to the row menu after its dialog closes', async () => {
+    renderPage();
+    const trigger = await screen.findByRole('button', { name: 'Actions for Holiday photos' });
+    fireEvent.keyDown(trigger, { key: 'Enter' });
+    fireEvent.click(
+      within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'Revoke' }),
+    );
+    const dialog = await screen.findByRole('alertdialog');
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
 });

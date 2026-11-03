@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useSession } from '@/app/providers/SessionProvider';
 import { queryKeys } from '@/app/query';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
-import { RowActionsMenu } from '@/components/common/RowActionsMenu';
+import { RowActionsMenu, restoreRowFocus } from '@/components/common/RowActionsMenu';
 import { Pager } from '@/components/common/Pager';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/States';
@@ -280,6 +280,7 @@ export default function UsersPage() {
         }
         confirmLabel={t('admin.users.reset2fa.confirm')}
         destructive
+        onCloseAutoFocus={restoreRowFocus}
         onConfirm={async () => {
           if (resetting) await reset2fa.mutateAsync(resetting);
         }}

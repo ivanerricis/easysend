@@ -204,4 +204,14 @@ describe('UsersPage', () => {
     await waitFor(() => expect(api.callsTo('PATCH /api/admin/users/u-ada')).toHaveLength(1));
     expect(api.callsTo('PATCH /api/admin/users/u-ada')[0]?.body).toEqual({ quotaBytes: null });
   });
+
+  it('returns the focus to the row menu after its dialog is cancelled', async () => {
+    renderPage();
+    await screen.findByText('ada@example.com');
+    await chooseRowAction('ada@example.com', 'Reset 2FA');
+    const dialog = await screen.findByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    const trigger = screen.getByRole('button', { name: 'Actions for ada@example.com' });
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
 });

@@ -10,6 +10,19 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+let lastTrigger: HTMLElement | null = null;
+
+/**
+ * `onCloseAutoFocus` handler for the dialogs opened from a row menu: Radix would focus a dialog
+ * trigger that does not exist, dropping the focus on <body>. It returns the focus to the menu
+ * button of that row, or to the main region when the row is gone (e.g. it was deleted).
+ */
+export function restoreRowFocus(event: Event) {
+  event.preventDefault();
+  if (lastTrigger?.isConnected) lastTrigger.focus();
+  else document.getElementById('main')?.focus();
+}
+
 export interface RowAction {
   key: string;
   label: string;
@@ -39,6 +52,7 @@ interface RowActionsMenuProps {
 export function RowActionsMenu({ label, actions: all }: RowActionsMenuProps) {
   const actions = all.filter((action) => !action.hidden);
   const pending = useRef<(() => void) | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const normal = actions.filter((action) => !action.destructive);
   const destructive = actions.filter((action) => action.destructive);
 
@@ -73,7 +87,7 @@ export function RowActionsMenu({ label, actions: all }: RowActionsMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size="icon" aria-label={label}>
+        <Button ref={triggerRef} type="button" variant="outline" size="icon" aria-label={label}>
           <MoreHorizontal aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
@@ -83,7 +97,9 @@ export function RowActionsMenu({ label, actions: all }: RowActionsMenuProps) {
           const run = pending.current;
           pending.current = null;
           if (run) {
+            // The dialog it opens gives the focus back with `restoreRowFocus`.
             event.preventDefault();
+            lastTrigger = triggerRef.current;
             run();
           }
         }}

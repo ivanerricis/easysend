@@ -30,13 +30,23 @@ interface EditTransferDialogProps {
   transfer: TransferDetail;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Where the focus goes when the dialog closes (see `restoreRowFocus`). */
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 /** Dialog content is unmounted when closed, so the form starts from the current values each time. */
-export function EditTransferDialog({ transfer, open, onOpenChange }: EditTransferDialogProps) {
+export function EditTransferDialog({
+  transfer,
+  open,
+  onOpenChange,
+  onCloseAutoFocus,
+}: EditTransferDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
+      <DialogContent
+        className="max-h-[90dvh] overflow-y-auto sm:max-w-lg"
+        onCloseAutoFocus={onCloseAutoFocus}
+      >
         <EditForm transfer={transfer} onOpenChange={onOpenChange} />
       </DialogContent>
     </Dialog>

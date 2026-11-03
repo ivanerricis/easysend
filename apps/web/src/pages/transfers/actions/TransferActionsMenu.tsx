@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { queryKeys } from '@/app/query';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
-import { RowActionsMenu } from '@/components/common/RowActionsMenu';
+import { RowActionsMenu, restoreRowFocus } from '@/components/common/RowActionsMenu';
 import { getTransfer } from '@/lib/api/transfers';
 import { EditTransferDialog } from '../detail/EditTransferDialog';
 import { useTransferActions } from './useTransferActions';
@@ -79,7 +79,12 @@ export function TransferActionsMenu({ transfer, fallbackTitle }: TransferActions
       />
 
       {isActive && detail.data ? (
-        <EditTransferDialog transfer={detail.data} open={editing} onOpenChange={setEditing} />
+        <EditTransferDialog
+          transfer={detail.data}
+          open={editing}
+          onOpenChange={setEditing}
+          onCloseAutoFocus={restoreRowFocus}
+        />
       ) : null}
       <ConfirmDialog
         open={confirm === 'revoke'}
@@ -88,6 +93,7 @@ export function TransferActionsMenu({ transfer, fallbackTitle }: TransferActions
         description={t('transfers.detail.revokeDescription')}
         confirmLabel={t('common.actions.revoke')}
         destructive
+        onCloseAutoFocus={restoreRowFocus}
         onConfirm={actions.revoke}
       />
       <ConfirmDialog
@@ -101,6 +107,7 @@ export function TransferActionsMenu({ transfer, fallbackTitle }: TransferActions
         )}
         confirmLabel={t('common.actions.delete')}
         destructive
+        onCloseAutoFocus={restoreRowFocus}
         onConfirm={actions.remove}
       />
     </>

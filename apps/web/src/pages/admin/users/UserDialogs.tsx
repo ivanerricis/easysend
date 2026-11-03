@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useAppearance } from '@/app/providers/AppearanceProvider';
 import { queryKeys } from '@/app/query';
+import { restoreRowFocus } from '@/components/common/RowActionsMenu';
 import { SelectInput } from '@/components/common/SelectInput';
 import { CheckboxField, FormField, TextField, SelectField } from '@/components/common/FormField';
 import { LocaleSelectField } from '@/components/common/LocaleSelectField';
@@ -271,7 +272,7 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId }: Edit
   const { t } = useTranslation();
   return (
     <Dialog open={open && user !== null} onOpenChange={onOpenChange}>
-      <DialogContent className={DIALOG_CLASS}>
+      <DialogContent className={DIALOG_CLASS} onCloseAutoFocus={restoreRowFocus}>
         <DialogHeader>
           <DialogTitle>{t('admin.users.edit.title')}</DialogTitle>
           <DialogDescription>{user?.email}</DialogDescription>
@@ -413,7 +414,7 @@ export function DeleteUserDialog({ open, onOpenChange, user }: DeleteUserDialogP
   const { t } = useTranslation();
   return (
     <Dialog open={open && user !== null} onOpenChange={onOpenChange}>
-      <DialogContent className={DIALOG_CLASS}>
+      <DialogContent className={DIALOG_CLASS} onCloseAutoFocus={restoreRowFocus}>
         <DialogHeader>
           <DialogTitle>{t('admin.users.delete.title')}</DialogTitle>
           <DialogDescription>{user?.email}</DialogDescription>

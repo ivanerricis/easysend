@@ -173,6 +173,29 @@ describe('TransfersPage', () => {
       await waitFor(() => expect(api.callsTo('DELETE /api/transfers/t1')).toHaveLength(1));
     });
 
+    it('returns the focus to the row menu after its dialog is cancelled', async () => {
+      await openList();
+      fireEvent.click(within(await openMenu()).getByRole('menuitem', { name: 'Delete' }));
+      const dialog = await screen.findByRole('alertdialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+      const trigger = screen.getAllByRole('button', { name: 'Actions for Holiday photos' })[0]!;
+      await waitFor(() => expect(trigger).toHaveFocus());
+    });
+
+    it('moves the focus to the main region when the deleted row is gone', async () => {
+      let deleted = false;
+      await openList('/transfers', () => (deleted ? list([], 0) : list()), {
+        'DELETE /api/transfers/t1': () => {
+          deleted = true;
+          return { status: 204 };
+        },
+      });
+      fireEvent.click(within(await openMenu()).getByRole('menuitem', { name: 'Delete' }));
+      const dialog = await screen.findByRole('alertdialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+      await waitFor(() => expect(document.getElementById('main')).toHaveFocus());
+    });
+
     it('opens the edit dialog with the transfer details', async () => {
       await openList('/transfers', list(), { 'GET /api/transfers/t1': makeTransferDetail() });
       fireEvent.click(within(await openMenu()).getByRole('menuitem', { name: 'Edit' }));
