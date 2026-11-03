@@ -1,20 +1,15 @@
-import { PASSWORD_MAX_LENGTH, type DownloadFile } from '@easysend/shared';
-import { zodResolver } from '@hookform/resolvers/zod';
+import type { DownloadFile } from '@easysend/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Download, FileArchive, Lock } from 'lucide-react';
+import { AlertTriangle, Download, FileArchive } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
-import { z } from 'zod';
 import { useAppearance } from '@/app/providers/AppearanceProvider';
 import { queryKeys } from '@/app/query';
-import { FormErrorSummary } from '@/components/common/FormErrorSummary';
-import { FormField } from '@/components/common/FormField';
 import { RequestId } from '@/components/common/RequestId';
 import { PageHeader } from '@/components/common/PageHeader';
-import { PasswordInput } from '@/components/common/PasswordInput';
 import { LoadingState } from '@/components/common/States';
+import { UnlockCard } from '@/components/common/UnlockCard';
 import { PublicCard } from '@/components/layout/PublicLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -27,18 +22,12 @@ import {
   getDownloadInfo,
   unlockDownload,
 } from '@/lib/api/downloads';
-import { formatBytes, formatDateTime, formatDuration, formatRelative } from '@/lib/format';
-import { hasErrorCode } from '@/lib/errors';
+import { formatBytes, formatDateTime, formatRelative } from '@/lib/format';
 
 /** Delay before the counter is refetched after a download link was clicked. */
 export const REFETCH_DELAY_MS = 2000;
 /** Warn the recipient when this many downloads (or fewer) are left. */
 const LOW_DOWNLOADS_THRESHOLD = 3;
-
-const unlockFormSchema = z.object({
-  password: z.string().min(1, 'download.locked.required').max(PASSWORD_MAX_LENGTH),
-});
-type UnlockForm = z.infer<typeof unlockFormSchema>;
 
 function errorStateKey(error: unknown): string {
   if (!isApiError(error)) return 'generic';
@@ -88,81 +77,17 @@ function UnlockView({
   onUnlocked: () => Promise<unknown>;
 }) {
   const { t, i18n } = useTranslation();
-  const [serverError, setServerError] = useState<string | null>(null);
-  const {
-    control,
-    handleSubmit,
-    setFocus,
-    formState: { errors, submitCount, isSubmitting },
-  } = useForm<UnlockForm>({
-    resolver: zodResolver(unlockFormSchema),
-    defaultValues: { password: '' },
-  });
-
-  const onSubmit = handleSubmit(async (values) => {
-    setServerError(null);
-    try {
-      await unlockDownload(token, values);
-      await onUnlocked();
-    } catch (error) {
-      if (hasErrorCode(error, 'PASSWORD_INCORRECT')) {
-        setServerError(t('errors.PASSWORD_INCORRECT'));
-        setFocus('password');
-      } else if (hasErrorCode(error, 'RATE_LIMITED') && isApiError(error)) {
-        setServerError(
-          error.retryAfter
-            ? t('download.locked.retryIn', {
-                time: formatDuration(error.retryAfter, i18n.language),
-              })
-            : t('errors.RATE_LIMITED'),
-        );
-      } else {
-        // Expired, revoked, deleted...: reload the info to show the matching state.
-        await onUnlocked();
-      }
-    }
-  });
-
   return (
-    <PublicCard width="narrow">
-      <PageHeader
-        title={t('download.locked.title')}
-        description={t('download.locked.description')}
-      />
-      <form onSubmit={(event) => void onSubmit(event)} noValidate className="space-y-4">
-        <FormErrorSummary errors={errors} submitCount={submitCount} />
-        <FormField control={control} name="password" label={t('download.locked.password')}>
-          {({ field, controlProps }) => (
-            <PasswordInput
-              autoComplete="off"
-              {...field}
-              {...controlProps}
-              aria-invalid={controlProps['aria-invalid'] || serverError !== null}
-              aria-describedby={
-                [controlProps['aria-describedby'], serverError ? 'unlock-error' : undefined]
-                  .filter(Boolean)
-                  .join(' ') || undefined
-              }
-            />
-          )}
-        </FormField>
-        {serverError ? (
-          <p id="unlock-error" role="alert" className="text-destructive text-sm">
-            {serverError}
-          </p>
-        ) : null}
-        <p className="text-muted-foreground text-sm">
-          {t('download.expires', {
-            date: formatDateTime(expiresAt, i18n.language),
-            relative: formatRelative(expiresAt, i18n.language),
-          })}
-        </p>
-        <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
-          <Lock aria-hidden="true" />
-          {isSubmitting ? t('download.locked.submitting') : t('download.locked.submit')}
-        </Button>
-      </form>
-    </PublicCard>
+    <UnlockCard
+      title={t('download.locked.title')}
+      description={t('download.locked.description')}
+      expiresLabel={t('download.expires', {
+        date: formatDateTime(expiresAt, i18n.language),
+        relative: formatRelative(expiresAt, i18n.language),
+      })}
+      unlock={(password) => unlockDownload(token, { password })}
+      onUnlocked={onUnlocked}
+    />
   );
 }
 
