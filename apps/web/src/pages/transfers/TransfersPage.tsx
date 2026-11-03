@@ -223,7 +223,7 @@ export default function TransfersPage() {
                   <TableCell>
                     <ModeLabel
                       mode={transfer.mode}
-                      link={transfer.shareUrl}
+                      link={transfer.status === 'active' ? transfer.shareUrl : null}
                       title={transferTitle(transfer, untitled)}
                     />
                   </TableCell>
@@ -264,7 +264,7 @@ export default function TransfersPage() {
                   <span className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-sm">
                     <ModeLabel
                       mode={transfer.mode}
-                      link={transfer.shareUrl}
+                      link={transfer.status === 'active' ? transfer.shareUrl : null}
                       title={transferTitle(transfer, untitled)}
                     />
                     <span className="font-mono text-xs">

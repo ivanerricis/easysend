@@ -56,7 +56,7 @@ export function TransferActionsMenu({ transfer, fallbackTitle }: TransferActions
             key: 'copy-link',
             label: t('transfers.success.copyLink'),
             icon: Copy,
-            hidden: !transfer.shareUrl,
+            hidden: transfer.status !== 'active' || !transfer.shareUrl,
             onSelect: () => transfer.shareUrl && void actions.copyLink(transfer.shareUrl),
           },
           {

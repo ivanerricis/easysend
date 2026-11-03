@@ -67,6 +67,12 @@ describe('TransfersPage', () => {
       await screen.findAllByRole('link', { name: 'Holiday photos' });
       expect(screen.queryByRole('button', { name: /Copy the link of/ })).toBeNull();
     });
+
+    it('is plain text when the transfer is no longer active', async () => {
+      await openList('/transfers', list([makeTransferSummary({ status: 'revoked' })]));
+      await screen.findAllByRole('link', { name: 'Holiday photos' });
+      expect(screen.queryByRole('button', { name: /Copy the link of/ })).toBeNull();
+    });
   });
 
   it('lists the transfers with status, size and downloads', async () => {
@@ -184,9 +190,9 @@ describe('TransfersPage', () => {
       );
     });
 
-    it('offers only open, copy link and delete for a revoked transfer', async () => {
+    it('offers only open and delete for a revoked transfer', async () => {
       await openList('/transfers', list([makeTransferSummary({ status: 'revoked' })]));
-      expect(names(await openMenu())).toEqual(['Open details', 'Copy link', 'Delete']);
+      expect(names(await openMenu())).toEqual(['Open details', 'Delete']);
     });
 
     it('leaves out copy link when the transfer has no share link', async () => {

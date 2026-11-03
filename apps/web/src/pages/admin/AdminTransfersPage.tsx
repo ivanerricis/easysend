@@ -185,7 +185,7 @@ export default function AdminTransfersPage() {
                         {item.title ?? t('admin.transfers.untitled')}
                       </Link>
                       <p className="text-muted-foreground flex items-center justify-end gap-1.5 text-xs lg:justify-start">
-                        {item.shareUrl ? (
+                        {item.status === 'active' && item.shareUrl ? (
                           <ShareLinkButton
                             url={item.shareUrl}
                             title={item.title ?? t('admin.transfers.untitled')}
