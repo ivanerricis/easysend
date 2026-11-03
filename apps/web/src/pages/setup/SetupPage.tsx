@@ -44,7 +44,6 @@ export default function SetupPage() {
   const status = useQuery({
     queryKey: queryKeys.setup.status,
     queryFn: getSetupStatus,
-    refetchOnWindowFocus: false,
     staleTime: Infinity,
   });
   const [current, setCurrent] = useState<SetupStepId | null>(null);

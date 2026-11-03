@@ -364,7 +364,6 @@ export default function DownloadPage() {
     queryFn: ({ signal }) => getDownloadInfo(token, signal),
     enabled: token !== '',
     retry: false,
-    refetchOnWindowFocus: false,
     staleTime: 0,
   });
 
