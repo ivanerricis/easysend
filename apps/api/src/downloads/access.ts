@@ -2,9 +2,10 @@ import { eq } from 'drizzle-orm';
 import type { Request, Response } from 'express';
 import { nowSeconds } from '../clock.js';
 import type { AppContext } from '../context.js';
-import { hmacBase64url, sha256Hex, timingSafeEqualStrings } from '../crypto/hash.js';
+import { hmacBase64url, sha256Hex } from '../crypto/hash.js';
 import { transfers } from '../db/schema/index.js';
 import { readCookie, setCookie } from '../http/cookies.js';
+import { signCookieValue, verifySignedCookie } from '../http/signed-cookie.js';
 import { AppError } from '../http/errors.js';
 import { assertNotLimited } from '../http/rate-limit.js';
 import { effectiveStatus, type TransferRow } from '../transfers/service.js';
@@ -55,12 +56,6 @@ export async function resolveTransfer(
 
 // ---- Unlock cookie ------------------------------------------------------------------------
 
-/** Expiry and MAC of a signed `<exp>.<mac>` cookie value, or null when it is malformed. */
-function parseSignedCookie(value: string | undefined): { exp: number; mac: string } | null {
-  const match = value ? /^(\d{1,12})\.([A-Za-z0-9_-]{43})$/.exec(value) : null;
-  return match ? { exp: Number(match[1]), mac: match[2]! } : null;
-}
-
 /**
  * First 16 hex characters of the hash of the link password hash: binds the cookie to the current
  * password, so changing or removing it invalidates cookies already handed out.
@@ -85,7 +80,7 @@ export function setUnlockCookie(
   setCookie(
     res,
     DOWNLOAD_COOKIE,
-    `${exp}.${cookieMac(ctx, transfer, exp)}`,
+    signCookieValue(exp, cookieMac(ctx, transfer, exp)),
     TRANSFER_POLICY.unlockCookieSeconds,
     {
       path: `/api/downloads/${transfer.token}`,
@@ -102,11 +97,8 @@ export function isUnlocked(
   nowSec: number,
 ): boolean {
   if (transfer.passwordHash === null) return true;
-  const cookie = parseSignedCookie(readCookie(req, DOWNLOAD_COOKIE));
-  return (
-    cookie !== null &&
-    cookie.exp > nowSec &&
-    timingSafeEqualStrings(cookie.mac, cookieMac(ctx, transfer, cookie.exp))
+  return verifySignedCookie(readCookie(req, DOWNLOAD_COOKIE), nowSec, (exp) =>
+    cookieMac(ctx, transfer, exp),
   );
 }
 
@@ -142,7 +134,7 @@ export function setResumeCookie(
   setCookie(
     res,
     RESUME_COOKIE,
-    `${exp}.${resumeMac(ctx, transfer, fileId, exp)}`,
+    signCookieValue(exp, resumeMac(ctx, transfer, fileId, exp)),
     TRANSFER_POLICY.resumeCookieSeconds,
     { path: `/api/downloads/${transfer.token}/files/${fileId}` },
   );
@@ -156,10 +148,7 @@ export function hasResumeCookie(
   fileId: string,
   nowSec: number,
 ): boolean {
-  const cookie = parseSignedCookie(readCookie(req, RESUME_COOKIE));
-  return (
-    cookie !== null &&
-    cookie.exp > nowSec &&
-    timingSafeEqualStrings(cookie.mac, resumeMac(ctx, transfer, fileId, cookie.exp))
+  return verifySignedCookie(readCookie(req, RESUME_COOKIE), nowSec, (exp) =>
+    resumeMac(ctx, transfer, fileId, exp),
   );
 }
