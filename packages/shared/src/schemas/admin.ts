@@ -16,6 +16,8 @@ export const storageResponseSchema = z.object({
     /** `max(0, freeBytes - reserveBytes)`: what uploads can actually use. */
     usableBytes: byteSizeSchema,
   }),
+  /** Where `/data` lives on the host. `hostPath` is null for the default Docker volume. The disk figures above describe the filesystem of the storage folder. */
+  dataLocation: z.object({ hostPath: z.string().nullable() }),
   /** Bytes used by encrypted files on disk. */
   storedBytes: byteSizeSchema,
   activeTransfers: z.number().int().nonnegative(),

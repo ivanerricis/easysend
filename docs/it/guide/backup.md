@@ -10,6 +10,8 @@ Cosa conservare:
 | Chiave master, segreto sessioni | volume `easysend-data`, `secrets/` |
 | Configurazione                  | `.env`, `docker-compose.yml`       |
 
+Se hai impostato `DATA_PATH` in `.env` ([Posizione dei dati](./data-location)), leggi "volume `easysend-data`" qui sopra come quella cartella dell'host: lo script e i passi di ripristino qui sotto usano la cartella al posto del volume.
+
 ## Backup
 
 ```sh

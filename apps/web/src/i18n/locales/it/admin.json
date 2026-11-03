@@ -140,6 +140,17 @@
     "refreshing": "Aggiornamento dei dati…",
     "refreshed": "Dati aggiornati.",
     "updatedAt": "Ultimo aggiornamento: {{time}}",
+    "location": {
+      "title": "Dove sono salvati i dati",
+      "where": "Posizione",
+      "dockerVolume": "Volume Docker easysend-data",
+      "free": "Spazio libero su quel disco",
+      "reserve": "Riserva sempre libera",
+      "help": "Database, file cifrati, branding e segreti stanno qui. La posizione si imposta con DATA_PATH nel file .env e si cambia dal server, non da questa pagina.",
+      "docs": "Come cambiarla",
+      "docsUrl": "https://ivanerricis.github.io/easysend/it/guide/data-location",
+      "newTab": "(si apre in una nuova scheda)"
+    },
     "diskTitle": "Disco",
     "total": "Dimensione totale",
     "barLabel": "Uso del disco, totale {{total}}.",

@@ -15,7 +15,7 @@ Usage: scripts/deploy.sh [VERSION] [--force] [--yes] [--no-script-update]
 Deploys VERSION (e.g. 0.1.0 or v0.1.0). Without VERSION the latest GitHub release is used.
 
 What it does:
-  1. checks docker, compose v2, curl and .env;
+  1. checks docker, compose v2, curl and .env (and DATA_PATH, if set: absolute, existing, writable by uid 1000);
   2. remembers the current version and docker-compose.yml in .deploy/;
   3. downloads the docker-compose.yml of the release tag and validates it;
   4. backs up the database (if the stack is running);
@@ -43,7 +43,7 @@ Environment:
   EASYSEND_UPDATE_STATUS         set by scripts/update-runner.sh: path of updates/status.json, progress steps are written there
 
 Exit codes: 0 ok; 1 generic error; 75 another deploy/rollback is running; 20 compose file download/validation
-failed and 21 database backup failed (stack untouched); 30 deploy failed, automatic rollback succeeded;
+failed, 21 database backup failed and 22 invalid DATA_PATH (stack untouched); 30 deploy failed, automatic rollback succeeded;
 31 deploy failed and the rollback did not complete.
 EOF
 }
@@ -75,6 +75,11 @@ install_release_compose() {
   if ! APP_VERSION="$version" docker compose --project-directory "$EASYSEND_DIR" -f "$tmp" config -q; then
     rm -f "$tmp"
     err "The downloaded docker-compose.yml is not valid."
+    return 1
+  fi
+  if [[ -n "$(data_path)" ]] && ! compose_supports_data_path "$tmp"; then
+    rm -f "$tmp"
+    err "DATA_PATH is set in .env but v$version predates it: its compose file would ignore the folder and use an empty volume."
     return 1
   fi
   chmod 644 "$tmp"
@@ -142,6 +147,10 @@ auto_rollback() {
     warn "This was the first install: nothing to go back to. Inspect with: docker compose logs"
     return 1
   fi
+  if [[ -n "$(data_path)" && -f "$prev_compose" ]] && ! compose_supports_data_path "$prev_compose"; then
+    err "Cannot roll back: v$prev ignores DATA_PATH and would start on an empty volume. The data is untouched in $(data_path)."
+    return 1
+  fi
   [[ -f "$prev_compose" ]] && cp -f "$prev_compose" "$EASYSEND_DIR/docker-compose.yml"
   set_env_var APP_VERSION "$prev"
   dc stop api || true
@@ -189,6 +198,7 @@ main() {
   command -v curl >/dev/null 2>&1 || die "curl is not installed."
   check_docker
   check_env_file
+  check_data_path || die_code "$EXIT_DATA_PATH" "Fix DATA_PATH in .env (or leave it empty for the Docker volume), then run the deploy again. Nothing was changed."
   acquire_lock
   mkdir -p "$EASYSEND_DIR/updates"
 

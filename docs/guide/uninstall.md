@@ -5,7 +5,7 @@
 ./scripts/uninstall.sh --purge    # also delete volumes, .env and .deploy/
 ```
 
-The default is reversible: `./scripts/deploy.sh <version>` brings everything back. `--purge` offers a backup first and asks you to type `easysend`. The `backups/` directory is kept.
+The default is reversible: `./scripts/deploy.sh <version>` brings everything back. `--purge` offers a backup first and asks you to type `easysend`. The `backups/` directory is kept. If you use a custom data folder (`DATA_PATH`, see [Data location](./data-location)), `--purge` never deletes it: it prints the path and the command to remove it by hand.
 
 Cloudflare is not touched, because the token is never stored. Clean up by hand:
 

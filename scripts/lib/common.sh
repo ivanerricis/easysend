@@ -24,11 +24,11 @@ die() {
 }
 
 # Exit codes with a meaning for scripts/update-runner.sh (everything else is a plain 1):
-#   0 ok, 75 another deploy/rollback holds the lock, 20 compose file step failed and 21 database
-#   backup failed (both before any change to the running stack), 30 deploy failed and the
-#   automatic rollback succeeded, 31 deploy failed and the rollback did not complete.
+#   0 ok, 75 another deploy/rollback holds the lock, 20 compose file step failed, 21 database
+#   backup failed and 22 invalid DATA_PATH (all before any change to the running stack), 30 deploy
+#   failed and the automatic rollback succeeded, 31 deploy failed and the rollback did not complete.
 # shellcheck disable=SC2034 # used by the scripts that source this file
-EXIT_BUSY=75 EXIT_COMPOSE=20 EXIT_BACKUP=21 EXIT_ROLLED_BACK=30 EXIT_ROLLBACK_FAILED=31
+EXIT_BUSY=75 EXIT_COMPOSE=20 EXIT_BACKUP=21 EXIT_DATA_PATH=22 EXIT_ROLLED_BACK=30 EXIT_ROLLBACK_FAILED=31
 # die_code CODE message...: like die, with a specific exit code.
 die_code() {
   local code="$1"
@@ -186,6 +186,58 @@ volume_real_name() {
     --filter "label=com.docker.compose.volume=$1" | head -n 1)"
   printf '%s\n' "${vol:-${project}_$1}"
 }
+
+# --- Data location (optional DATA_PATH in .env) ----------------------------------
+# DATA_PATH is a host folder bind-mounted at /data in the api container instead of the named
+# volume easysend-data. The api runs as uid/gid 1000 (EASYSEND_DATA_UID/GID override it in tests).
+
+# data_path: the configured host folder, empty for the default Docker volume.
+data_path() {
+  [[ -f "$EASYSEND_DIR/.env" ]] || return 0
+  get_env_var DATA_PATH
+}
+
+# data_mount_source: what to pass to `docker run -v <source>:/data`: DATA_PATH when set,
+# otherwise the real name of the easysend-data volume.
+data_mount_source() {
+  local p
+  p="$(data_path)"
+  if [[ -n "$p" ]]; then printf '%s\n' "$p"; else volume_real_name easysend-data; fi
+}
+
+# check_data_path: succeeds silently without DATA_PATH; otherwise requires an absolute path
+# (no ':' or trailing slash, which would break the mount spec) to an existing directory the
+# api user (uid/gid 1000) can write to. Prints the reason on stderr and returns 1 otherwise.
+check_data_path() {
+  local p uid gid
+  p="$(data_path)"
+  [[ -n "$p" ]] || return 0
+  uid="${EASYSEND_DATA_UID:-1000}" gid="${EASYSEND_DATA_GID:-1000}"
+  if [[ "$p" != /* ]]; then err "DATA_PATH must be an absolute path (got '$p')."; return 1; fi
+  if [[ "$p" == *:* || "$p" == *[[:cntrl:]]* ]]; then err "DATA_PATH must not contain ':' or control characters (got '$p')."; return 1; fi
+  if [[ "$p" == / ]]; then err "DATA_PATH cannot be the filesystem root."; return 1; fi
+  if [[ "$p" == */ ]]; then err "DATA_PATH must not end with a slash (got '$p')."; return 1; fi
+  if [[ ! -e "$p" ]]; then err "DATA_PATH '$p' does not exist. Create it with: sudo install -d -o $uid -g $gid $p"; return 1; fi
+  if [[ ! -d "$p" ]]; then err "DATA_PATH '$p' is not a directory."; return 1; fi
+  local owner group mode writable=0
+  read -r owner group mode < <(stat -c '%u %g %a' "$p") || { err "Cannot stat DATA_PATH '$p'."; return 1; }
+  mode=$((8#$mode))
+  if ((owner == uid && (mode & 0300) == 0300)); then
+    writable=1
+  elif ((group == gid && (mode & 0030) == 0030)); then
+    writable=1
+  elif (((mode & 0003) == 0003)); then
+    writable=1
+  fi
+  if ((!writable)); then
+    err "DATA_PATH '$p' (owner $owner:$group, mode $(printf '%o' "$mode")) is not writable by uid $uid. Fix with: sudo chown $uid:$gid $p && sudo chmod 750 $p"
+    return 1
+  fi
+}
+
+# compose_supports_data_path FILE: true when the compose file mounts DATA_PATH (releases before
+# this feature ignore it and would silently start on an empty named volume).
+compose_supports_data_path() { grep -q 'DATA_PATH' "$1" 2>/dev/null; }
 
 # --- Scripts self-update -------------------------------------------------------------
 # Files of the install dir that deploy.sh keeps in sync with the deployed release.

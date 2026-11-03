@@ -10,6 +10,8 @@ What to keep:
 | Master key, session secret | `easysend-data` volume, `secrets/` |
 | Configuration              | `.env`, `docker-compose.yml`       |
 
+If you set `DATA_PATH` in `.env` ([Data location](./data-location)), read "`easysend-data` volume" above as that host folder: the script and the restore steps below use it instead of the volume.
+
 ## Backup
 
 ```sh
@@ -35,10 +37,12 @@ chmod 600 .env
 #    (download scripts/ from the release as in the Installation page)
 
 # 2. create the empty volumes
+#    (with DATA_PATH: create the folder first, owned by uid/gid 1000)
 docker compose create
 
 # 3. copy the data into the volume (<project> is the Compose project name,
-#    by default the install directory name: see `docker volume ls`)
+#    by default the install directory name: see `docker volume ls`;
+#    with DATA_PATH use that folder instead of <project>_easysend-data)
 docker run --rm -i -v <project>_easysend-data:/data alpine:3.24.2 \
   sh -c 'tar xzf - -C /tmp data && cp -a /tmp/data/. /data/' < <archive>
 
