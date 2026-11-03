@@ -60,10 +60,22 @@ export function loadTransferForUser(
   return row;
 }
 
-/** Summary from a row plus the three values that come from other tables (pure, for list queries). */
+/** `<PUBLIC_URL>/d/<token>`, or null for a draft or when no public URL is known. */
+export function shareUrlOf(row: TransferRow, publicUrl: string | undefined): string | null {
+  return row.status !== 'uploading' && publicUrl
+    ? new URL(`/d/${row.token}`, publicUrl).toString()
+    : null;
+}
+
+/** Summary from a row plus the values that come from elsewhere (pure, for list queries). */
 export function summaryFrom(
   row: TransferRow,
-  extra: { ownerEmail: string; fileCount: number; recipientCount: number },
+  extra: {
+    ownerEmail: string;
+    fileCount: number;
+    recipientCount: number;
+    publicUrl: string | undefined;
+  },
   nowSec: number,
 ): TransferSummary {
   return {
@@ -81,6 +93,7 @@ export function summaryFrom(
     downloadCount: row.downloadCount,
     maxDownloads: row.maxDownloads,
     hasPassword: row.passwordHash !== null,
+    shareUrl: shareUrlOf(row, extra.publicUrl),
   };
 }
 
@@ -89,7 +102,7 @@ function countFor(db: Db, table: typeof transferFiles | typeof transferRecipient
 }
 
 export function toTransferSummary(
-  ctx: Pick<AppContext, 'db'>,
+  ctx: Pick<AppContext, 'db' | 'publicUrl'>,
   row: TransferRow,
   nowSec: number,
 ): TransferSummary {
@@ -104,6 +117,7 @@ export function toTransferSummary(
       ownerEmail: owner?.email ?? '',
       fileCount: countFor(ctx.db, transferFiles, row.id),
       recipientCount: countFor(ctx.db, transferRecipients, row.id),
+      publicUrl: ctx.publicUrl(),
     },
     nowSec,
   );
@@ -152,14 +166,11 @@ export function toTransferDetail(
         ownerEmail: owner?.email ?? '',
         fileCount: files.length,
         recipientCount: recipients.length,
+        publicUrl: ctx.publicUrl(),
       },
       nowSec,
     ),
     message: row.message,
-    shareUrl:
-      row.status !== 'uploading' && ctx.publicUrl()
-        ? new URL(`/d/${row.token}`, ctx.publicUrl()).toString()
-        : null,
     firstDownloadedAt: row.firstDownloadedAt,
     files: files.map((file) => ({
       id: file.id,
@@ -376,7 +387,7 @@ function statusCondition(status: TransferStatus, nowSec: number): SQL | undefine
 
 /** One page of transfers, newest first, with the total number of matches. */
 export function listTransfersPage(
-  ctx: Pick<AppContext, 'db'>,
+  ctx: Pick<AppContext, 'db' | 'publicUrl'>,
   filter: TransferListFilter,
   nowSec: number,
 ): { items: TransferSummary[]; total: number } {
@@ -407,6 +418,7 @@ export function listTransfersPage(
     .limit(filter.pageSize)
     .offset((filter.page - 1) * filter.pageSize)
     .all();
+  const publicUrl = ctx.publicUrl();
   return {
     items: rows.map(({ row, ownerEmail, fileCount, recipientCount }) =>
       summaryFrom(
@@ -415,6 +427,7 @@ export function listTransfersPage(
           ownerEmail: ownerEmail ?? '',
           fileCount: Number(fileCount),
           recipientCount: Number(recipientCount),
+          publicUrl,
         },
         nowSec,
       ),

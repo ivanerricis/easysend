@@ -153,13 +153,13 @@ export const transferSummarySchema = z.object({
   downloadCount: z.number().int().nonnegative(),
   maxDownloads: maxDownloadsSchema.nullable(),
   hasPassword: z.boolean(),
+  /** Public download URL `<PUBLIC_URL>/d/<token>`. `null` while the transfer is a draft (`uploading`) or no public URL is known. */
+  shareUrl: z.string().nullable(),
 });
 export type TransferSummary = z.infer<typeof transferSummarySchema>;
 
 export const transferDetailSchema = transferSummarySchema.extend({
   message: z.string().nullable(),
-  /** Public download URL `<PUBLIC_URL>/d/<token>`. `null` while the transfer is still a draft (`uploading`). */
-  shareUrl: z.string().nullable(),
   firstDownloadedAt: unixSecondsSchema.nullable(),
   files: z.array(transferFileSchema),
   recipients: z.array(transferRecipientSchema),
