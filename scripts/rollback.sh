@@ -43,6 +43,7 @@ main() {
   init_env
   check_docker
   check_env_file
+  check_data_path || die_code "$EXIT_DATA_PATH" "Fix DATA_PATH in .env first. Nothing was changed."
   acquire_lock
 
   local current previous backup
@@ -66,6 +67,9 @@ main() {
   fi
   confirm "Roll back to $previous?" || die "Aborted."
 
+  if [[ -n "$(data_path)" ]] && ! compose_supports_data_path "$DEPLOY_DIR/previous-compose.yml"; then
+    die "Cannot roll back to $previous: that release ignores DATA_PATH and would start on an empty volume. Your data is untouched in $(data_path)."
+  fi
   cp -f "$EASYSEND_DIR/docker-compose.yml" "$DEPLOY_DIR/compose-before.yml"
   cp -f "$DEPLOY_DIR/previous-compose.yml" "$EASYSEND_DIR/docker-compose.yml"
   set_env_var APP_VERSION "$previous"

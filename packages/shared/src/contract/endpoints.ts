@@ -914,7 +914,7 @@ export const endpoints: readonly EndpointDef[] = [
     auth: 'admin',
     response: json(200, storageResponseSchema),
     notes:
-      'In local mode the free space is the one of the Docker Desktop virtual disk, not of the PC.',
+      'In local mode the free space is the one of the Docker Desktop virtual disk, not of the PC. `disk` is the filesystem that holds the storage folder (with DATA_PATH set, the disk of that host folder). `dataLocation.hostPath` is the host folder configured with DATA_PATH, or null for the default Docker volume.',
   }),
   defineEndpoint({
     id: 'admin.tunnelGet',

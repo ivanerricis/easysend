@@ -32,6 +32,34 @@ describe('StoragePage', () => {
     expect(api.callsTo('GET /api/admin/storage')).toHaveLength(1);
   });
 
+  it('shows the Docker volume by default and the host folder when DATA_PATH is set', async () => {
+    const first = renderWithProviders(<StoragePage />, {
+      session: makeAdmin(),
+      route: '/admin/storage',
+      routes: { 'GET /api/admin/storage': makeStorage() },
+    });
+    const card = await screen.findByRole('region', { name: 'Where data is stored' });
+    expect(within(card).getByText('Docker volume easysend-data')).toBeInTheDocument();
+    expect(within(card).getByText('60 GiB')).toBeInTheDocument();
+    expect(within(card).getByText('5 GiB')).toBeInTheDocument();
+    expect(within(card).getByRole('link', { name: /How to change it/ })).toHaveAttribute(
+      'href',
+      'https://ivanerricis.github.io/easysend/guide/data-location',
+    );
+    first.unmount();
+
+    renderWithProviders(<StoragePage />, {
+      session: makeAdmin(),
+      route: '/admin/storage',
+      routes: {
+        'GET /api/admin/storage': makeStorage({ dataLocation: { hostPath: '/mnt/dati/easysend' } }),
+      },
+    });
+    const bound = await screen.findByRole('region', { name: 'Where data is stored' });
+    expect(within(bound).getByText('/mnt/dati/easysend')).toBeInTheDocument();
+    expect(within(bound).queryByText('Docker volume easysend-data')).not.toBeInTheDocument();
+  });
+
   it('sorts users by used bytes and refreshes on demand', async () => {
     const { api } = renderWithProviders(<StoragePage />, {
       session: makeAdmin(),

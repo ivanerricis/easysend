@@ -34,6 +34,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       TRUST_PROXY: ${TRUST_PROXY:-2}
       DATA_DIR: /data
+      # Display only (admin Storage page): the host folder behind /data, empty for the Docker volume.
+      DATA_HOST_PATH: ${DATA_PATH:-}
       DB_PATH: ${DB_PATH:-/data/db/app.sqlite}
       STORAGE_DIR: ${STORAGE_DIR:-/data/storage}
       TMP_UPLOAD_DIR: ${TMP_UPLOAD_DIR:-/data/tmp}
@@ -52,7 +54,8 @@ services:
       DEFAULT_CHUNK_SIZE_MB: ${DEFAULT_CHUNK_SIZE_MB:-25}
       NODE_OPTIONS: --max-old-space-size=384
     volumes:
-      - easysend-data:/data
+      # DATA_PATH (absolute host folder owned by uid/gid 1000) replaces the named volume; see .env.example.
+      - ${DATA_PATH:-easysend-data}:/data
       - easysend-shared:/shared
       - ./updates:/updates
     healthcheck:

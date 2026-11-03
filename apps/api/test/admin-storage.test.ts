@@ -41,6 +41,7 @@ describe('GET /api/admin/storage', () => {
       reserveBytes: 100 * BYTES_PER_MB,
       usableBytes: 200 * BYTES_PER_MB,
     });
+    expect(body.dataLocation).toEqual({ hostPath: null });
     expect(body.storedBytes).toBe(filesOf(t, active.id)[0]!.storedSizeBytes);
     expect(body.storedBytes).toBeGreaterThan(4000);
     expect(body.activeTransfers).toBe(1);
@@ -49,6 +50,23 @@ describe('GET /api/admin/storage', () => {
       { userId: other.id, email: 'ann@example.com', usedBytes: 0, quotaBytes: 5000 },
       { userId: user.id, email: 'boss@example.com', usedBytes: 4000, quotaBytes: null },
     ]);
+  });
+
+  it('reports the host folder from DATA_HOST_PATH and measures the storage folder disk', async () => {
+    const seen: string[] = [];
+    const t = await createUploadApp({
+      env: { DATA_HOST_PATH: '/mnt/dati/easysend' },
+      deps: {
+        diskSpace: (dir: string) => {
+          seen.push(dir);
+          return Promise.resolve({ totalBytes: 10 * BYTES_PER_MB, freeBytes: BYTES_PER_MB });
+        },
+      },
+    });
+    const { client } = await userWithClient(t, { role: 'admin' });
+    const body = bodyAs<StorageResponse>(await client.get('/api/admin/storage'));
+    expect(body.dataLocation).toEqual({ hostPath: '/mnt/dati/easysend' });
+    expect(seen).toEqual([t.ctx.config.storageDir]);
   });
 
   it('floors the usable space at zero and excludes expired transfers', async () => {

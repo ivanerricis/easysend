@@ -36,6 +36,8 @@ const envSchema = z.object({
   LOG_PRETTY: boolish.default(false),
   TRUST_PROXY: nonNegativeInt.optional(),
   DATA_DIR: z.string().min(1).default('/data'),
+  /** Display only: host folder behind DATA_DIR (compose passes DATA_PATH; empty = Docker volume). */
+  DATA_HOST_PATH: z.string().trim().optional(),
   DB_PATH: z.string().min(1).optional(),
   STORAGE_DIR: z.string().min(1).optional(),
   TMP_UPLOAD_DIR: z.string().min(1).optional(),
@@ -76,6 +78,8 @@ export interface AppConfig {
   logPretty: boolean;
   trustProxy: number;
   dataDir: string;
+  /** Host folder bind-mounted at dataDir, or undefined for the default Docker volume (display only). */
+  dataHostPath: string | undefined;
   dbPath: string;
   dbBackupDir: string;
   storageDir: string;
@@ -136,6 +140,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     logPretty: e.LOG_PRETTY,
     trustProxy: e.TRUST_PROXY ?? (e.APP_MODE === 'local' ? 1 : 2),
     dataDir,
+    dataHostPath: e.DATA_HOST_PATH || undefined,
     dbPath,
     dbBackupDir: path.join(path.dirname(dbPath), 'backups'),
     storageDir: e.STORAGE_DIR ?? path.join(dataDir, 'storage'),

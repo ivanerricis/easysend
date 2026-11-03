@@ -30,6 +30,7 @@ export function makeStorage(overrides: Partial<StorageResponse> = {}): StorageRe
       reserveBytes: 5 * gib,
       usableBytes: 55 * gib,
     },
+    dataLocation: { hostPath: null },
     storedBytes: 10 * gib,
     activeTransfers: 7,
     totalFiles: 42,

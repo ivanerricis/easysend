@@ -342,6 +342,7 @@ export function transfersRouter(ctx: AppContext): Router {
         reserveBytes: reserve,
         usableBytes: Math.max(0, disk.freeBytes - reserve),
       },
+      dataLocation: { hostPath: ctx.config.dataHostPath ?? null },
       storedBytes: totals.stored,
       activeTransfers: active,
       totalFiles: totals.files,
