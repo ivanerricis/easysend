@@ -9,13 +9,13 @@ import path from 'node:path';
 export async function writeFileAtomic(
   dir: string,
   name: string,
-  content: string,
-  mode: number,
+  content: string | Uint8Array,
+  mode?: number,
 ): Promise<void> {
   await mkdir(dir, { recursive: true });
   const tmp = path.join(dir, `.${name}.${randomBytes(6).toString('hex')}.tmp`);
   try {
-    await writeFile(tmp, content, { mode });
+    await writeFile(tmp, content, mode === undefined ? {} : { mode });
     await rename(tmp, path.join(dir, name));
   } catch (error) {
     await rm(tmp, { force: true });

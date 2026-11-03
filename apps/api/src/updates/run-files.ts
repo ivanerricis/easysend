@@ -2,6 +2,7 @@ import { open } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
 import {
+  RELEASE_VERSION_PATTERN,
   releaseVersionSchema,
   unixSecondsSchema,
   updateRunStatusSchema,
@@ -24,8 +25,9 @@ export const RUNNING_TIMEOUT_SECONDS = 45 * 60;
 
 const runnerSchema = z.object({ version: z.literal(1), installedAt: unixSecondsSchema });
 
-const REQUEST_PATTERN =
-  /^id=([0-9a-f]{32})\nversion=(\d{1,9}\.\d{1,9}\.\d{1,9})\nrequestedAt=(\d{1,12})\n$/;
+const REQUEST_PATTERN = new RegExp(
+  `^id=([0-9a-f]{32})\\nversion=(${RELEASE_VERSION_PATTERN})\\nrequestedAt=(\\d{1,12})\\n$`,
+);
 
 export interface UpdateRequest {
   id: string;

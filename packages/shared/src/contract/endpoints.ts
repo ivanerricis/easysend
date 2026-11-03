@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import { ALLOWED_IMAGE_TYPES, BRANDING_MAX_BYTES } from '../constants.js';
+import { ALLOWED_IMAGE_TYPES, BRANDING_MAX_BYTES, BYTES_PER_MB } from '../constants.js';
 import {
   startUpdateRequestSchema,
   startUpdateResponseSchema,
@@ -110,9 +110,8 @@ export const endpoints: readonly EndpointDef[] = [
     summary: 'Liveness and readiness probe',
     auth: 'public',
     response: json(200, healthResponseSchema),
-    errors: ['SERVICE_UNAVAILABLE'],
     notes:
-      'Answers 503 `SERVICE_UNAVAILABLE` when the database check fails. nginx also exposes the alias `/health`.',
+      'Answers 503 when the database check fails; the body is then the same health body with `db` set to the failure. nginx also exposes the alias `/health`.',
   }),
 
   // ---- setup ---------------------------------------------------------------
@@ -770,7 +769,7 @@ export const endpoints: readonly EndpointDef[] = [
     },
     rawBody: {
       contentTypes: ['application/offset+octet-stream'],
-      maxBytes: 50 * 1024 * 1024,
+      maxBytes: 50 * BYTES_PER_MB,
       description: 'Chunk of the file, at most 50 MB per request.',
     },
     response: { status: 204, kind: 'tus', headers: { 'Upload-Offset': 'new offset' } },

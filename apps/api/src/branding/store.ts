@@ -1,5 +1,5 @@
-import { createHash, randomBytes } from 'node:crypto';
-import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import {
   BRANDING_ASSET_KINDS,
@@ -10,6 +10,7 @@ import {
 import { nowSeconds } from '../clock.js';
 import type { AppContext } from '../context.js';
 import type { BrandingAssetsSetting } from '../settings/repo.js';
+import { writeFileAtomic } from '../shared-dir.js';
 import { processBrandingImage, renderEmailLogo } from './images.js';
 
 /**
@@ -56,16 +57,8 @@ async function writeAtomic(
   fileName: string,
   content: Buffer,
 ): Promise<void> {
-  const target = inBrandingDir(ctx, fileName);
-  await mkdir(ctx.config.brandingDir, { recursive: true });
-  const tmp = `${target}.${randomBytes(6).toString('hex')}.tmp`;
-  try {
-    await writeFile(tmp, content);
-    await rename(tmp, target);
-  } catch (error) {
-    await rm(tmp, { force: true });
-    throw error;
-  }
+  inBrandingDir(ctx, fileName); // rejects names that would escape the directory
+  await writeFileAtomic(ctx.config.brandingDir, fileName, content);
 }
 
 const removeQuietly = (ctx: Pick<AppContext, 'config'>, fileName: string): Promise<void> =>

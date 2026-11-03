@@ -15,6 +15,7 @@ import { createSmtpVerification, type SmtpVerification } from './settings/smtp-v
 import { statfsDiskSpace, type DiskSpace } from './storage/disk.js';
 import { createSetupCodeService, type SetupCodeService } from './setup/code.js';
 import { createSetupLimiters, type SetupLimiters } from './setup/limiters.js';
+import { createUpdateLimiters, type UpdateLimiters } from './updates/policy.js';
 import { createTransferLimiters, type TransferLimiters } from './transfers/limiters.js';
 import { createUpdateService, type UpdateService } from './updates/service.js';
 import { createUploadWorker, type UploadWorker } from './uploads/worker.js';
@@ -64,6 +65,7 @@ export interface AppContext {
   limiters: AuthLimiters;
   transferLimiters: TransferLimiters;
   setupLimiters: SetupLimiters;
+  updateLimiters: UpdateLimiters;
   /** One-time code that authorises the first-run wizard (in memory, printed in the logs). */
   setupCode: SetupCodeService;
   diskSpace: DiskSpace;
@@ -124,6 +126,7 @@ export function createContext(deps: AppDeps): AppContext {
     limiters: createAuthLimiters(),
     transferLimiters: createTransferLimiters(),
     setupLimiters: createSetupLimiters(),
+    updateLimiters: createUpdateLimiters(),
     setupCode: createSetupCodeService({
       clock,
       ttlMinutes: config.setupCodeTtlMinutes,

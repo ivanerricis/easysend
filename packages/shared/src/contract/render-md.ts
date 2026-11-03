@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { BYTES_PER_MB } from '../constants.js';
 import { ERROR_CODE_LIST, ERROR_CODES, type ErrorCode } from '../schemas/errors.js';
 import { CONTRACT_DECISIONS, CONVENTIONS, ERROR_MEANINGS } from './doc-text.js';
 import {
@@ -190,7 +191,7 @@ export const renderSchema = (schema: z.ZodType, io: 'input' | 'output'): string 
 
 // ---- Markdown pieces -------------------------------------------------------------
 const formatBytes = (n: number): string => {
-  if (n >= 1024 * 1024) return `${n / (1024 * 1024)} MB`;
+  if (n >= BYTES_PER_MB) return `${n / BYTES_PER_MB} MB`;
   if (n >= 1024) return `${n / 1024} KB`;
   return `${n} B`;
 };

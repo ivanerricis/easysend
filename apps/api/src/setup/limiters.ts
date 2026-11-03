@@ -11,10 +11,6 @@ export interface SetupLimiters {
   smtpTest: Limiter;
   /** Cloudflare configuration attempts, single key `global`. Use `consume`. */
   cloudflare: Limiter;
-  /** Forced update checks, single key `refresh`. Use `consume`. */
-  updateCheck: Limiter;
-  /** Update requests, single key `start`. Use `consume`. */
-  updateStart: Limiter;
 }
 
 export function createSetupLimiters(): SetupLimiters {
@@ -24,7 +20,5 @@ export function createSetupLimiters(): SetupLimiters {
     setupCodeGlobal: createLimiter(limits.setupCodeGlobal),
     smtpTest: createLimiter(limits.smtpTest),
     cloudflare: createLimiter(limits.cloudflare),
-    updateCheck: createLimiter(limits.updateCheck),
-    updateStart: createLimiter(limits.updateStart),
   };
 }

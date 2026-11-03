@@ -8,7 +8,6 @@ import { passwordResetTokens, users } from '../db/schema/index.js';
 import { normalizeEmail } from '../users/service.js';
 import { AppError } from '../http/errors.js';
 import { assertNotLimited } from '../http/rate-limit.js';
-import { accountKey } from './limiters.js';
 
 /** Password reset by email. Welcome links (created by the admin) share table and confirm step. */
 export function createPasswordResetService(ctx: AppContext) {
@@ -24,7 +23,7 @@ export function createPasswordResetService(ctx: AppContext) {
     async request(req: Request, email: string): Promise<void> {
       const [ip, mailbox] = await Promise.all([
         limiters.resetRequestIp.consume(ctx.clientIp(req)),
-        limiters.resetRequestEmail.consume(accountKey(email)),
+        limiters.resetRequestEmail.consume(normalizeEmail(email)),
       ]);
       if (ip.limited || mailbox.limited) return;
 
@@ -108,7 +107,7 @@ export function createPasswordResetService(ctx: AppContext) {
         return user.email;
       });
       // Two-factor settings are left untouched on purpose. A reset also lifts a login lockout.
-      await limiters.loginAccount.reset(accountKey(email));
+      await limiters.loginAccount.reset(normalizeEmail(email));
     },
   };
 }

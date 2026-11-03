@@ -19,7 +19,10 @@ export interface CsrfService {
   tokenFor(req: Request, res: Response): string;
   /** Rejects cross-site `Origin` / `Sec-Fetch-Site` on unsafe methods. Mounted globally under /api. */
   rejectCrossSite: RequestHandler;
-  /** `rejectCrossSite` plus the token check. Use on endpoints with `csrf: true`. */
+  /**
+   * `rejectCrossSite` (skipped when it already ran for this request) plus the token check.
+   * Use on endpoints with `csrf: true`, also on routers mounted outside the global middleware.
+   */
   requireCsrf: RequestHandler;
 }
 
@@ -59,8 +62,11 @@ export function createCsrf(deps: {
     return host ? `${req.protocol}://${host}` : undefined;
   };
 
+  /** Requests that already passed the origin check: it runs once per request. */
+  const originChecked = new WeakSet<Request>();
+
   const rejectCrossSite: RequestHandler = (req, _res, next) => {
-    if (!UNSAFE_METHODS.has(req.method)) return next();
+    if (originChecked.has(req) || !UNSAFE_METHODS.has(req.method)) return next();
     if (req.get('sec-fetch-site') === 'cross-site') {
       return next(new AppError('CSRF_INVALID', 'Cross-site request rejected'));
     }
@@ -70,6 +76,7 @@ export function createCsrf(deps: {
     if (origin !== undefined && origin !== publicOrigin && origin !== requestOrigin(req)) {
       return next(new AppError('CSRF_INVALID', 'Cross-site request rejected'));
     }
+    originChecked.add(req);
     next();
   };
 

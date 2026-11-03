@@ -37,7 +37,7 @@ export function makeTransferDetail(overrides: Partial<TransferDetail> = {}): Tra
 }
 
 export function makeTransferSummary(overrides: Partial<TransferSummary> = {}): TransferSummary {
-  const { id, title, mode, status, ownerId, ownerEmail, createdAt, expiresAt } =
+  const { id, title, mode, status, ownerId, ownerEmail, createdAt, expiresAt, shareUrl } =
     makeTransferDetail();
   return {
     id,
@@ -54,6 +54,7 @@ export function makeTransferSummary(overrides: Partial<TransferSummary> = {}): T
     downloadCount: 2,
     maxDownloads: 10,
     hasPassword: false,
+    shareUrl,
     ...overrides,
   };
 }

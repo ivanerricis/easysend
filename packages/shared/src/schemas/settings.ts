@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import {
-  APP_MODES,
   AVAILABLE_FONTS,
   BRANDING_ASSET_KINDS,
   CHUNK_SIZE_MB,
@@ -9,7 +8,7 @@ import {
   INSTANCE_NAME_MAX_LENGTH,
   THEME_PREFERENCES,
 } from '../constants.js';
-import { emailSchema, unixSecondsSchema } from './common.js';
+import { appModeSchema, atLeastOneField, emailSchema, unixSecondsSchema } from './common.js';
 import { localeSchema } from './users.js';
 
 // ---- Appearance --------------------------------------------------------------
@@ -50,7 +49,7 @@ export type BrandingAssets = z.infer<typeof brandingAssetsSchema>;
 
 export const publicSettingsResponseSchema = z.object({
   setupCompleted: z.boolean(),
-  appMode: z.enum(APP_MODES),
+  appMode: appModeSchema,
   defaultLocale: localeSchema,
   appearance: appearanceSchema,
   assets: brandingAssetsSchema,
@@ -81,10 +80,9 @@ export type GeneralSettings = z.infer<typeof generalSettingsSchema>;
 
 // Built from the plain fields: `.partial()` on the schema above would apply the default to a
 // missing `updateCheck` and silently re-enable the check on every unrelated PATCH.
-export const updateGeneralSettingsRequestSchema = z
-  .object({ ...generalSettingsFields, updateCheck: z.boolean() })
-  .partial()
-  .refine((v) => Object.keys(v).length > 0, { message: 'At least one field is required' });
+export const updateGeneralSettingsRequestSchema = atLeastOneField(
+  z.object({ ...generalSettingsFields, updateCheck: z.boolean() }).partial(),
+);
 export type UpdateGeneralSettingsRequest = z.infer<typeof updateGeneralSettingsRequestSchema>;
 
 // ---- SMTP --------------------------------------------------------------------

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APP_MODES } from '../constants.js';
+import { appModeSchema } from './common.js';
 import { emailSchema } from './common.js';
 import {
   displayNameSchema,
@@ -14,7 +14,7 @@ import { appearanceSchema, generalSettingsSchema, smtpSettingsPublicSchema } fro
 // ---- Status and setup code ---------------------------------------------------
 export const setupStatusResponseSchema = z.object({
   setupCompleted: z.boolean(),
-  appMode: z.enum(APP_MODES),
+  appMode: appModeSchema,
   /** The setup code was accepted for this browser (valid `es_setup` cookie). */
   codeVerified: z.boolean(),
   steps: z.object({
