@@ -100,7 +100,7 @@ describe('SettingsPage', () => {
     });
     await fillSmtp();
     fireEvent.click(screen.getByRole('button', { name: 'Send test email' }));
-    expect(await screen.findByText(/code ECONNREFUSED/)).toBeInTheDocument();
+    expect(await screen.findByText(/Reported error:.*connection refused/)).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Save' }).at(-1)).toBeDisabled();
   });
 

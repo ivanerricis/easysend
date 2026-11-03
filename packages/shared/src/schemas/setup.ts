@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { APP_MODES, CLOUDFLARE_TOKEN_MAX_LENGTH, CLOUDFLARE_TOKEN_MIN_LENGTH } from '../constants.js';
+import {
+  APP_MODES,
+  CLOUDFLARE_TOKEN_MAX_LENGTH,
+  CLOUDFLARE_TOKEN_MIN_LENGTH,
+} from '../constants.js';
 import { emailSchema } from './common.js';
 import {
   displayNameSchema,

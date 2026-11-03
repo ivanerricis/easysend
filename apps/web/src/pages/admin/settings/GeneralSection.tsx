@@ -1,5 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { CHUNK_SIZE_MB, LOCALES, type GeneralSettings } from '@easysend/shared';
+import {
+  CHUNK_SIZE_MB,
+  DISK_RESERVE_MAX_MB,
+  LOCALES,
+  type GeneralSettings,
+} from '@easysend/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -16,8 +21,6 @@ import { updateGeneralSettings } from '@/lib/api/settings';
 import { errorMessage } from '@/lib/errors';
 import { notifySuccess } from '@/lib/toast';
 
-const RESERVE_MAX_MB = 10_485_760;
-
 const wholeNumber = (min: number, max: number, error: string) =>
   z
     .string()
@@ -27,7 +30,7 @@ const wholeNumber = (min: number, max: number, error: string) =>
     });
 
 const formSchema = z.object({
-  diskReserveMb: wholeNumber(0, RESERVE_MAX_MB, 'admin.settings.general.errors.reserve'),
+  diskReserveMb: wholeNumber(0, DISK_RESERVE_MAX_MB, 'admin.settings.general.errors.reserve'),
   chunkSizeMb: wholeNumber(1, CHUNK_SIZE_MB.max, 'admin.settings.general.errors.chunk'),
   defaultLocale: z.enum(LOCALES),
   updateCheck: z.boolean(),

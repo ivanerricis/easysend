@@ -16,7 +16,7 @@ import { saveSetupGeneral } from '@/lib/api/setup';
 import { useZodForm } from '../auth/form-errors';
 import { apiErrorText } from '../auth/helpers';
 import { Notice } from '../auth/Notice';
-import { ChoiceField } from './ChoiceField';
+import { ChoiceField } from '@/components/common/ChoiceField';
 import { StepHeading } from './StepHeading';
 import { stepActionsClass, type StepProps } from './types';
 

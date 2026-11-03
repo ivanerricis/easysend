@@ -30,11 +30,7 @@ import { notifyError, notifySuccess } from '@/lib/toast';
 import { BrandingImages } from './appearance/BrandingImages';
 import { ColorField } from './appearance/ColorField';
 
-const hexColor = (error: string) =>
-  z
-    .string()
-    .trim()
-    .regex(HEX_COLOR_REGEX, { error });
+const hexColor = (error: string) => z.string().trim().regex(HEX_COLOR_REGEX, { error });
 
 // The shared schema with translatable messages for the fields the admin edits.
 const formSchema = appearanceSchema.extend({

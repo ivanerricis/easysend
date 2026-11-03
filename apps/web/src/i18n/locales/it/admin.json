@@ -190,32 +190,10 @@
     "smtp": {
       "title": "Posta in uscita (SMTP)",
       "description": "Serve per le notifiche di download, le email di benvenuto e il recupero password. Invia un'email di prova prima di salvare.",
-      "host": "Server",
-      "port": "Porta",
-      "security": "Sicurezza",
-      "securityOptions": {
-        "none": "Nessuna",
-        "starttls": "STARTTLS",
-        "tls": "TLS (SSL)"
-      },
-      "username": "Nome utente",
-      "password": "Password",
-      "passwordKept": "Una password è già salvata. Lascia il campo vuoto per mantenerla.",
-      "fromEmail": "Email del mittente",
-      "fromName": "Nome del mittente",
       "test": "Invia email di prova",
       "testing": "Invio in corso…",
       "testFirst": "Invia un'email di prova con questi valori per poter salvare. Ogni modifica richiede una nuova prova.",
-      "testOk": "Email di prova inviata a {{email}}. Controlla la posta, poi salva.",
-      "testFailedReason": "Non è stato possibile inviare l'email di prova (codice {{reason}}). Controlla server, porta, sicurezza e credenziali.",
-      "errors": {
-        "host": "Inserisci l'indirizzo del server di posta (massimo 255 caratteri).",
-        "port": "Inserisci una porta da 1 a 65535.",
-        "username": "Il nome utente è troppo lungo.",
-        "password": "La password è troppo lunga.",
-        "fromEmail": "Inserisci un indirizzo email del mittente valido.",
-        "fromName": "Il nome del mittente è troppo lungo (massimo 100 caratteri)."
-      }
+      "testOk": "Email di prova inviata a {{email}}. Controlla la posta, poi salva."
     },
     "tunnel": {
       "title": "Dominio e tunnel",
@@ -228,12 +206,6 @@
       "hostname": "Indirizzo",
       "publicUrl": "URL pubblico",
       "configuredAt": "Configurato il",
-      "domain": "Dominio",
-      "domainHelp": "Un dominio gestito dal tuo account Cloudflare, ad esempio example.com.",
-      "subdomain": "Sottodominio",
-      "subdomainHelp": "Ad esempio «send» per send.example.com. Se è vuoto si usa il dominio stesso.",
-      "apiToken": "Token API di Cloudflare",
-      "apiTokenHelp": "Serve solo per questa operazione: non viene mai salvato.",
       "permissionsTitle": "Crea il token con questi permessi minimi",
       "permTunnel": "Account · Cloudflare Tunnel · Modifica",
       "permDns": "Zona · DNS · Modifica",
@@ -243,12 +215,7 @@
       "reconfigureWarning": "Cambiando il dominio cambia l'indirizzo pubblico: i link già condivisi con il vecchio indirizzo smetteranno di funzionare.",
       "configure": "Configura il tunnel",
       "reconfigure": "Cambia dominio",
-      "savedToast": "Tunnel configurato: {{url}}",
-      "errors": {
-        "domain": "Inserisci un dominio valido, ad esempio example.com.",
-        "subdomain": "Usa solo lettere, numeri e trattini.",
-        "token": "Inserisci il token API di Cloudflare (almeno 20 caratteri)."
-      }
+      "savedToast": "Tunnel configurato: {{url}}"
     },
     "updates": {
       "title": "Aggiornamenti",
