@@ -55,6 +55,16 @@ Opzioni per ogni trasferimento: password opzionale sul link (hash forte, mai in 
 Notifica sempre attiva: il mittente riceve un'email al primo download di ogni trasferimento, senza possibilità di disattivarla. SMTP è quindi obbligatorio nel setup.
 I destinatari NON hanno bisogno di un account. La pagina di download mostra nome, dimensione, scadenza e conteggio dei download.
 
+### 5-bis. Link per ricevere file (richieste, fase 8)
+Un utente crea una richiesta (`upload_requests`) e condivide il link pubblico `PUBLIC_URL/r/<token>` (token di 32 byte base64url): chi lo apre carica file senza account. I file arrivano come trasferimenti ricevuti (`transfers.source = 'received'`) intestati al proprietario, che li vede in Trasferimenti (filtro Inviati/Ricevuti) e può condividerli con un normale link `/d/<token>`.
+- Opzioni: titolo, istruzioni, scadenza (le stesse del trasferimento: vale per il link e, dal momento dell'invio, per ogni trasferimento ricevuto), password facoltativa, dimensione massima totale, numero massimo di invii, nome e/o email di chi carica obbligatori. Il proprietario può modificare, revocare ed eliminare la richiesta; la revoca ferma subito invii, chunk e finalize. I trasferimenti già ricevuti restano.
+- Limiti: la dimensione massima totale conta i file ricevuti, quelli in volo e il nuovo file (`REQUEST_SIZE_LIMIT`, 413) e conta anche sulla quota del proprietario. Il numero massimo di invii si controlla alla creazione dell'invio e, in modo atomico, al finalize (`REQUEST_FULL`).
+- Flusso: `POST /api/r/:token/submissions` crea una bozza e restituisce un token di invio; upload tus su `/api/uploads` con `X-Submission-Token`; `finalize` attiva il trasferimento. Il frontend usa lo stesso runner dell'invio normale, con la dimensione dei chunk fornita da `submissions.info`.
+- Email al proprietario a ogni invio completato (sempre attiva, nella sua lingua): titolo, nome ed email di chi ha caricato, numero e dimensione dei file, link al trasferimento. Nessuna notifica di primo download né reinvio per i ricevuti.
+- Sicurezza: con password, `unlock` imposta il cookie `es_ru` (HMAC, `Path=/api/r/<token>`, SameSite=Strict, 1 ora, invalidato dal cambio password). Il token di invio `exp.HMAC(submission:<transferId>:exp)` (12 ore) viaggia nell'header `X-Submission-Token`, che non parte da solo nelle richieste cross-site; il token di un altro trasferimento è rifiutato. CSRF double submit sulle POST pubbliche. L'email del proprietario non è mai esposta (la pagina mostra il suo nome visualizzato o il nome dell'istanza). Limiti di frequenza: creazione richieste 30/ora per utente, vista pubblica 600/10 min per IP, nuovi invii 20/ora per IP e 100/ora per richiesta, password 10 errori/15 min per richiesta+IP e 50/ora per richiesta, upload tus anonimi 200/ora per IP. I token `/r/<token>` sono mascherati nei log.
+- Pulizia: il job elimina richieste scadute o revocate (i trasferimenti ricevuti restano, con la FK a null) e le bozze abbandonate. Eliminando un utente le richieste passano all'altro (`reassign`) o vengono eliminate (`delete`).
+- Rotta pubblica del frontend: `/r/:token` (sblocco, form nome/email/messaggio, caricamento, schermata finale).
+
 ## 6. Scadenza e pulizia automatica
 - Job schedulato nel backend (node-cron, ogni ora) che elimina trasferimenti scaduti, link revocati e upload incompleti, sia su disco sia nel database.
 - Lo stesso job elimina le righe di download_logs e audit_log più vecchie di LOG_RETENTION_DAYS (default 90) e i token di reset password scaduti.
@@ -140,7 +150,8 @@ Id testuali casuali, timestamp in secondi Unix, PRAGMA foreign_keys=ON, journal_
 - recovery_codes: id, user_id (FK cascade), code_hash, used_at.
 - password_reset_tokens: id, user_id (FK cascade), token_hash (unico), expires_at, used_at, created_at.
 - sessions: id (hash del token), user_id (FK cascade), expires_at, created_at, ip_hash, user_agent, mfa_verified.
-- transfers: id, owner_id (FK), token (unico), title, message, mode (link|email), expires_at, password_hash, max_downloads, download_count, total_bytes, status (uploading|active|revoked|expired|deleted), created_at, first_downloaded_at, notified_at.
+- transfers: id, owner_id (FK), token (unico), title, message, mode (link|email), expires_at, password_hash, max_downloads, download_count, total_bytes, status (uploading|active|revoked|expired|deleted), created_at, first_downloaded_at, notified_at, source (sent|received), upload_request_id (FK set null), sender_name, sender_email.
+- upload_requests: id, owner_id (FK restrict), token (unico), title, message, password_hash, max_total_bytes, max_submissions, require_name, require_email, expires_at, expires_in, status (active|revoked, `expired` derivato da expires_at), submission_count, received_bytes, created_at, updated_at. Indici su owner e (status, expires_at).
 - transfer_files: id, transfer_id (FK cascade), original_name, storage_name, size_bytes (in chiaro), stored_size_bytes, mime_type, sha256, enc_key_wrapped, enc_nonce_prefix, enc_segment_size, enc_version, created_at.
 - transfer_recipients: id, transfer_id (FK cascade), email, notified_at.
 - uploads: id (id dell'upload tus), owner_id (FK), transfer_id (FK, nullable fino al completamento), file_name, total_size, status (in_progress|completed|aborted), created_at, last_activity_at, expires_at.

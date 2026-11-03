@@ -10,6 +10,7 @@ EasySend is a self-hosted web application for sending large files, similar to We
 - Files are encrypted on the server's disk (AES-256-GCM). Upload, download and zip are streamed, so RAM use does not grow with file size.
 - Share by link or by email. Expiry after 3 days, 1 week or 1 month. Optional password and download limit. A transfer can be revoked at any time.
 - The sender is notified at the first download.
+- File requests: a link that lets anyone upload files to you, without an account (see [Receiving files](./receiving-files)).
 - Users with roles (admin, user) and per-user quotas. Two-factor authentication (TOTP) is mandatory for admins.
 - Italian and English interface, light and dark theme, configurable branding (name, logos, colors, background, footer).
 - Setup wizard: admin account, SMTP, Cloudflare tunnel and general settings. No config files to edit by hand.

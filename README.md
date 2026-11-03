@@ -15,6 +15,7 @@ EasySend is a self-hosted web application for sending large files, similar to We
 - Resumable uploads of very large files with the [tus](https://tus.io) protocol, in chunks of 25 MB.
 - Files encrypted on disk (AES-256-GCM). Upload, download and zip are streamed, so RAM use does not grow with file size.
 - Share by link or email, with expiry, optional password and download limit. Revoke at any time.
+- Receive files from anyone with an upload link (optional password, size and upload limits), without an account for the sender.
 - Users with roles and quotas, mandatory two-factor authentication for admins.
 - Italian and English interface, light and dark theme, configurable branding.
 - Setup wizard for admin, SMTP, Cloudflare tunnel and general settings.
