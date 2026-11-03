@@ -299,6 +299,12 @@
           "unknown": "L'aggiornamento non si è concluso."
         }
       }
+    },
+    "nav": {
+      "general": "Generali",
+      "email": "Email",
+      "cloudflare": "Cloudflare",
+      "updates": "Aggiornamenti"
     }
   },
   "appearance": {

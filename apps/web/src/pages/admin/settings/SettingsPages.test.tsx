@@ -1,7 +1,10 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { apiError, makeAdmin, renderWithProviders } from '@/test/render';
-import SettingsPage from './SettingsPage';
+import CloudflareSettingsPage from './CloudflareSettingsPage';
+import EmailSettingsPage from './EmailSettingsPage';
+import GeneralSettingsPage from './GeneralSettingsPage';
+import UpdatesSettingsPage from './UpdatesSettingsPage';
 
 const general = { diskReserveMb: 1024, chunkSizeMb: 25, defaultLocale: 'en', updateCheck: true };
 
@@ -18,10 +21,18 @@ const updateStatus = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-function renderPage(routes: Record<string, unknown> = {}) {
-  return renderWithProviders(<SettingsPage />, {
+const PAGES = {
+  general: GeneralSettingsPage,
+  email: EmailSettingsPage,
+  cloudflare: CloudflareSettingsPage,
+  updates: UpdatesSettingsPage,
+};
+
+function renderPage(page: keyof typeof PAGES, routes: Record<string, unknown> = {}) {
+  const Page = PAGES[page];
+  return renderWithProviders(<Page />, {
     session: makeAdmin(),
-    route: '/admin/settings',
+    route: `/admin/settings/${page}`,
     routes: {
       'GET /api/admin/settings': { general, smtp: null },
       'GET /api/admin/updates': updateStatus(),
@@ -46,9 +57,9 @@ async function fillSmtp(host = 'smtp.example.com') {
   });
 }
 
-describe('SettingsPage', () => {
+describe('Settings pages', () => {
   it('keeps Save disabled until a test succeeds and disables it again after an edit', async () => {
-    const { api } = renderPage({
+    const { api } = renderPage('email', {
       'POST /api/admin/settings/smtp/test': { ok: true, sentTo: 'admin@example.com' },
       'PUT /api/admin/settings/smtp': {
         host: 'smtp.example.com',
@@ -85,7 +96,7 @@ describe('SettingsPage', () => {
   });
 
   it('shows the safe reason when the test email fails', async () => {
-    renderPage({
+    renderPage('email', {
       'POST /api/admin/settings/smtp/test': {
         status: 422,
         body: {
@@ -105,14 +116,14 @@ describe('SettingsPage', () => {
   });
 
   it('shows a rate limit error from the test', async () => {
-    renderPage({ 'POST /api/admin/settings/smtp/test': apiError(429, 'RATE_LIMITED') });
+    renderPage('email', { 'POST /api/admin/settings/smtp/test': apiError(429, 'RATE_LIMITED') });
     await fillSmtp();
     fireEvent.click(screen.getByRole('button', { name: 'Send test email' }));
     expect(await screen.findByText(/Too many requests/)).toBeInTheDocument();
   });
 
   it('disables the tunnel form in local mode', async () => {
-    renderPage();
+    renderPage('cloudflare');
     expect(await screen.findByText('Cloudflare is not used in local mode')).toBeInTheDocument();
     expect(screen.getByLabelText('Domain')).toBeDisabled();
     expect(screen.getByLabelText('Cloudflare API token')).toBeDisabled();
@@ -120,7 +131,7 @@ describe('SettingsPage', () => {
   });
 
   it('enables the tunnel form in production and maps Cloudflare errors to fields', async () => {
-    const { api } = renderPage({
+    const { api } = renderPage('cloudflare', {
       'GET /api/admin/tunnel': {
         appMode: 'production',
         configured: false,
@@ -152,7 +163,7 @@ describe('SettingsPage', () => {
   });
 
   it('saves the general settings', async () => {
-    const { api } = renderPage({
+    const { api } = renderPage('general', {
       'PATCH /api/admin/settings': {
         general: { ...general, chunkSizeMb: 40 },
         smtp: null,
@@ -171,7 +182,7 @@ describe('SettingsPage', () => {
   });
 
   it('turns the update check off with the switch', async () => {
-    const { api } = renderPage({
+    const { api } = renderPage('general', {
       'PATCH /api/admin/settings': {
         general: { ...general, updateCheck: false },
         smtp: null,
@@ -191,9 +202,9 @@ describe('SettingsPage', () => {
 
 type MockRequest = { query: URLSearchParams };
 
-describe('SettingsPage: updates section', () => {
+describe('Settings pages: updates', () => {
   it('shows versions, release notes and the update commands', async () => {
-    renderPage();
+    renderPage('updates');
     expect(await screen.findByRole('heading', { name: 'Updates' })).toBeInTheDocument();
     expect(await screen.findByText('Update available')).toBeInTheDocument();
     expect(screen.getByText('0.1.0')).toBeInTheDocument();
@@ -215,7 +226,7 @@ describe('SettingsPage: updates section', () => {
   });
 
   it('says it is up to date and hides the commands', async () => {
-    renderPage({
+    renderPage('updates', {
       'GET /api/admin/updates': updateStatus({ updateAvailable: false, latestVersion: '0.1.0' }),
     });
     expect(await screen.findByText('Up to date')).toBeInTheDocument();
@@ -223,7 +234,7 @@ describe('SettingsPage: updates section', () => {
   });
 
   it('explains a turned-off check and disables Check now', async () => {
-    renderPage({
+    renderPage('updates', {
       'GET /api/admin/updates': updateStatus({
         enabled: false,
         status: 'disabled',
@@ -239,7 +250,7 @@ describe('SettingsPage: updates section', () => {
   });
 
   it('reports an unreachable GitHub', async () => {
-    renderPage({
+    renderPage('updates', {
       'GET /api/admin/updates': updateStatus({
         status: 'unavailable',
         latestVersion: null,
@@ -253,7 +264,7 @@ describe('SettingsPage: updates section', () => {
   });
 
   it('notes that a development build is not compared', async () => {
-    renderPage({
+    renderPage('updates', {
       'GET /api/admin/updates': updateStatus({
         currentVersion: '0.0.0-dev',
         updateAvailable: false,
@@ -263,7 +274,7 @@ describe('SettingsPage: updates section', () => {
   });
 
   it('forces a new check with Check now', async () => {
-    const { api } = renderPage({
+    const { api } = renderPage('updates', {
       'GET /api/admin/updates': (request: MockRequest) =>
         request.query.get('refresh') === 'true'
           ? updateStatus({ latestVersion: '0.3.0' })
@@ -276,7 +287,7 @@ describe('SettingsPage: updates section', () => {
   });
 
   it('shows the rate limit error of Check now', async () => {
-    renderPage({
+    renderPage('updates', {
       'GET /api/admin/updates': (request: MockRequest) =>
         request.query.get('refresh') === 'true' ? apiError(429, 'RATE_LIMITED') : updateStatus(),
     });

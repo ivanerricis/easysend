@@ -299,6 +299,12 @@
           "unknown": "The update did not complete."
         }
       }
+    },
+    "nav": {
+      "general": "General",
+      "email": "Email",
+      "cloudflare": "Cloudflare",
+      "updates": "Updates"
     }
   },
   "appearance": {

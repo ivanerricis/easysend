@@ -66,9 +66,11 @@ describe('app layout', () => {
 
     renderApp({ route: '/transfers', session: makeAdmin() });
     await screen.findByRole('heading', { level: 1, name: 'Transfers' });
-    for (const name of ['Users', 'All transfers', 'Storage', 'Settings', 'Appearance']) {
+    for (const name of ['Users', 'All transfers', 'Storage', 'Appearance']) {
       expect(screen.getByRole('link', { name })).toBeInTheDocument();
     }
+    // Settings is a collapsible submenu, not a link.
+    expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
   });
 
   it('marks the active link with aria-current and has landmarks', async () => {

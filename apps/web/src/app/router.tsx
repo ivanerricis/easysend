@@ -20,7 +20,10 @@ const ProfilePage = lazy(() => import('@/pages/profile/ProfilePage'));
 const UsersPage = lazy(() => import('@/pages/admin/UsersPage'));
 const AdminTransfersPage = lazy(() => import('@/pages/admin/AdminTransfersPage'));
 const StoragePage = lazy(() => import('@/pages/admin/StoragePage'));
-const SettingsPage = lazy(() => import('@/pages/admin/SettingsPage'));
+const GeneralSettingsPage = lazy(() => import('@/pages/admin/settings/GeneralSettingsPage'));
+const EmailSettingsPage = lazy(() => import('@/pages/admin/settings/EmailSettingsPage'));
+const CloudflareSettingsPage = lazy(() => import('@/pages/admin/settings/CloudflareSettingsPage'));
+const UpdatesSettingsPage = lazy(() => import('@/pages/admin/settings/UpdatesSettingsPage'));
 const AppearancePage = lazy(() => import('@/pages/admin/AppearancePage'));
 
 /** Root element: API hooks, setup gate, the routed page and the toast region. */
@@ -83,7 +86,14 @@ export const appRoutes: RouteObject[] = [
                   { path: 'admin/users', element: <UsersPage /> },
                   { path: 'admin/transfers', element: <AdminTransfersPage /> },
                   { path: 'admin/storage', element: <StoragePage /> },
-                  { path: 'admin/settings', element: <SettingsPage /> },
+                  {
+                    path: 'admin/settings',
+                    element: <Navigate to="/admin/settings/general" replace />,
+                  },
+                  { path: 'admin/settings/general', element: <GeneralSettingsPage /> },
+                  { path: 'admin/settings/email', element: <EmailSettingsPage /> },
+                  { path: 'admin/settings/cloudflare', element: <CloudflareSettingsPage /> },
+                  { path: 'admin/settings/updates', element: <UpdatesSettingsPage /> },
                   { path: 'admin/appearance', element: <AppearancePage /> },
                 ],
               },

@@ -224,7 +224,7 @@ test('screenshots and accessibility', async ({ newSession }) => {
     ['/profile', '12-profile', 'Profilo', true],
     ['/admin/users', '13-admin-users', 'Utenti', false],
     ['/admin/storage', '14-admin-storage', 'Spazio', true],
-    ['/admin/settings', '15-admin-settings', 'Impostazioni', true],
+    ['/admin/settings/general', '15-admin-settings', 'Generali', true],
     ['/admin/appearance', '16-admin-appearance', 'Aspetto', true],
   ] as const) {
     await a.goto(path);
