@@ -5,7 +5,7 @@ import { nowSeconds } from '../clock.js';
 import type { AppContext } from '../context.js';
 import { AppError } from '../http/errors.js';
 import { writeFileAtomic } from '../shared-dir.js';
-import { RECORD_EXISTS_CODES, createCloudflareClient } from './client.js';
+import { RECORD_EXISTS_CODES, createCloudflareClient, type CloudflareClient } from './client.js';
 
 /** The web container, as seen from cloudflared inside the compose network. */
 const INGRESS_SERVICE = 'http://web:8080';
@@ -164,5 +164,46 @@ export async function configureTunnel(
   });
   const publicUrl = `https://${hostname}`;
   ctx.settings.set('public_url', publicUrl);
-  return { hostname, publicUrl, tunnelId };
+
+  const response: CloudflareResponse = { hostname, publicUrl, tunnelId };
+  if (stored && stored.configuredAt > 0 && stored.hostname.toLowerCase() !== hostname) {
+    response.previousHostname = stored.hostname;
+    response.previousRecord = await removeOldRecord(ctx, client, stored);
+  }
+  return response;
+}
+
+/**
+ * Best-effort cleanup after a domain change: deletes the CNAME of the previous hostname, but only
+ * a CNAME that points to our own tunnel. Any failure (permissions on the old zone, network, ...)
+ * is logged without secrets and reported, never thrown: the new configuration already succeeded.
+ */
+async function removeOldRecord(
+  ctx: AppContext,
+  client: CloudflareClient,
+  old: { hostname: string; tunnelId: string; zoneId: string },
+): Promise<NonNullable<CloudflareResponse['previousRecord']>> {
+  try {
+    const records = await client.request(
+      'GET',
+      `/zones/${old.zoneId}/dns_records?name=${encodeURIComponent(old.hostname)}`,
+      { schema: dnsRecordsSchema, permission: 'DNS:Edit' },
+    );
+    const content = `${old.tunnelId}.cfargotunnel.com`.toLowerCase();
+    const ours = records.filter((r) => r.type === 'CNAME' && r.content?.toLowerCase() === content);
+    if (ours.length === 0) return 'not_found';
+    for (const record of ours) {
+      await client.requestOrNull('DELETE', `/zones/${old.zoneId}/dns_records/${record.id}`, {
+        schema: anySchema,
+        permission: 'DNS:Edit',
+      });
+    }
+    return 'removed';
+  } catch (error) {
+    ctx.logger.warn(
+      { hostname: old.hostname, code: error instanceof AppError ? error.code : 'unknown' },
+      'could not remove the DNS record of the previous hostname',
+    );
+    return 'failed';
+  }
 }

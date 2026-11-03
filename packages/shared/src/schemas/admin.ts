@@ -41,6 +41,8 @@ export const tunnelStatusResponseSchema = z.object({
   publicUrl: z.string().nullable(),
   tunnelId: z.string().nullable(),
   configuredAt: unixSecondsSchema.nullable(),
+  /** `PUBLIC_URL` from the environment when set (not secret); it wins over the saved address. */
+  publicUrlEnv: z.string().nullable(),
 });
 export type TunnelStatusResponse = z.infer<typeof tunnelStatusResponseSchema>;
 
