@@ -13,8 +13,6 @@
   "devDependencies": {
     "@fontsource-variable/jetbrains-mono": "catalog:",
     "@fontsource-variable/plus-jakarta-sans": "catalog:",
-    "vitepress": "catalog:",
-    "typescript": "catalog:",
-    "@types/node": "catalog:"
+    "vitepress": "catalog:"
   }
 }
