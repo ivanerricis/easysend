@@ -1,4 +1,4 @@
-import type { TransferMode, TransferStatus } from '@easysend/shared';
+import type { TransferMode, TransferSource, TransferStatus } from '@easysend/shared';
 import { useQuery } from '@tanstack/react-query';
 import { Ban, Copy, Eye, Mail, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
@@ -17,6 +17,7 @@ interface TransferActionsMenuProps {
     status: TransferStatus;
     mode: TransferMode;
     shareUrl: string | null;
+    source?: TransferSource;
   };
   /** Title shown in the accessible name when the transfer has none. */
   fallbackTitle: string;
@@ -70,7 +71,7 @@ export function TransferActionsMenu({ transfer, fallbackTitle }: TransferActions
             key: 'resend',
             label: t('transfers.detail.resend'),
             icon: Mail,
-            hidden: !(isActive && transfer.mode === 'email'),
+            hidden: !(isActive && transfer.mode === 'email') || transfer.source === 'received',
             disabled: actions.resending,
             onSelect: () => void actions.resend(),
           },

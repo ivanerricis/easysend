@@ -105,6 +105,7 @@ export default function TransferDetailPage() {
   const transfer = query.data;
   const isDraft = transfer.status === 'uploading';
   const isActive = transfer.status === 'active';
+  const isReceived = transfer.source === 'received';
   const showOwner = isAdmin && user !== null && transfer.ownerId !== user.id;
 
   const remove = async () => {
@@ -143,7 +144,7 @@ export default function TransferDetailPage() {
           {t('common.actions.edit')}
         </Button>
       ) : null}
-      {isActive && transfer.mode === 'email' ? (
+      {isActive && transfer.mode === 'email' && !isReceived ? (
         <Button type="button" variant="outline" disabled={resending} onClick={() => void resend()}>
           <Mail aria-hidden="true" />
           {resending ? t('common.actions.working') : t('transfers.detail.resend')}
@@ -175,6 +176,30 @@ export default function TransferDetailPage() {
 
         {isDraft ? (
           <p className="border-border border p-4 text-sm">{t('transfers.detail.draftNotice')}</p>
+        ) : null}
+
+        {isReceived ? (
+          <Section id="sender-heading" title={t('transfers.detail.sender')}>
+            <dl className="border-border grid gap-x-6 gap-y-4 border p-4 sm:grid-cols-2">
+              <Fact label={t('transfers.detail.senderName')}>
+                {transfer.senderName ?? t('transfers.detail.anonymousSender')}
+              </Fact>
+              <Fact label={t('transfers.detail.senderEmail')}>
+                {transfer.senderEmail ?? t('transfers.detail.anonymousSender')}
+              </Fact>
+            </dl>
+            {transfer.uploadRequestId ? (
+              <p className="text-sm">
+                {t('transfers.detail.receivedVia')}:{' '}
+                <Link
+                  to={`/requests/${transfer.uploadRequestId}`}
+                  className="underline underline-offset-4"
+                >
+                  {t('transfers.detail.openRequest')}
+                </Link>
+              </p>
+            ) : null}
+          </Section>
         ) : null}
 
         {isActive && transfer.shareUrl ? (
@@ -309,7 +334,7 @@ export default function TransferDetailPage() {
           ) : null}
         </Section>
 
-        {transfer.mode === 'email' ? (
+        {transfer.mode === 'email' && !isReceived ? (
           <Section id="recipients-heading" title={t('transfers.detail.recipients')}>
             {transfer.recipients.length === 0 ? (
               <p className="text-muted-foreground text-sm">{t('transfers.detail.noRecipients')}</p>
