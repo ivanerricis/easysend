@@ -7,9 +7,10 @@ import { USED_ENDPOINTS as me } from './me';
 import { USED_ENDPOINTS as publicApi } from './public';
 import { USED_ENDPOINTS as settings } from './settings';
 import { USED_ENDPOINTS as setup } from './setup';
+import { USED_ENDPOINTS as submissions } from './submissions';
 import { USED_ENDPOINTS as transfers } from './transfers';
 
-/** phase 8: bound in WP3/WP4 (web modules for `requests.*` and `submissions.*`); remove then. */
+/** phase 8: bound in WP3/WP4 (web module for `requests.*`); remove then. */
 const PENDING_PHASE_8 = [
   'requests.list',
   'requests.create',
@@ -17,12 +18,6 @@ const PENDING_PHASE_8 = [
   'requests.update',
   'requests.revoke',
   'requests.delete',
-  'submissions.info',
-  'submissions.unlock',
-  'submissions.create',
-  'submissions.get',
-  'submissions.finalize',
-  'submissions.cancel',
 ];
 
 const used = new Set<string>([
@@ -34,6 +29,7 @@ const used = new Set<string>([
   ...publicApi,
   ...settings,
   ...setup,
+  ...submissions,
   ...transfers,
 ]);
 

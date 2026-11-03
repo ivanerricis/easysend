@@ -9,6 +9,8 @@ export interface FileUploadOptions {
   file: File;
   transferId: string;
   chunkSize: number;
+  /** Extra headers on every tus request (e.g. `X-Submission-Token` for public uploads). */
+  headers?: Record<string, string> | undefined;
   onProgress: (bytesSent: number, bytesTotal: number) => void;
 }
 
@@ -29,7 +31,7 @@ export function uploadFingerprint(file: File, transferId: string): string {
 
 /** Starts a resumable tus upload of `file` into the draft transfer `transferId`. */
 export function createFileUpload(options: FileUploadOptions): FileUploadHandle {
-  const { file, transferId, chunkSize, onProgress } = options;
+  const { file, transferId, chunkSize, headers, onProgress } = options;
   let cancelled = false;
   let settled = false;
   let resolvePromise!: () => void;
@@ -50,6 +52,7 @@ export function createFileUpload(options: FileUploadOptions): FileUploadHandle {
     fingerprint: (f) => Promise.resolve(uploadFingerprint(f, transferId)),
     onBeforeRequest: async (request) => {
       request.setHeader('X-CSRF-Token', await ensureCsrfToken());
+      for (const [name, value] of Object.entries(headers ?? {})) request.setHeader(name, value);
     },
     onShouldRetry: (error: DetailedError, retryAttempt) => {
       const response = error.originalResponse;
