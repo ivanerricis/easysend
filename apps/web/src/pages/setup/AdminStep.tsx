@@ -10,30 +10,29 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useSession } from '@/app/providers/SessionProvider';
 import { FormErrorSummary } from '@/components/common/FormErrorSummary';
-import { FormField, TextField } from '@/components/common/FormField';
-import { PasswordInput } from '@/components/common/PasswordInput';
+import { TextField } from '@/components/common/FormField';
 import { Button } from '@/components/ui/button';
 import { createSetupAdmin, verifySetupAdmin } from '@/lib/api/setup';
 import { hasErrorCode } from '@/lib/errors';
 import { useZodForm } from '../auth/form-errors';
 import { apiErrorText } from '../auth/helpers';
+import { NewPasswordFields } from '../auth/NewPasswordFields';
 import { Notice } from '../auth/Notice';
+import { withPasswordConfirmation } from '../auth/password-confirmation';
 import { RecoveryCodesStep } from '../auth/RecoveryCodesStep';
 import { TwoFactorEnrollment } from '../auth/TwoFactorEnrollment';
 import { StepHeading } from './StepHeading';
 import { stepActionsClass, type StepProps } from './types';
 
-const formSchema = z
-  .object({
+const formSchema = withPasswordConfirmation(
+  z.object({
     email: z.string().trim().pipe(emailSchema),
     displayName: z.string().trim().max(DISPLAY_NAME_MAX_LENGTH),
     password: passwordSchema,
     confirmPassword: z.string(),
-  })
-  .refine((v) => v.password === v.confirmPassword, {
-    path: ['confirmPassword'],
-    message: 'auth.errors.passwordMismatch',
-  })
+  }),
+  'password',
+)
   .transform((v) => ({
     email: v.email,
     ...(v.displayName === '' ? {} : { displayName: v.displayName }),
@@ -190,21 +189,12 @@ function AdminForm({
           autoComplete="name"
           maxLength={DISPLAY_NAME_MAX_LENGTH}
         />
-        <FormField
+        <NewPasswordFields
           control={control}
-          name="password"
+          passwordName="password"
           label={t('auth.password')}
           description={t('auth.passwordRule', { count: PASSWORD_MIN_LENGTH })}
-        >
-          {({ field, controlProps }) => (
-            <PasswordInput autoComplete="new-password" {...field} {...controlProps} />
-          )}
-        </FormField>
-        <FormField control={control} name="confirmPassword" label={t('auth.confirmPassword')}>
-          {({ field, controlProps }) => (
-            <PasswordInput autoComplete="new-password" {...field} {...controlProps} />
-          )}
-        </FormField>
+        />
         <div className={stepActionsClass}>
           <Button type="submit" disabled={formState.isSubmitting}>
             {formState.isSubmitting ? t('common.actions.working') : t('setup.admin.submit')}

@@ -12,13 +12,15 @@ import { Button } from '@/components/ui/button';
 import { changePassword } from '@/lib/api/me';
 import { errorMessage, hasErrorCode } from '@/lib/errors';
 import { notifySuccess } from '@/lib/toast';
+import { NewPasswordFields } from '../auth/NewPasswordFields';
+import { withPasswordConfirmation } from '../auth/password-confirmation';
 import { lockMessage } from './lock-message';
 import { Section } from './Section';
 
 // Same bounds as `changePasswordRequestSchema`, with translatable messages and the
 // client-only confirmation field.
-const passwordFormSchema = z
-  .object({
+const passwordFormSchema = withPasswordConfirmation(
+  z.object({
     currentPassword: z
       .string()
       .min(1, 'profile.password.errors.currentRequired')
@@ -28,11 +30,9 @@ const passwordFormSchema = z
       .min(PASSWORD_MIN_LENGTH, 'profile.password.errors.tooShort')
       .max(PASSWORD_MAX_LENGTH, 'profile.password.errors.tooLong'),
     confirmPassword: z.string().min(1, 'profile.password.errors.confirmRequired'),
-  })
-  .refine((v) => v.newPassword === v.confirmPassword, {
-    path: ['confirmPassword'],
-    message: 'profile.password.errors.mismatch',
-  });
+  }),
+  'newPassword',
+);
 type PasswordForm = z.infer<typeof passwordFormSchema>;
 
 export function PasswordSection() {
@@ -88,27 +88,13 @@ export function PasswordSection() {
             <PasswordInput autoComplete="current-password" {...field} {...controlProps} />
           )}
         </FormField>
-        <FormField
+        <NewPasswordFields
           control={control}
-          name="newPassword"
           idPrefix="password"
           label={t('profile.password.new')}
           description={t('profile.password.newHelp', { min: PASSWORD_MIN_LENGTH })}
-        >
-          {({ field, controlProps }) => (
-            <PasswordInput autoComplete="new-password" {...field} {...controlProps} />
-          )}
-        </FormField>
-        <FormField
-          control={control}
-          name="confirmPassword"
-          idPrefix="password"
-          label={t('profile.password.confirm')}
-        >
-          {({ field, controlProps }) => (
-            <PasswordInput autoComplete="new-password" {...field} {...controlProps} />
-          )}
-        </FormField>
+          confirmLabel={t('profile.password.confirm')}
+        />
         {formError ? (
           <p role="alert" className="text-destructive text-sm">
             {formError}
