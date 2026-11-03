@@ -72,7 +72,7 @@ export default function UsersPage() {
   const reset2fa = useMutation({
     mutationFn: (target: AdminUser) => resetUser2fa(target.id),
     onSuccess: async (_data, target) => {
-      await queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.usersAll });
       notifySuccess(t('admin.users.reset2fa.doneToast', { email: target.email }));
     },
     onError: (error) => notifyError(errorMessage(t, error)),

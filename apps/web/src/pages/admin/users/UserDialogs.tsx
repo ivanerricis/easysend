@@ -47,7 +47,7 @@ function useInvalidateUsers() {
   const queryClient = useQueryClient();
   return () =>
     Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.usersAll }),
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.storage }),
     ]);
 }
