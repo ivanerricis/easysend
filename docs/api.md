@@ -473,6 +473,8 @@ Create the Cloudflare tunnel and DNS record
   hostname: string
   publicUrl: string
   tunnelId: string
+  previousHostname?: string
+  previousRecord?: "removed" | "not_found" | "failed"
 }
 ```
 
@@ -2433,6 +2435,7 @@ Domain and Cloudflare tunnel status
   publicUrl: string | null
   tunnelId: string | null
   configuredAt: integer (min 0) | null
+  publicUrlEnv: string | null
 }
 ```
 
@@ -2461,6 +2464,8 @@ Configure or change the domain and tunnel
   hostname: string
   publicUrl: string
   tunnelId: string
+  previousHostname?: string
+  previousRecord?: "removed" | "not_found" | "failed"
 }
 ```
 

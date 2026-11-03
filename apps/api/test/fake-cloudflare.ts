@@ -111,6 +111,13 @@ export class FakeCloudflare {
         return this.ok(record);
       }
     }
+    m = /^\/zones\/([^/]+)\/dns_records\/([^/]+)$/.exec(pathname);
+    if (m && method === 'DELETE') {
+      const index = this.records.findIndex((r) => r.id === m![2]);
+      if (index < 0) return this.error(404, 81044, 'Record does not exist.');
+      this.records.splice(index, 1);
+      return this.ok({ id: m[2] });
+    }
     m = /^\/accounts\/([^/]+)\/cfd_tunnel$/.exec(pathname);
     if (m && method === 'POST') {
       const b = body as { name: string; config_src?: string };
