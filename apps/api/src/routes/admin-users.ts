@@ -18,9 +18,10 @@ import {
   uploads,
   users,
 } from '../db/schema/index.js';
+import { escapeLike } from '../db/like.js';
 import { endpointGuards } from '../http/endpoint-guards.js';
 import { AppError } from '../http/errors.js';
-import { isStorageName, storagePath, tusFilePaths } from '../storage/paths.js';
+import { isStorageName, storagePath, tusPathList } from '../storage/paths.js';
 import { removeFileQuietly } from '../storage/remove.js';
 import { sendJson, validBody, validParams, validQuery } from '../http/validate.js';
 import {
@@ -30,16 +31,8 @@ import {
   toAdminUser,
 } from '../users/service.js';
 
-/** tus data and metadata files of an upload (nothing for ids that are not UUIDs). */
-const tusPaths = (config: AppContext['config'], uploadId: string): string[] => {
-  if (!isStorageName(uploadId)) return [];
-  const { data, info } = tusFilePaths(config, uploadId);
-  return [data, info];
-};
-
-/** Escapes LIKE wildcards so `q` is always a plain substring. */
-const likePattern = (q: string): string =>
-  `%${q.toLowerCase().replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+/** Lower-cased substring pattern: `q` is always a plain substring. */
+const likePattern = (q: string): string => `%${escapeLike(q.toLowerCase())}%`;
 
 export function adminUsersRouter(ctx: AppContext): Router {
   const router = Router();
@@ -254,7 +247,7 @@ export function adminUsersRouter(ctx: AppContext): Router {
           .where(and(eq(uploads.ownerId, id), inArray(uploads.status, ['in_progress', 'aborted'])))
           .all();
         for (const { id: uploadId } of abortable)
-          filesToRemove.push(...tusPaths(ctx.config, uploadId));
+          filesToRemove.push(...tusPathList(ctx.config, uploadId));
         tx.delete(uploads)
           .where(and(eq(uploads.ownerId, id), inArray(uploads.status, ['in_progress', 'aborted'])))
           .run();
@@ -290,7 +283,7 @@ export function adminUsersRouter(ctx: AppContext): Router {
             .from(uploads)
             .where(eq(uploads.ownerId, id))
             .all()) {
-            filesToRemove.push(...tusPaths(ctx.config, row.id));
+            filesToRemove.push(...tusPathList(ctx.config, row.id));
           }
           tx.delete(uploads).where(eq(uploads.ownerId, id)).run();
           tx.delete(transfers).where(eq(transfers.ownerId, id)).run();

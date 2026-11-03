@@ -11,6 +11,7 @@ import { nowSeconds } from '../clock.js';
 import type { AppContext } from '../context.js';
 import { randomToken } from '../crypto/hash.js';
 import type { Db } from '../db/client.js';
+import { escapeLike } from '../db/like.js';
 import {
   transferFiles,
   transferRecipients,
@@ -19,7 +20,7 @@ import {
   users,
 } from '../db/schema/index.js';
 import { AppError } from '../http/errors.js';
-import { isStorageName, storagePath, tusFilePaths } from '../storage/paths.js';
+import { isStorageName, storagePath, tusPathList } from '../storage/paths.js';
 import { removeFileQuietly } from '../storage/remove.js';
 import { TRANSFER_POLICY } from './policy.js';
 
@@ -257,10 +258,7 @@ export async function deleteTransfer(
   let unlinkFailures = 0;
   const targets = [
     ...outcome.storageNames.filter(isStorageName).map((name) => storagePath(ctx.config, name)),
-    ...outcome.uploadIds.filter(isStorageName).flatMap((id) => {
-      const { data, info } = tusFilePaths(ctx.config, id);
-      return [data, info];
-    }),
+    ...outcome.uploadIds.flatMap((id) => tusPathList(ctx.config, id)),
   ];
   for (const target of targets) {
     if (!(await removeFileQuietly(target, ctx.logger))) unlinkFailures += 1;
@@ -352,9 +350,6 @@ export function recomputeUsedBytes(db: Db): number {
   `);
   return result.changes;
 }
-
-/** Escapes `%`, `_` and the escape character itself for a `LIKE ... ESCAPE '\'` pattern. */
-export const escapeLike = (text: string): string => text.replace(/[\\%_]/g, (c) => `\\${c}`);
 
 export interface TransferListFilter {
   /** Restrict to one owner (the user's own list, or the admin's `ownerId` filter). */
@@ -452,27 +447,30 @@ export async function notifyRecipients(
     .all();
 
   let sent = 0;
-  for (const recipient of recipients) {
-    const ok = await ctx.mailer.sendTransferLink({
-      to: recipient.email,
-      transfer: {
-        token: row.token,
-        title: row.title,
-        message: row.message,
-        senderName,
-        expiresAt: row.expiresAt,
-        fileCount: files.n,
-        totalBytes: files.bytes,
-      },
-    });
-    if (!ok) continue;
-    sent += 1;
-    ctx.db
-      .update(transferRecipients)
-      .set({ notifiedAt: nowSeconds(ctx.clock) })
-      .where(eq(transferRecipients.id, recipient.id))
-      .run();
-  }
+  // One SMTP connection for the whole batch.
+  await ctx.mailer.batch(async (mailer) => {
+    for (const recipient of recipients) {
+      const ok = await mailer.sendTransferLink({
+        to: recipient.email,
+        transfer: {
+          token: row.token,
+          title: row.title,
+          message: row.message,
+          senderName,
+          expiresAt: row.expiresAt,
+          fileCount: files.n,
+          totalBytes: files.bytes,
+        },
+      });
+      if (!ok) continue;
+      sent += 1;
+      ctx.db
+        .update(transferRecipients)
+        .set({ notifiedAt: nowSeconds(ctx.clock) })
+        .where(eq(transferRecipients.id, recipient.id))
+        .run();
+    }
+  });
   // `transfers.notified_at` is not touched: it means only "the owner got the first-download notice".
   return sent;
 }

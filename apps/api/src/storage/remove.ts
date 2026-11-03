@@ -1,6 +1,8 @@
 import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import type { Logger } from '../logger.js';
+import type { AppConfig } from '../config.js';
+import { tusPathList } from './paths.js';
 
 /**
  * Deletes a file, treating "already gone" as success. Other failures are logged with the file
@@ -16,4 +18,17 @@ export async function removeFileQuietly(filePath: string, logger: Logger): Promi
     logger.warn({ file: path.basename(filePath), code }, 'unable to remove file');
     return false;
   }
+}
+
+/** Removes the tus data and metadata files of an upload; false if any removal failed. */
+export async function removeTusFiles(
+  config: Pick<AppConfig, 'tmpUploadDir'>,
+  uploadId: string,
+  logger: Logger,
+): Promise<boolean> {
+  let ok = true;
+  for (const file of tusPathList(config, uploadId)) {
+    if (!(await removeFileQuietly(file, logger))) ok = false;
+  }
+  return ok;
 }

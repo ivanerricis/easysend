@@ -36,7 +36,7 @@ export function setupRouter(ctx: AppContext): Router {
 
   const steps = () => ({
     admin: adminExists(),
-    smtp: settings.get('smtp') !== undefined,
+    smtp: settings.has('smtp'),
     // `configuredAt` 0 marks a tunnel created by an attempt that did not finish.
     cloudflare: isLocal || (settings.get('tunnel')?.configuredAt ?? 0) > 0,
     general: settings.get('general') !== undefined,

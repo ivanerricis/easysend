@@ -1,4 +1,4 @@
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { Router, type Response } from 'express';
 import { pipeline, type Readable, type Transform } from 'node:stream';
 import { ZipFile } from 'yazl';
@@ -144,7 +144,11 @@ export function downloadsRouter(ctx: AppContext): Router {
       const { token, fileId } = validParams<{ token: string; fileId: string }>(req);
       const { transfer, ipHash, nowSec } = await resolveTransfer(ctx, req, res, token);
       assertUnlocked(ctx, req, transfer, nowSec);
-      const file = filesOf(transfer.id).find((f) => f.id === fileId);
+      const file = db
+        .select()
+        .from(transferFiles)
+        .where(and(eq(transferFiles.id, fileId), eq(transferFiles.transferId, transfer.id)))
+        .get();
       if (!file) throw new AppError('FILE_NOT_FOUND', 'File not found');
 
       const etag = `"${(file.sha256 ?? sha256Hex(file.id)).slice(0, 32)}"`;

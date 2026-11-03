@@ -86,6 +86,11 @@ export interface Mailer {
    * `code` is a nodemailer error code from a fixed allowlist, else `UNKNOWN`. Never throws.
    */
   sendTest(settings: SmtpSettings, to: string, locale: Locale | null): Promise<MailTestResult>;
+  /**
+   * Runs `task` with a mailer that shares ONE SMTP connection for all its sends (a batch of
+   * emails), closed when the task ends. Sends outside a batch each open their own.
+   */
+  batch<T>(task: (mailer: Mailer) => Promise<T>): Promise<T>;
 }
 
 const LOCAL_FROM = 'EasySend <no-reply@localhost>';
@@ -192,23 +197,21 @@ export function createMailer(deps: {
     return undefined;
   }
 
-  async function send(mail: OutgoingMail): Promise<boolean> {
-    let resolved: ResolvedSmtp | undefined;
-    try {
-      resolved = resolve();
-      if (!resolved) {
-        logger.error('email not sent: SMTP is not configured');
-        return false;
-      }
-      await resolved.transport.sendMail({ from: resolved.from, ...mail });
-      return true;
-    } catch (error) {
-      logger.error({ err: safeError(error) }, 'email not sent');
-      return false;
-    } finally {
-      if (resolved?.owned) resolved.transport.close?.();
-    }
+  /** Logo buffer by content hash, so the file is read once per upload (not once per email). */
+  let logoCache: { key: string; content: Buffer } | undefined;
+
+  async function emailLogoContent(): Promise<Buffer> {
+    const entry = settingsRepo.get('branding_assets')?.emailLogo;
+    if (!entry) return DEFAULT_EMAIL_LOGO.content;
+    const key = `${entry.etag}:${entry.fileName}`;
+    if (logoCache?.key === key) return logoCache.content;
+    const custom = await readEmailLogo({ settings: settingsRepo, config });
+    if (!custom) return DEFAULT_EMAIL_LOGO.content; // unreadable: not cached, retried next time
+    logoCache = { key, content: custom.content };
+    return custom.content;
   }
+
+  const localeOf = (locale: Locale | null): Locale => locale ?? settingsRepo.getDefaultLocale();
 
   function buildLink(pathname: string, token: string): string | undefined {
     const base = publicUrl();
@@ -230,121 +233,159 @@ export function createMailer(deps: {
     return new URL(pathname, base).toString();
   }
 
-  const localeOf = (locale: Locale | null): Locale => locale ?? settingsRepo.getDefaultLocale();
-
   /** The logo of every email: the uploaded PNG, else the built-in one. Inline (`cid:logo`). */
   async function logoAttachment(): Promise<MailAttachment> {
-    const custom = await readEmailLogo({ settings: settingsRepo, config });
     return {
       filename: 'logo.png',
-      content: custom?.content ?? DEFAULT_EMAIL_LOGO.content,
+      content: await emailLogoContent(),
       contentType: 'image/png',
       cid: LOGO_CID,
     };
   }
 
-  /** Sends a built email with its HTML part and the inline logo. */
-  async function sendContent(
-    to: string,
-    content: { subject: string; text: string; html: string },
-  ): Promise<boolean> {
-    const { subject, text, html } = content;
-    return send({ to, subject, text, html, attachments: [await logoAttachment()] });
+  /** The mailer API over a source of SMTP transports (one per send, or one shared by a batch). */
+  function mailerOver(source: () => ResolvedSmtp | undefined): Mailer {
+    async function send(mail: OutgoingMail): Promise<boolean> {
+      let resolved: ResolvedSmtp | undefined;
+      try {
+        resolved = source();
+        if (!resolved) {
+          logger.error('email not sent: SMTP is not configured');
+          return false;
+        }
+        await resolved.transport.sendMail({ from: resolved.from, ...mail });
+        return true;
+      } catch (error) {
+        logger.error({ err: safeError(error) }, 'email not sent');
+        return false;
+      } finally {
+        if (resolved?.owned) resolved.transport.close?.();
+      }
+    }
+
+    /** Sends a built email with its HTML part and the inline logo. */
+    async function sendContent(
+      to: string,
+      content: { subject: string; text: string; html: string },
+    ): Promise<boolean> {
+      const { subject, text, html } = content;
+      return send({ to, subject, text, html, attachments: [await logoAttachment()] });
+    }
+
+    return {
+      send,
+
+      async sendPasswordReset({ to, locale, token }) {
+        const link = buildLink('/reset-password', token);
+        if (!link) return false;
+        return sendContent(
+          to,
+          passwordResetEmail({
+            locale: localeOf(locale),
+            appearance: settingsRepo.getAppearance(),
+            link,
+            ttlMinutes: config.passwordResetTtlMinutes,
+          }),
+        );
+      },
+
+      async sendWelcome({ to, locale, token }) {
+        const link = buildLink('/welcome', token);
+        if (!link) return false;
+        return sendContent(
+          to,
+          welcomeEmail({
+            locale: localeOf(locale),
+            appearance: settingsRepo.getAppearance(),
+            link,
+            ttlHours: Math.round(AUTH_POLICY.welcomeTokenSeconds / 3600),
+          }),
+        );
+      },
+
+      async sendTransferLink({ to, transfer }) {
+        const link = buildUrl(`/d/${transfer.token}`);
+        if (!link) return false;
+        return sendContent(
+          to,
+          transferLinkEmail({
+            locale: settingsRepo.getDefaultLocale(),
+            appearance: settingsRepo.getAppearance(),
+            link,
+            senderName: transfer.senderName,
+            title: transfer.title,
+            message: transfer.message,
+            expiresAt: transfer.expiresAt,
+            fileCount: transfer.fileCount,
+            totalBytes: transfer.totalBytes,
+            timezone: config.timezone,
+          }),
+        );
+      },
+
+      async sendFirstDownload({ to, locale, transferId, title, downloadedAt }) {
+        const link = buildUrl(`/transfers/${transferId}`);
+        if (!link) return false;
+        return sendContent(
+          to,
+          firstDownloadEmail({
+            locale: localeOf(locale),
+            appearance: settingsRepo.getAppearance(),
+            title,
+            link,
+            downloadedAt,
+            timezone: config.timezone,
+          }),
+        );
+      },
+
+      async sendTest(smtp, to, locale) {
+        const transport =
+          deps.transport ?? createSmtpTransport(smtp, smtp.password, TEST_TIMEOUT_MS);
+        try {
+          const { subject, text, html } = smtpTestEmail({
+            locale: localeOf(locale),
+            appearance: settingsRepo.getAppearance(),
+          });
+          await transport.sendMail({
+            from: formatFrom(smtp),
+            to,
+            subject,
+            text,
+            html,
+            attachments: [await logoAttachment()],
+          });
+          return { ok: true };
+        } catch (error) {
+          // Never the message: it may echo server replies or credentials.
+          const code = (error as { code?: unknown } | null)?.code;
+          logger.warn({ err: safeError(error) }, 'test email not sent');
+          return {
+            ok: false,
+            code: typeof code === 'string' && SAFE_TEST_ERROR_CODES.has(code) ? code : 'UNKNOWN',
+          };
+        } finally {
+          if (!deps.transport) transport.close?.();
+        }
+      },
+
+      async batch(task) {
+        // Already inside a batch (or no transport to share): reuse this mailer.
+        return task(this);
+      },
+    };
   }
 
+  const root = mailerOver(resolve);
   return {
-    send,
-
-    async sendPasswordReset({ to, locale, token }) {
-      const link = buildLink('/reset-password', token);
-      if (!link) return false;
-      return sendContent(
-        to,
-        passwordResetEmail({
-          locale: localeOf(locale),
-          appearance: settingsRepo.getAppearance(),
-          link,
-          ttlMinutes: config.passwordResetTtlMinutes,
-        }),
-      );
-    },
-
-    async sendWelcome({ to, locale, token }) {
-      const link = buildLink('/welcome', token);
-      if (!link) return false;
-      return sendContent(
-        to,
-        welcomeEmail({
-          locale: localeOf(locale),
-          appearance: settingsRepo.getAppearance(),
-          link,
-          ttlHours: Math.round(AUTH_POLICY.welcomeTokenSeconds / 3600),
-        }),
-      );
-    },
-
-    async sendTransferLink({ to, transfer }) {
-      const link = buildUrl(`/d/${transfer.token}`);
-      if (!link) return false;
-      return sendContent(
-        to,
-        transferLinkEmail({
-          locale: settingsRepo.getDefaultLocale(),
-          appearance: settingsRepo.getAppearance(),
-          link,
-          senderName: transfer.senderName,
-          title: transfer.title,
-          message: transfer.message,
-          expiresAt: transfer.expiresAt,
-          fileCount: transfer.fileCount,
-          totalBytes: transfer.totalBytes,
-          timezone: config.timezone,
-        }),
-      );
-    },
-
-    async sendFirstDownload({ to, locale, transferId, title, downloadedAt }) {
-      const link = buildUrl(`/transfers/${transferId}`);
-      if (!link) return false;
-      return sendContent(
-        to,
-        firstDownloadEmail({
-          locale: localeOf(locale),
-          appearance: settingsRepo.getAppearance(),
-          title,
-          link,
-          downloadedAt,
-          timezone: config.timezone,
-        }),
-      );
-    },
-
-    async sendTest(smtp, to, locale) {
-      const transport = deps.transport ?? createSmtpTransport(smtp, smtp.password, TEST_TIMEOUT_MS);
+    ...root,
+    async batch(task) {
+      const resolved = resolve();
       try {
-        const { subject, text, html } = smtpTestEmail({
-          locale: localeOf(locale),
-          appearance: settingsRepo.getAppearance(),
-        });
-        await transport.sendMail({
-          from: formatFrom(smtp),
-          to,
-          subject,
-          text,
-          html,
-          attachments: [await logoAttachment()],
-        });
-        return { ok: true };
-      } catch (error) {
-        // Never the message: it may echo server replies or credentials.
-        const code = (error as { code?: unknown } | null)?.code;
-        logger.warn({ err: safeError(error) }, 'test email not sent');
-        return {
-          ok: false,
-          code: typeof code === 'string' && SAFE_TEST_ERROR_CODES.has(code) ? code : 'UNKNOWN',
-        };
+        const shared = mailerOver(() => (resolved ? { ...resolved, owned: false } : undefined));
+        return await task(shared);
       } finally {
-        if (!deps.transport) transport.close?.();
+        if (resolved?.owned) resolved.transport.close?.();
       }
     },
   };

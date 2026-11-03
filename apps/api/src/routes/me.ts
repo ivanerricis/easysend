@@ -22,7 +22,11 @@ export function meRouter(ctx: AppContext): Router {
   const router = Router();
   const { db, limiters } = ctx;
 
-  const currentUser = (req: Request) => {
+  /** The user loaded with the session of this request (no query). Use it before any write. */
+  const sessionUser = (req: Request) => req.auth!.user;
+
+  /** The user re-read from the database, for responses that follow a write. */
+  const reloadUser = (req: Request) => {
     const row = db.select().from(users).where(eq(users.id, req.auth!.user.id)).get();
     if (!row) throw new AppError('UNAUTHENTICATED', 'Authentication required');
     return row;
@@ -34,17 +38,25 @@ export function meRouter(ctx: AppContext): Router {
     return status.limited ? limitedError(res, status.retryAfterSeconds, 'ACCOUNT_LOCKED') : error;
   }
 
+  /** Behind the `reauth` limiter: throws when the account is locked or the password is wrong. */
+  async function checkCurrentPassword(
+    res: Response,
+    user: { id: string; passwordHash: string },
+    password: string,
+  ): Promise<void> {
+    assertNotLimited(res, await limiters.reauth.check(user.id), 'ACCOUNT_LOCKED');
+    if (!(await ctx.passwordHasher.verify(user.passwordHash, password))) {
+      throw await reauthFailure(res, user.id, new AppError('PASSWORD_INCORRECT'));
+    }
+  }
+
   /**
    * Password + current TOTP code of the logged-in user, behind the `reauth` limiter. A code that
    * was already used is refused (replay). Stores the accepted counter. Throws on any failure.
    */
   async function reauthenticate(req: Request, res: Response, input: ReauthRequest): Promise<void> {
-    const user = currentUser(req);
-    assertNotLimited(res, await limiters.reauth.check(user.id), 'ACCOUNT_LOCKED');
-
-    if (!(await ctx.passwordHasher.verify(user.passwordHash, input.password))) {
-      throw await reauthFailure(res, user.id, new AppError('PASSWORD_INCORRECT'));
-    }
+    const user = sessionUser(req);
+    await checkCurrentPassword(res, user, input.password);
     const verified =
       user.totpSecretEnc === null
         ? null
@@ -62,7 +74,7 @@ export function meRouter(ctx: AppContext): Router {
   }
 
   router.get('/me', ...endpointGuards(ctx.csrf, 'me.get'), (req, res) => {
-    sendJson(res, 'me.get', 200, toMe(ctx, currentUser(req)));
+    sendJson(res, 'me.get', 200, toMe(ctx, sessionUser(req)));
   });
 
   router.patch('/me', ...endpointGuards(ctx.csrf, 'me.update'), (req, res) => {
@@ -72,16 +84,13 @@ export function meRouter(ctx: AppContext): Router {
     if (body.displayName !== undefined) changes.displayName = body.displayName;
     if (body.themePreference !== undefined) changes.themePreference = body.themePreference;
     db.update(users).set(changes).where(eq(users.id, req.auth!.user.id)).run();
-    sendJson(res, 'me.update', 200, toMe(ctx, currentUser(req)));
+    sendJson(res, 'me.update', 200, toMe(ctx, reloadUser(req)));
   });
 
   router.post('/me/password', ...endpointGuards(ctx.csrf, 'me.password'), async (req, res) => {
     const body = validBody<{ currentPassword: string; newPassword: string }>(req);
-    const user = currentUser(req);
-    assertNotLimited(res, await limiters.reauth.check(user.id), 'ACCOUNT_LOCKED');
-    if (!(await ctx.passwordHasher.verify(user.passwordHash, body.currentPassword))) {
-      throw await reauthFailure(res, user.id, new AppError('PASSWORD_INCORRECT'));
-    }
+    const user = sessionUser(req);
+    await checkCurrentPassword(res, user, body.currentPassword);
     await limiters.reauth.reset(user.id);
 
     const passwordHash = await ctx.passwordHasher.hash(body.newPassword);
@@ -98,7 +107,7 @@ export function meRouter(ctx: AppContext): Router {
   });
 
   router.post('/me/2fa/setup', ...endpointGuards(ctx.csrf, 'me.2faSetup'), (req, res) => {
-    const user = currentUser(req);
+    const user = sessionUser(req);
     if (user.totpEnabled) throw new AppError('CONFLICT', '2FA is already enabled');
     const enrollment = generateTotpEnrollment({
       email: user.email,
@@ -117,7 +126,7 @@ export function meRouter(ctx: AppContext): Router {
 
   router.post('/me/2fa/enable', ...endpointGuards(ctx.csrf, 'me.2faEnable'), (req, res) => {
     const { code } = validBody<{ code: string }>(req);
-    const user = currentUser(req);
+    const user = sessionUser(req);
     if (user.totpEnabled || user.totpSecretEnc === null) {
       throw new AppError('CONFLICT', 'No pending 2FA enrolment');
     }
@@ -148,7 +157,7 @@ export function meRouter(ctx: AppContext): Router {
   });
 
   router.post('/me/2fa/disable', ...endpointGuards(ctx.csrf, 'me.2faDisable'), async (req, res) => {
-    const user = currentUser(req);
+    const user = sessionUser(req);
     if (user.role === 'admin') {
       throw new AppError('TWO_FACTOR_REQUIRED', '2FA is mandatory for admins');
     }
@@ -172,7 +181,7 @@ export function meRouter(ctx: AppContext): Router {
     '/me/2fa/recovery-codes',
     ...endpointGuards(ctx.csrf, 'me.recoveryCodes'),
     async (req, res) => {
-      if (!currentUser(req).totpEnabled) throw new AppError('CONFLICT', '2FA is not enabled');
+      if (!sessionUser(req).totpEnabled) throw new AppError('CONFLICT', '2FA is not enabled');
       await reauthenticate(req, res, validBody<ReauthRequest>(req));
 
       const userId = req.auth!.user.id;

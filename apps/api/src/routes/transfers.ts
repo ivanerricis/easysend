@@ -8,6 +8,7 @@ import {
   type UpdateTransferRequest,
 } from '@easysend/shared';
 import { auditRequest, type AuditAction } from '../audit.js';
+import { normalizeEmail } from '../users/service.js';
 import { nowSeconds } from '../clock.js';
 import type { AppContext } from '../context.js';
 import {
@@ -83,7 +84,7 @@ export function transfersRouter(ctx: AppContext): Router {
 
     const now = nowSeconds(ctx.clock);
     const passwordHash = body.password ? await ctx.passwordHasher.hash(body.password) : null;
-    const recipients = [...new Set((body.recipients ?? []).map((r) => r.trim().toLowerCase()))];
+    const recipients = [...new Set((body.recipients ?? []).map((r) => normalizeEmail(r)))];
     const id = db.transaction((tx) => {
       const created = tx
         .insert(transfers)

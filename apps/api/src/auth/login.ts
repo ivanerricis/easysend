@@ -8,7 +8,6 @@ import { recoveryCodes, users } from '../db/schema/index.js';
 import { normalizeEmail, replaceRecoveryCodes, toUser } from '../users/service.js';
 import { AppError } from '../http/errors.js';
 import { limitedError } from '../http/rate-limit.js';
-import { accountKey } from './limiters.js';
 import { findUnusedRecoveryCode } from './recovery-codes.js';
 import type { UserRow } from './session.js';
 import { generateTotpEnrollment, verifyTotp } from './totp.js';
@@ -32,7 +31,7 @@ export function createLoginService(ctx: AppContext) {
   async function assertCanAttempt(req: Request, res: Response, email: string): Promise<void> {
     const ip = await limiters.loginIp.check(ctx.clientIp(req));
     if (ip.limited) throw limitedError(res, ip.retryAfterSeconds, 'RATE_LIMITED');
-    const account = await limiters.loginAccount.check(accountKey(email));
+    const account = await limiters.loginAccount.check(normalizeEmail(email));
     if (account.limited) throw limitedError(res, account.retryAfterSeconds, 'ACCOUNT_LOCKED');
   }
 
@@ -46,7 +45,7 @@ export function createLoginService(ctx: AppContext) {
     reason: string,
   ): Promise<never> {
     const ip = await limiters.loginIp.fail(ctx.clientIp(req));
-    const account = await limiters.loginAccount.fail(accountKey(email));
+    const account = await limiters.loginAccount.fail(normalizeEmail(email));
     // Metadata never holds the typed email: it may belong to nobody.
     auditRequest(ctx, req, 'auth.login_failed', { ...userTarget(user?.id), metadata: { reason } });
     if (account.limited) {
@@ -66,7 +65,7 @@ export function createLoginService(ctx: AppContext) {
     const fresh = db.select().from(users).where(eq(users.id, user.id)).get() ?? user;
     const { session } = ctx.sessions.start(req, res, { userId: user.id, mfaVerified: true });
     // Reset only here: a correct password alone must not clear the counter of second-factor guesses.
-    await limiters.loginAccount.reset(accountKey(user.email));
+    await limiters.loginAccount.reset(normalizeEmail(user.email));
     auditRequest(ctx, req, 'auth.login', userTarget(user.id));
     return { user: toUser(ctx, fresh), csrfToken: ctx.csrf.sessionToken(session.id) };
   }
