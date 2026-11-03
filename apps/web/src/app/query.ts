@@ -28,6 +28,11 @@ export const queryKeys = {
     detail: (id: string) => ['transfers', 'detail', id] as const,
     downloads: (id: string, query?: object) => ['transfers', 'downloads', id, query ?? {}] as const,
   },
+  requests: {
+    all: ['requests'] as const,
+    list: (query?: object) => ['requests', 'list', query ?? {}] as const,
+    detail: (id: string) => ['requests', 'detail', id] as const,
+  },
   admin: {
     /** Prefix of every users query (lists and details), for invalidation. */
     usersAll: ['admin', 'users'] as const,
