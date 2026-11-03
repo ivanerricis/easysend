@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gt, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, sql } from 'drizzle-orm';
 import { Router, type Request, type Response } from 'express';
 import {
   EXPIRY_OPTIONS,
