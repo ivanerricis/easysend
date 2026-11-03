@@ -47,6 +47,7 @@ describe('POST /api/admin/tunnel', () => {
       publicUrl: null,
       tunnelId: null,
       configuredAt: null,
+      publicUrlEnv: null,
     });
 
     const res = await tunnelPost(client);
@@ -145,6 +146,87 @@ describe('POST /api/admin/tunnel', () => {
       { service: 'http_status:404' },
     ]);
     expect(t.ctx.settings.get('public_url')).toBe('https://send.example.com');
+  });
+
+  describe('domain change cleanup', () => {
+    it('removes our old CNAME and reports it', async () => {
+      const { fake, client } = await setup();
+      const first = bodyAs<CloudflareResponse>(await tunnelPost(client));
+      expect(first.previousHostname).toBeUndefined();
+      expect(first.previousRecord).toBeUndefined();
+
+      const second = bodyAs<CloudflareResponse>(
+        await tunnelPost(client, request({ subdomain: 'send' })),
+      );
+      expect(second).toMatchObject({
+        hostname: 'send.example.com',
+        previousHostname: 'files.example.com',
+        previousRecord: 'removed',
+      });
+      expect(fake.records.map((r) => r.name)).toEqual(['send.example.com']);
+    });
+
+    it('works across zones and never deletes a foreign record', async () => {
+      const { fake, client } = await setup();
+      fake.zones.set('other.org', { id: 'zone-2' });
+      await tunnelPost(client);
+      // Someone replaced our record with an unrelated one on the old hostname.
+      fake.records.length = 0;
+      fake.records.push(
+        { id: 'a1', type: 'A', name: 'files.example.com', content: '203.0.113.7' },
+        { id: 'c1', type: 'CNAME', name: 'files.example.com', content: 'elsewhere.example.net' },
+      );
+      const res = bodyAs<CloudflareResponse>(
+        await tunnelPost(client, request({ domain: 'other.org', subdomain: 'drop' })),
+      );
+      expect(res.previousRecord).toBe('not_found');
+      expect(fake.records.map((r) => r.id)).toEqual(expect.arrayContaining(['a1', 'c1']));
+      expect(fake.requests.some((r) => r.method === 'DELETE')).toBe(false);
+    });
+
+    it('matches the tunnel target case-insensitively', async () => {
+      const { fake, client } = await setup();
+      await tunnelPost(client);
+      fake.records[0]!.content = fake.records[0]!.content.toUpperCase();
+      const res = bodyAs<CloudflareResponse>(
+        await tunnelPost(client, request({ subdomain: 'send' })),
+      );
+      expect(res.previousRecord).toBe('removed');
+    });
+
+    it('still answers 200 with "failed" when the old zone cannot be edited', async () => {
+      const { t, fake, client } = await setup();
+      fake.zones.set('other.org', { id: 'zone-2' });
+      await tunnelPost(client);
+      fake.forbid = ['/zones/zone-1/dns_records'];
+      const res = await tunnelPost(client, request({ domain: 'other.org', subdomain: 'drop' }));
+      expect(res.status).toBe(200);
+      expect(bodyAs<CloudflareResponse>(res)).toMatchObject({
+        hostname: 'drop.other.org',
+        previousHostname: 'files.example.com',
+        previousRecord: 'failed',
+      });
+      expect(fake.records.map((r) => r.name)).toContain('files.example.com');
+      expect(t.ctx.settings.get('tunnel')).toMatchObject({ hostname: 'drop.other.org' });
+    });
+
+    it('does nothing on a retry with the same hostname', async () => {
+      const { fake, client } = await setup();
+      await tunnelPost(client);
+      const res = bodyAs<CloudflareResponse>(await tunnelPost(client));
+      expect(res.previousHostname).toBeUndefined();
+      expect(res.previousRecord).toBeUndefined();
+      expect(fake.records).toHaveLength(1);
+      expect(fake.requests.some((r) => r.method === 'DELETE')).toBe(false);
+    });
+  });
+
+  it('exposes PUBLIC_URL from the environment in the status', async () => {
+    const { client } = await setup({ env: { PUBLIC_URL: 'https://env.example.org' } });
+    await tunnelPost(client);
+    const status = bodyAs<TunnelStatusResponse>(await client.get('/api/admin/tunnel'));
+    expect(status.publicUrlEnv).toBe('https://env.example.org');
+    expect(status.hostname).toBe('files.example.com');
   });
 
   it('creates a new tunnel when the stored one was deleted on Cloudflare', async () => {
