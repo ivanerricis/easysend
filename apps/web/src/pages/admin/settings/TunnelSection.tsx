@@ -1,6 +1,6 @@
 import type { TunnelStatusResponse } from '@easysend/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, ExternalLink, Info } from 'lucide-react';
+import { CheckCircle2, ExternalLink, Info, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppearance } from '@/app/providers/AppearanceProvider';
@@ -16,12 +16,30 @@ import { useZodForm } from '../../auth/form-errors';
 import { CLOUDFLARE_FORM_DEFAULTS, cloudflareFormSchema } from '../../settings-forms/cloudflare';
 import { CloudflareFields, cloudflareFieldLabels } from '../../settings-forms/CloudflareFields';
 
+/** Same address ignoring the case of the host and a trailing slash. */
+function sameOrigin(a: string, b: string): boolean {
+  const normalise = (value: string) => {
+    try {
+      const url = new URL(value);
+      return `${url.protocol}//${url.host}${url.pathname.replace(/\/+$/, '')}`;
+    } catch {
+      return value.trim().toLowerCase().replace(/\/+$/, '');
+    }
+  };
+  return normalise(a) === normalise(b);
+}
+
 export function TunnelSection({ tunnel }: { tunnel: TunnelStatusResponse }) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const { refresh } = useAppearance();
   const isLocal = tunnel.appMode === 'local';
   const [formError, setFormError] = useState<string | null>(null);
+  const [oldRecordFailed, setOldRecordFailed] = useState<string | null>(null);
+  const envMismatch =
+    tunnel.configured && tunnel.hostname && tunnel.publicUrlEnv
+      ? !sameOrigin(tunnel.publicUrlEnv, `https://${tunnel.hostname}`)
+      : false;
   const { control, handleSubmit, setError, setValue, formState } = useZodForm(
     cloudflareFormSchema,
     { defaultValues: CLOUDFLARE_FORM_DEFAULTS },
@@ -34,6 +52,13 @@ export function TunnelSection({ tunnel }: { tunnel: TunnelStatusResponse }) {
       await queryClient.invalidateQueries({ queryKey: queryKeys.admin.tunnel });
       await refresh();
       notifySuccess(t('admin.settings.tunnel.savedToast', { url: response.publicUrl }));
+      const hostname = response.previousHostname ?? '';
+      if (response.previousRecord === 'removed') {
+        notifySuccess(t('admin.settings.tunnel.oldRecordRemoved', { hostname }));
+      } else if (response.previousRecord === 'failed') {
+        // Needs a manual action, so it stays on the page instead of disappearing like a toast.
+        setOldRecordFailed(hostname);
+      }
     },
     onError: (error) => {
       // The token is never kept in the form after an attempt.
@@ -92,6 +117,27 @@ export function TunnelSection({ tunnel }: { tunnel: TunnelStatusResponse }) {
           ) : null}
         </dl>
       )}
+
+      {envMismatch ? (
+        <Alert>
+          <TriangleAlert aria-hidden="true" />
+          <AlertTitle>{t('admin.settings.tunnel.envMismatchTitle')}</AlertTitle>
+          <AlertDescription>
+            {t('admin.settings.tunnel.envMismatchBody', {
+              env: tunnel.publicUrlEnv,
+              url: `https://${tunnel.hostname}`,
+            })}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {oldRecordFailed ? (
+        <Alert>
+          <TriangleAlert aria-hidden="true" />
+          <AlertDescription>
+            {t('admin.settings.tunnel.oldRecordFailed', { hostname: oldRecordFailed })}
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <form
         noValidate

@@ -225,7 +225,11 @@
       "reconfigureWarning": "Changing the domain changes the public address: links already shared with the old address will stop working.",
       "configure": "Configure tunnel",
       "reconfigure": "Change domain",
-      "savedToast": "Tunnel configured: {{url}}"
+      "savedToast": "Tunnel configured: {{url}}",
+      "envMismatchTitle": "PUBLIC_URL in the .env file differs from the new address",
+      "envMismatchBody": "Links and emails use the PUBLIC_URL from the .env file ({{env}}) instead of the new address ({{url}}). Update PUBLIC_URL in the .env file and restart the stack with `docker compose up -d`.",
+      "oldRecordRemoved": "The old DNS record for {{hostname}} was removed.",
+      "oldRecordFailed": "Could not remove the old DNS record for {{hostname}}: delete it from the Cloudflare dashboard."
     },
     "updates": {
       "title": "Updates",
