@@ -20,6 +20,10 @@ const item = {
   downloadCount: 1,
   maxDownloads: 5,
   hasPassword: true,
+  source: 'sent',
+  uploadRequestId: null,
+  senderName: null,
+  senderEmail: null,
   shareUrl: null,
 };
 

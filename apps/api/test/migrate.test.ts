@@ -198,7 +198,7 @@ describe('migrations', () => {
       logger: silentLogger,
     });
 
-    expect(result.applied).toEqual(['0001_auth_sessions']);
+    expect(result.applied).toEqual(['0001_auth_sessions', '0002_upload_requests']);
     expect(sqlite.prepare('SELECT last_seen_at, absolute_expires_at FROM sessions').get()).toEqual({
       last_seen_at: 0,
       absolute_expires_at: 0,
