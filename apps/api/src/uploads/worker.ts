@@ -17,7 +17,7 @@ import {
 import { removeFileQuietly } from '../storage/remove.js';
 
 /**
- * Background queue that hashes and encrypts finished tus uploads (phase 3, WP2). One job at a
+ * Background queue that hashes and encrypts finished tus uploads. One job at a
  * time keeps CPU and disk use predictable on a small machine.
  */
 export interface UploadWorker {

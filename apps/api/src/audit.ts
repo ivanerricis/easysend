@@ -1,7 +1,7 @@
 import type { Db } from './db/client.js';
 import { auditLog } from './db/schema/index.js';
 
-/** Stable action names stored in `audit_log.action` (phase 2 plan, decision 14). */
+/** Stable action names stored in `audit_log.action`. */
 export const AUDIT_ACTIONS = [
   'auth.login',
   'auth.login_failed',
