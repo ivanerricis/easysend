@@ -131,7 +131,8 @@
       "status": "Stato",
       "content": "Contenuto",
       "downloads": "Download",
-      "expires": "Scadenza"
+      "expires": "Scadenza",
+      "actions": "Azioni"
     }
   },
   "storage": {

@@ -162,7 +162,8 @@
       "files": "File",
       "downloads": "Download",
       "created": "Creato",
-      "expires": "Scade"
+      "expires": "Scade",
+      "actions": "Azioni"
     }
   },
   "detail": {

@@ -24,6 +24,7 @@ import { SelectInput } from '@/components/common/SelectInput';
 import { listTransfers } from '@/lib/api/transfers';
 import { formatBytes, formatDateTime, formatRelative } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { TransferActionsMenu } from './actions/TransferActionsMenu';
 import { downloadsText, readListParams, transferTitle } from './list-utils';
 
 const STATUS_FILTERS = ['active', 'uploading', 'revoked', 'expired'] as const;
@@ -186,6 +187,9 @@ export default function TransfersPage() {
                 </TableHead>
                 <TableHead>{t('transfers.list.columns.created')}</TableHead>
                 <TableHead>{t('transfers.list.columns.expires')}</TableHead>
+                <TableHead>
+                  <span className="sr-only">{t('transfers.list.columns.actions')}</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -218,6 +222,9 @@ export default function TransfersPage() {
                   <TableCell>
                     <Expires transfer={transfer} />
                   </TableCell>
+                  <TableCell>
+                    <TransferActionsMenu transfer={transfer} fallbackTitle={untitled} />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -225,10 +232,10 @@ export default function TransfersPage() {
 
           <ul className="space-y-3 md:hidden">
             {list.data.items.map((transfer) => (
-              <li key={transfer.id}>
+              <li key={transfer.id} className="flex items-start gap-2">
                 <Link
                   to={`/transfers/${transfer.id}`}
-                  className="border-border hover:bg-muted/50 block space-y-2 border p-4"
+                  className="border-border hover:bg-muted/50 block min-w-0 flex-1 space-y-2 border p-4"
                 >
                   <span className="flex items-start justify-between gap-3">
                     <span className="min-w-0 font-medium break-words">
@@ -253,6 +260,7 @@ export default function TransfersPage() {
                     </span>
                   </span>
                 </Link>
+                <TransferActionsMenu transfer={transfer} fallbackTitle={untitled} />
               </li>
             ))}
           </ul>

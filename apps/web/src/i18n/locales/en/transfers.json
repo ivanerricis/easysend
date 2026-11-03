@@ -162,7 +162,8 @@
       "files": "Files",
       "downloads": "Downloads",
       "created": "Created",
-      "expires": "Expires"
+      "expires": "Expires",
+      "actions": "Actions"
     }
   },
   "detail": {

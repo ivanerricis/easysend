@@ -4,6 +4,7 @@ import { Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { queryKeys } from '@/app/query';
+import { TransferActionsMenu } from '../transfers/actions/TransferActionsMenu';
 import { Pager } from '@/components/common/Pager';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/States';
@@ -166,6 +167,9 @@ export default function AdminTransfersPage() {
                 <DataHeadCell>{t('admin.transfers.columns.content')}</DataHeadCell>
                 <DataHeadCell>{t('admin.transfers.columns.downloads')}</DataHeadCell>
                 <DataHeadCell>{t('admin.transfers.columns.expires')}</DataHeadCell>
+                <DataHeadCell>
+                  <span className="sr-only">{t('admin.transfers.columns.actions')}</span>
+                </DataHeadCell>
               </DataRow>
             </DataHead>
             <DataBody>
@@ -214,6 +218,14 @@ export default function AdminTransfersPage() {
                   </DataCell>
                   <DataCell label={t('admin.transfers.columns.expires')}>
                     {formatDateTime(item.expiresAt, i18n.language)}
+                  </DataCell>
+                  <DataCell>
+                    <div className="max-lg:flex max-lg:w-full max-lg:justify-end">
+                      <TransferActionsMenu
+                        transfer={item}
+                        fallbackTitle={t('admin.transfers.untitled')}
+                      />
+                    </div>
                   </DataCell>
                 </DataRow>
               ))}
