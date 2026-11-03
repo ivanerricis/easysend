@@ -2400,6 +2400,9 @@ Disk usage and per-user storage
     reserveBytes: integer (min 0)
     usableBytes: integer (min 0)
   }
+  dataLocation: {
+    hostPath: string | null
+  }
   storedBytes: integer (min 0)
   activeTransfers: integer (min 0)
   totalFiles: integer (min 0)
@@ -2414,7 +2417,7 @@ Disk usage and per-user storage
 
 Also possible: `401` `UNAUTHENTICATED`, `403` `FORBIDDEN`, `500` `INTERNAL_ERROR`.
 
-**Notes:** In local mode the free space is the one of the Docker Desktop virtual disk, not of the PC.
+**Notes:** In local mode the free space is the one of the Docker Desktop virtual disk, not of the PC. `disk` is the filesystem that holds the storage folder (with DATA_PATH set, the disk of that host folder). `dataLocation.hostPath` is the host folder configured with DATA_PATH, or null for the default Docker volume.
 
 ### `GET /api/admin/tunnel`
 
