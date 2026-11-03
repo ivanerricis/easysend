@@ -1,19 +1,14 @@
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { Request, Response } from 'express';
-import { audit, type AuditAction } from '../audit.js';
+import { auditRequest, type AuditRequestOptions } from '../audit.js';
 import { nowSeconds } from '../clock.js';
 import type { AppContext } from '../context.js';
 import { decryptSecret, encryptSecret } from '../crypto/aead.js';
 import { recoveryCodes, users } from '../db/schema/index.js';
-import { normalizeEmail, toUser } from '../users/service.js';
+import { normalizeEmail, replaceRecoveryCodes, toUser } from '../users/service.js';
 import { AppError } from '../http/errors.js';
 import { limitedError } from '../http/rate-limit.js';
-import { accountKey } from './limiters.js';
-import {
-  findUnusedRecoveryCode,
-  generateRecoveryCodes,
-  hashRecoveryCode,
-} from './recovery-codes.js';
+import { findUnusedRecoveryCode } from './recovery-codes.js';
 import type { UserRow } from './session.js';
 import { generateTotpEnrollment, verifyTotp } from './totp.js';
 
@@ -21,21 +16,9 @@ import { generateTotpEnrollment, verifyTotp } from './totp.js';
 export function createLoginService(ctx: AppContext) {
   const { db, clock, limiters } = ctx;
 
-  const record = (
-    req: Request,
-    action: AuditAction,
-    actorId: string | null,
-    metadata?: Record<string, unknown>,
-  ): void => {
-    audit(db, {
-      actorId,
-      action,
-      ...(actorId ? { targetType: 'user' as const, targetId: actorId } : {}),
-      ...(metadata ? { metadata } : {}),
-      ipHash: ctx.ipHashOf(req),
-      now: nowSeconds(clock),
-    });
-  };
+  /** Actor and target of a login audit row: the user, or nobody when the email is unknown. */
+  const userTarget = (userId: string | undefined): AuditRequestOptions =>
+    userId ? { actorId: userId, targetType: 'user', targetId: userId } : { actorId: null };
 
   const findByEmail = (email: string): UserRow | undefined =>
     db
@@ -48,7 +31,7 @@ export function createLoginService(ctx: AppContext) {
   async function assertCanAttempt(req: Request, res: Response, email: string): Promise<void> {
     const ip = await limiters.loginIp.check(ctx.clientIp(req));
     if (ip.limited) throw limitedError(res, ip.retryAfterSeconds, 'RATE_LIMITED');
-    const account = await limiters.loginAccount.check(accountKey(email));
+    const account = await limiters.loginAccount.check(normalizeEmail(email));
     if (account.limited) throw limitedError(res, account.retryAfterSeconds, 'ACCOUNT_LOCKED');
   }
 
@@ -62,11 +45,11 @@ export function createLoginService(ctx: AppContext) {
     reason: string,
   ): Promise<never> {
     const ip = await limiters.loginIp.fail(ctx.clientIp(req));
-    const account = await limiters.loginAccount.fail(accountKey(email));
+    const account = await limiters.loginAccount.fail(normalizeEmail(email));
     // Metadata never holds the typed email: it may belong to nobody.
-    record(req, 'auth.login_failed', user?.id ?? null, { reason });
+    auditRequest(ctx, req, 'auth.login_failed', { ...userTarget(user?.id), metadata: { reason } });
     if (account.limited) {
-      record(req, 'auth.lockout', user?.id ?? null);
+      auditRequest(ctx, req, 'auth.lockout', userTarget(user?.id));
       throw limitedError(res, account.retryAfterSeconds, 'ACCOUNT_LOCKED');
     }
     if (ip.limited) throw limitedError(res, ip.retryAfterSeconds, 'RATE_LIMITED');
@@ -82,8 +65,8 @@ export function createLoginService(ctx: AppContext) {
     const fresh = db.select().from(users).where(eq(users.id, user.id)).get() ?? user;
     const { session } = ctx.sessions.start(req, res, { userId: user.id, mfaVerified: true });
     // Reset only here: a correct password alone must not clear the counter of second-factor guesses.
-    await limiters.loginAccount.reset(accountKey(user.email));
-    record(req, 'auth.login', user.id);
+    await limiters.loginAccount.reset(normalizeEmail(user.email));
+    auditRequest(ctx, req, 'auth.login', userTarget(user.id));
     return { user: toUser(ctx, fresh), csrfToken: ctx.csrf.sessionToken(session.id) };
   }
 
@@ -206,7 +189,7 @@ export function createLoginService(ctx: AppContext) {
           'recovery',
         );
       }
-      record(req, 'auth.recovery_used', user.id);
+      auditRequest(ctx, req, 'auth.recovery_used', userTarget(user.id));
       const left = rows.filter((row) => row.usedAt === null && row.id !== match.id).length;
       return { ...(await completeLogin(req, res, user)), recoveryCodesLeft: left };
     },
@@ -237,26 +220,17 @@ export function createLoginService(ctx: AppContext) {
       if (!user.totpSecretEnc) throw new AppError('CONFLICT', 'Start the enrolment first');
       await verifyCode(req, res, user, user.totpSecretEnc, input.code);
 
-      const codes = generateRecoveryCodes();
-      db.transaction((tx) => {
+      const codes = db.transaction((tx) => {
         tx.update(users).set({ totpEnabled: true }).where(eq(users.id, user.id)).run();
-        tx.delete(recoveryCodes).where(eq(recoveryCodes.userId, user.id)).run();
-        tx.insert(recoveryCodes)
-          .values(
-            codes.map((code) => ({
-              userId: user.id,
-              codeHash: hashRecoveryCode(ctx.keys.recoveryCode, code),
-            })),
-          )
-          .run();
+        return replaceRecoveryCodes(ctx, tx, user.id);
       });
-      record(req, 'auth.2fa_enabled', user.id);
+      auditRequest(ctx, req, 'auth.2fa_enabled', userTarget(user.id));
       const completed = await completeLogin(req, res, user);
       return { ...completed, recoveryCodes: codes };
     },
 
     logout(req: Request, res: Response): void {
-      if (req.auth) record(req, 'auth.logout', req.auth.user.id);
+      if (req.auth) auditRequest(ctx, req, 'auth.logout', userTarget(req.auth.user.id));
       ctx.sessions.end(req, res);
     },
   };

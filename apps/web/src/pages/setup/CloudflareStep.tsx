@@ -1,30 +1,20 @@
-import { cloudflareRequestSchema, type CloudflareResponse } from '@easysend/shared';
+import type { CloudflareResponse } from '@easysend/shared';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
 import { FormErrorSummary } from '@/components/common/FormErrorSummary';
-import { FormField, TextField } from '@/components/common/FormField';
-import { PasswordInput } from '@/components/common/PasswordInput';
 import { Button } from '@/components/ui/button';
 import { isApiError } from '@/lib/api/client';
 import { setupCloudflare } from '@/lib/api/setup';
 import { useZodForm } from '../auth/form-errors';
 import { apiErrorText } from '../auth/helpers';
 import { Notice } from '../auth/Notice';
+import { CLOUDFLARE_FORM_DEFAULTS, cloudflareFormSchema } from '../settings-forms/cloudflare';
+import { CloudflareFields, cloudflareFieldLabels } from '../settings-forms/CloudflareFields';
 import { ExternalLink } from './ExternalLink';
 import { StepHeading } from './StepHeading';
 import { stepActionsClass, type StepProps } from './types';
 
 const TOKENS_URL = 'https://dash.cloudflare.com/profile/api-tokens';
-
-const formSchema = z
-  .object({ domain: z.string(), subdomain: z.string(), apiToken: z.string() })
-  .transform((v) => ({
-    domain: v.domain.trim().toLowerCase(),
-    ...(v.subdomain.trim() === '' ? {} : { subdomain: v.subdomain.trim().toLowerCase() }),
-    apiToken: v.apiToken.trim(),
-  }))
-  .pipe(cloudflareRequestSchema);
 
 const HINTED_CODES = [
   'CLOUDFLARE_TOKEN_INVALID',
@@ -58,8 +48,8 @@ function CloudflareForm({ onFatal, onDone }: Pick<StepProps, 'onFatal' | 'onDone
   const { t } = useTranslation();
   const [error, setError] = useState<{ message: string; hint: string | null } | null>(null);
   const [result, setResult] = useState<CloudflareResponse | null>(null);
-  const { control, handleSubmit, formState } = useZodForm(formSchema, {
-    defaultValues: { domain: '', subdomain: '', apiToken: '' },
+  const { control, handleSubmit, formState } = useZodForm(cloudflareFormSchema, {
+    defaultValues: CLOUDFLARE_FORM_DEFAULTS,
   });
 
   const onSubmit = handleSubmit(async (values) => {
@@ -117,11 +107,7 @@ function CloudflareForm({ onFatal, onDone }: Pick<StepProps, 'onFatal' | 'onDone
         <FormErrorSummary
           errors={formState.errors}
           submitCount={formState.submitCount}
-          labels={{
-            domain: t('setup.cloudflare.domain'),
-            subdomain: t('setup.cloudflare.subdomain'),
-            apiToken: t('setup.cloudflare.apiToken'),
-          }}
+          labels={cloudflareFieldLabels(t)}
         />
         {error ? (
           <Notice tone="error" title={error.message}>
@@ -129,33 +115,7 @@ function CloudflareForm({ onFatal, onDone }: Pick<StepProps, 'onFatal' | 'onDone
             <p>{t('setup.cloudflare.retryNote')}</p>
           </Notice>
         ) : null}
-        <TextField
-          control={control}
-          name="domain"
-          label={t('setup.cloudflare.domain')}
-          description={t('setup.cloudflare.domainHint')}
-          placeholder="example.com"
-          autoComplete="off"
-        />
-        <TextField
-          control={control}
-          name="subdomain"
-          label={t('setup.cloudflare.subdomain')}
-          description={t('setup.cloudflare.subdomainHint')}
-          placeholder="files"
-          optional
-          autoComplete="off"
-        />
-        <FormField
-          control={control}
-          name="apiToken"
-          label={t('setup.cloudflare.apiToken')}
-          description={t('setup.cloudflare.apiTokenHint')}
-        >
-          {({ field, controlProps }) => (
-            <PasswordInput autoComplete="off" spellCheck={false} {...field} {...controlProps} />
-          )}
-        </FormField>
+        <CloudflareFields control={control} />
         <div className={stepActionsClass}>
           <Button type="submit" disabled={formState.isSubmitting}>
             {formState.isSubmitting

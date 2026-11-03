@@ -29,8 +29,9 @@ export const queryKeys = {
     downloads: (id: string, query?: object) => ['transfers', 'downloads', id, query ?? {}] as const,
   },
   admin: {
+    /** Prefix of every users query (lists and details), for invalidation. */
+    usersAll: ['admin', 'users'] as const,
     users: (query?: object) => ['admin', 'users', query ?? {}] as const,
-    user: (id: string) => ['admin', 'users', 'detail', id] as const,
     transfers: (query?: object) => ['admin', 'transfers', query ?? {}] as const,
     storage: ['admin', 'storage'] as const,
     settings: ['admin', 'settings'] as const,

@@ -14,7 +14,6 @@ export default tseslint.config(
       'apps/api/drizzle/**',
       'docs/**',
       'e2e/.output/**',
-      'e2e/playwright-report/**',
     ],
   },
   js.configs.recommended,

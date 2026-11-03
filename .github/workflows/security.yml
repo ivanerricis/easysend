@@ -52,19 +52,11 @@ jobs:
           path: ~/.cache/trivy
           key: trivy-db-${{ steps.date.outputs.day }}
           restore-keys: trivy-db-
-      # The official image is used instead of aquasecurity/trivy-action
-      # (its tags were compromised in 2026).
       - name: Scan image (CRITICAL, fixable)
-        env:
-          IMAGE: easysend-${{ matrix.image }}:scan
-        run: |
-          mkdir -p "$HOME/.cache/trivy"
-          docker run --rm \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -v "$HOME/.cache/trivy:/root/.cache/" \
-            aquasec/trivy:0.76.0@sha256:2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222 \
-            image --scanners vuln --severity CRITICAL --ignore-unfixed \
-            --exit-code 1 --no-progress "$IMAGE"
+        uses: ./.github/actions/trivy-scan
+        with:
+          image: easysend-${{ matrix.image }}:scan
+          local: 'true'
 
   audit:
     name: audit

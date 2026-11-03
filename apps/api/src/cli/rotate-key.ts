@@ -1,18 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import {
-  closeSync,
-  existsSync,
-  fsyncSync,
-  mkdirSync,
-  openSync,
-  readdirSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  statSync,
-  unlinkSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -30,7 +17,8 @@ import {
 import { unwrapDataKey, wrapDataKey } from '../crypto/segments.js';
 import { openDatabase, type Db } from '../db/client.js';
 import { settings, transferFiles, users } from '../db/schema/index.js';
-import { parseKey, SecretError } from '../secrets.js';
+import { backupTimestamp, pruneBackups } from '../db/migrate.js';
+import { parseKey, readKeyFile as readKeyFileRaw, SecretError, writeKeyFile } from '../secrets.js';
 import { ENCRYPTED_KEYS, type SettingKey } from '../settings/repo.js';
 
 export class RotateKeyError extends Error {}
@@ -198,32 +186,11 @@ export function rotateDatabaseKeys(
   return result;
 }
 
-const timestamp = (): string => new Date().toISOString().replace(/[-:]/g, '').replace(/\..+$/, '');
-
-function pruneBackups(backupDir: string): void {
-  const files = readdirSync(backupDir)
-    .filter((name) => BACKUP_FILE.test(name))
-    .map((name) => ({ name, mtime: statSync(path.join(backupDir, name)).mtimeMs }))
-    .sort((a, b) => b.mtime - a.mtime || b.name.localeCompare(a.name));
-  for (const old of files.slice(BACKUPS_TO_KEEP)) unlinkSync(path.join(backupDir, old.name));
-}
-
-/** Writes a key as hex, readable by the owner only, and flushes it to disk. */
-function writeKeyFile(file: string, key: Buffer): void {
-  writeFileSync(file, `${key.toString('hex')}\n`, { mode: 0o600 });
-  const fd = openSync(file, 'r+');
-  try {
-    fsyncSync(fd);
-  } finally {
-    closeSync(fd);
-  }
-}
-
+/** Reads a key file; a malformed one is reported as a `RotateKeyError`. */
 function readKeyFile(file: string, source: string): Buffer | undefined {
   try {
-    return parseKey(readFileSync(file, 'utf8'), source);
+    return readKeyFileRaw(file, source);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
     if (error instanceof SecretError) throw new RotateKeyError(error.message);
     throw error;
   }
@@ -312,9 +279,12 @@ export async function runRotateKey(
   const handle = openDatabase(config.dbPath);
   try {
     mkdirSync(config.dbBackupDir, { recursive: true });
-    const backupPath = path.join(config.dbBackupDir, `pre-key-rotation-${timestamp()}.sqlite`);
+    const backupPath = path.join(
+      config.dbBackupDir,
+      `pre-key-rotation-${backupTimestamp()}.sqlite`,
+    );
     await handle.sqlite.backup(backupPath);
-    pruneBackups(config.dbBackupDir);
+    pruneBackups(config.dbBackupDir, undefined, BACKUP_FILE, BACKUPS_TO_KEEP);
 
     mkdirSync(config.secretsDir, { recursive: true, mode: 0o700 });
     let wroteNewFile = false;

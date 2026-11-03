@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  BYTES_PER_MB,
   CHUNK_SIZE_MB,
   DISPLAY_NAME_MAX_LENGTH,
   EXPIRY_KEYS,
@@ -18,7 +19,9 @@ import {
   USER_ROLES,
 } from '../constants.js';
 import {
+  atLeastOneField,
   byteSizeSchema,
+  currentPasswordSchema,
   emailSchema,
   idSchema,
   paginatedSchema,
@@ -38,7 +41,8 @@ export const displayNameSchema = z.string().trim().min(1).max(DISPLAY_NAME_MAX_L
 export const passwordSchema = z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH);
 
 /** TOTP code of `TOTP_CODE_LENGTH` digits. */
-export const totpCodeSchema = z.string().regex(new RegExp(`^[0-9]{${TOTP_CODE_LENGTH}}$`));
+export const TOTP_CODE_REGEX = new RegExp(`^[0-9]{${TOTP_CODE_LENGTH}}$`);
+export const totpCodeSchema = z.string().regex(TOTP_CODE_REGEX);
 
 /** One-time recovery code as shown to the user (the server ignores dashes and case). */
 export const recoveryCodeSchema = z.string().min(8).max(32);
@@ -49,7 +53,7 @@ export const userSchema = z.object({
   email: emailSchema,
   /** Shown on the public download page; `null` when not set. */
   displayName: displayNameSchema.nullable(),
-  role: z.enum(USER_ROLES),
+  role: userRoleSchema,
   locale: localeSchema,
   themePreference: themePreferenceSchema.nullable(),
   totpEnabled: z.boolean(),
@@ -67,26 +71,26 @@ export const meResponseSchema = z.object({
 });
 export type MeResponse = z.infer<typeof meResponseSchema>;
 
-export const updateMeRequestSchema = z
-  .object({
+export const updateMeRequestSchema = atLeastOneField(
+  z.object({
     locale: localeSchema.optional(),
     /** `null` clears the display name. */
     displayName: displayNameSchema.nullable().optional(),
     /** `null` clears the personal override and falls back to the instance default. */
     themePreference: themePreferenceSchema.nullable().optional(),
-  })
-  .refine((v) => Object.keys(v).length > 0, { message: 'At least one field is required' });
+  }),
+);
 export type UpdateMeRequest = z.infer<typeof updateMeRequestSchema>;
 
 export const changePasswordRequestSchema = z.object({
-  currentPassword: z.string().min(1).max(PASSWORD_MAX_LENGTH),
+  currentPassword: currentPasswordSchema,
   newPassword: passwordSchema,
 });
 export type ChangePasswordRequest = z.infer<typeof changePasswordRequestSchema>;
 
 /** Re-authentication for sensitive 2FA operations. */
 export const reauthRequestSchema = z.object({
-  password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
+  password: currentPasswordSchema,
   code: totpCodeSchema,
 });
 export type ReauthRequest = z.infer<typeof reauthRequestSchema>;
@@ -125,7 +129,7 @@ export type ConfigResponse = z.infer<typeof configResponseSchema>;
 
 /** Values for the static parts of `GET /api/config`, taken from the shared constants. */
 export const staticConfig = {
-  maxChunkSizeBytes: CHUNK_SIZE_MB.max * 1024 * 1024,
+  maxChunkSizeBytes: CHUNK_SIZE_MB.max * BYTES_PER_MB,
   expiryOptions: EXPIRY_KEYS.map((key) => ({ key, seconds: EXPIRY_OPTIONS[key] })),
   limits: {
     maxRecipients: MAX_RECIPIENTS,
@@ -149,7 +153,7 @@ export type AdminUser = z.infer<typeof adminUserSchema>;
 
 export const listUsersQuerySchema = paginationQuerySchema.extend({
   q: z.string().min(1).max(100).optional(),
-  role: z.enum(USER_ROLES).optional(),
+  role: userRoleSchema.optional(),
 });
 export type ListUsersQuery = z.infer<typeof listUsersQuerySchema>;
 
@@ -159,7 +163,7 @@ export type ListUsersResponse = z.infer<typeof listUsersResponseSchema>;
 export const createUserRequestSchema = z.object({
   email: emailSchema,
   displayName: displayNameSchema.optional(),
-  role: z.enum(USER_ROLES).default('user'),
+  role: userRoleSchema.default('user'),
   /** When omitted, the user receives a welcome email with a link to set their password. */
   password: passwordSchema.optional(),
   locale: localeSchema.optional(),
@@ -167,17 +171,17 @@ export const createUserRequestSchema = z.object({
 });
 export type CreateUserRequest = z.infer<typeof createUserRequestSchema>;
 
-export const updateUserRequestSchema = z
-  .object({
-    role: z.enum(USER_ROLES).optional(),
+export const updateUserRequestSchema = atLeastOneField(
+  z.object({
+    role: userRoleSchema.optional(),
     /** `null` removes the quota. */
     quotaBytes: byteSizeSchema.nullable().optional(),
     disabled: z.boolean().optional(),
     locale: localeSchema.optional(),
     /** `null` clears the display name. */
     displayName: displayNameSchema.nullable().optional(),
-  })
-  .refine((v) => Object.keys(v).length > 0, { message: 'At least one field is required' });
+  }),
+);
 export type UpdateUserRequest = z.infer<typeof updateUserRequestSchema>;
 
 export const deleteUserQuerySchema = z

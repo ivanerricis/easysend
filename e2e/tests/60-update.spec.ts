@@ -99,7 +99,7 @@ test.afterAll(async () => {
 });
 
 test('without the host runner the panel explains how to install it', async ({ page }) => {
-  await page.goto('/admin/settings#settings-updates');
+  await page.goto('/admin/settings/updates');
   await expect(page.getByText(CURRENT, { exact: true }).first()).toBeVisible();
   // The answer may be cached from an earlier visit with an empty list: ask again.
   await page.getByRole('button', { name: 'Controlla ora' }).click();
@@ -120,7 +120,7 @@ test('with the runner installed: pick a version, confirm, the request is written
   page,
 }) => {
   installRunner();
-  await page.goto('/admin/settings#settings-updates');
+  await page.goto('/admin/settings/updates');
   await page.getByRole('button', { name: 'Controlla ora' }).click();
 
   const select = page.getByRole('combobox', { name: 'Versione da installare' });
@@ -147,7 +147,7 @@ test('with the runner installed: pick a version, confirm, the request is written
 });
 
 test('the progress follows status.json and ends with the success message', async ({ page }) => {
-  await page.goto('/admin/settings#settings-updates');
+  await page.goto('/admin/settings/updates');
   const progress = page.getByTestId('update-progress');
   await expect(progress).toBeVisible();
   const id = readRequest('0.2.0');
@@ -169,7 +169,7 @@ test('the progress follows status.json and ends with the success message', async
 });
 
 test('a failed deploy that was rolled back says so and points to the log', async ({ page }) => {
-  await page.goto('/admin/settings#settings-updates');
+  await page.goto('/admin/settings/updates');
   await page.getByRole('button', { name: 'Controlla ora' }).click();
   await expect(page.getByRole('button', { name: 'Aggiorna ora' })).toBeVisible();
   await page.getByRole('button', { name: 'Aggiorna ora' }).click();

@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { makeAdmin, renderWithProviders } from '@/test/render';
 import { chooseOption } from '@/test/select';
@@ -20,6 +20,7 @@ const item = {
   downloadCount: 1,
   maxDownloads: 5,
   hasPassword: true,
+  shareUrl: null,
 };
 
 function renderPage() {
@@ -71,5 +72,29 @@ describe('AdminTransfersPage', () => {
           ),
       ).toBe(true),
     );
+  });
+
+  it('opens a row actions menu with the admin actions, delete last', async () => {
+    renderPage();
+    const trigger = await screen.findByRole('button', { name: 'Actions for Holiday photos' });
+    fireEvent.keyDown(trigger, { key: 'Enter' });
+    const menu = await screen.findByRole('menu');
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map((entry) => entry.textContent),
+    ).toEqual(['Open details', 'Edit', 'Revoke', 'Delete']);
+  });
+
+  it('returns the focus to the row menu after its dialog closes', async () => {
+    renderPage();
+    const trigger = await screen.findByRole('button', { name: 'Actions for Holiday photos' });
+    fireEvent.keyDown(trigger, { key: 'Enter' });
+    fireEvent.click(
+      within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'Revoke' }),
+    );
+    const dialog = await screen.findByRole('alertdialog');
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 });

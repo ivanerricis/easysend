@@ -1,6 +1,11 @@
 import { z } from 'zod';
-import { APP_MODES } from '../constants.js';
-import { byteSizeSchema, emailSchema, idSchema, unixSecondsSchema } from './common.js';
+import {
+  appModeSchema,
+  byteSizeSchema,
+  emailSchema,
+  idSchema,
+  unixSecondsSchema,
+} from './common.js';
 
 export const storageResponseSchema = z.object({
   disk: z.object({
@@ -30,7 +35,7 @@ export type StorageResponse = z.infer<typeof storageResponseSchema>;
 
 /** Domain and tunnel status (same logic as the Cloudflare step of the setup wizard). */
 export const tunnelStatusResponseSchema = z.object({
-  appMode: z.enum(APP_MODES),
+  appMode: appModeSchema,
   configured: z.boolean(),
   hostname: z.string().nullable(),
   publicUrl: z.string().nullable(),
@@ -49,7 +54,9 @@ export type UpdateStatusQuery = z.infer<typeof updateStatusQuerySchema>;
 export const UPDATE_STATUSES = ['ok', 'disabled', 'unavailable'] as const;
 
 /** Plain release number `X.Y.Z` (no `v`, no pre-release label). */
-export const releaseVersionSchema = z.string().regex(/^\d{1,9}\.\d{1,9}\.\d{1,9}$/);
+/** Source of a release number, `major.minor.patch` with 1 to 9 digits each (no capture groups). */
+export const RELEASE_VERSION_PATTERN = String.raw`\d{1,9}\.\d{1,9}\.\d{1,9}`;
+export const releaseVersionSchema = z.string().regex(new RegExp(`^${RELEASE_VERSION_PATTERN}$`));
 
 /** A published release newer than the running version. */
 export const availableVersionSchema = z.object({

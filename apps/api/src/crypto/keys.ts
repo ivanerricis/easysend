@@ -32,7 +32,7 @@ export function deriveKey(master: Uint8Array, purpose: KeyPurpose): Buffer {
 export interface DerivedKeys {
   totp: Buffer;
   smtp: Buffer;
-  /** Master key that wraps the per-file data keys (used from phase 3). */
+  /** Master key that wraps the per-file data keys. */
   file: Buffer;
   /** HMAC key for the stored hashes of recovery codes. */
   recoveryCode: Buffer;

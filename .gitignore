@@ -21,7 +21,6 @@ Thumbs.db
 .vscode/
 .claude/settings.local.json
 e2e/.output/
-e2e/playwright-report/
 
 # VitePress docs site
 docs/.vitepress/cache/

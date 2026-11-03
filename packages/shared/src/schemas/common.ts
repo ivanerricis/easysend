@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { EMAIL_MAX_LENGTH, PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX } from '../constants.js';
+import {
+  APP_MODES,
+  EMAIL_MAX_LENGTH,
+  PAGE_SIZE_DEFAULT,
+  PAGE_SIZE_MAX,
+  PASSWORD_MAX_LENGTH,
+} from '../constants.js';
 
 /** Opaque random text id. */
 export const idSchema = z.string().min(1).max(64);
@@ -33,3 +39,15 @@ export type OkResponse = z.infer<typeof okResponseSchema>;
 
 /** `:id` path parameter. */
 export const idParamsSchema = z.object({ id: idSchema });
+
+/** The password a user types to prove who they are (no strength rules: it may be an old one). */
+export const currentPasswordSchema = z.string().min(1).max(PASSWORD_MAX_LENGTH);
+
+/** How the instance runs: `local` (development) or `production`. */
+export const appModeSchema = z.enum(APP_MODES);
+
+/** Rejects an object body with no field at all (PATCH-style requests). */
+export const atLeastOneField = <T extends z.ZodObject>(schema: T) =>
+  schema.refine((value) => Object.keys(value).length > 0, {
+    message: 'At least one field is required',
+  });

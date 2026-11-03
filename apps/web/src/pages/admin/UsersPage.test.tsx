@@ -25,6 +25,17 @@ function renderPage(routes: Record<string, unknown> = {}, route = '/admin/users'
   });
 }
 
+async function openRowMenu(email: string) {
+  const trigger = await screen.findByRole('button', { name: `Actions for ${email}` });
+  fireEvent.keyDown(trigger, { key: 'Enter' });
+  await screen.findByRole('menu');
+}
+
+async function chooseRowAction(email: string, action: string) {
+  await openRowMenu(email);
+  fireEvent.click(screen.getByRole('menuitem', { name: action }));
+}
+
 describe('UsersPage', () => {
   it('lists users and sends the search and role filters to the API', async () => {
     const { api } = renderPage();
@@ -113,7 +124,7 @@ describe('UsersPage', () => {
   it('requires a target to reassign transfers and sends the delete query', async () => {
     const { api } = renderPage({ 'DELETE /api/admin/users/u-ada': { status: 204 } });
     await screen.findByText('ada@example.com');
-    fireEvent.click(screen.getByRole('button', { name: 'Delete ada@example.com' }));
+    await chooseRowAction('ada@example.com', 'Delete');
     const dialog = await screen.findByRole('dialog');
 
     fireEvent.click(within(dialog).getByRole('radio', { name: /Reassign them to another user/ }));
@@ -139,7 +150,7 @@ describe('UsersPage', () => {
   it('deletes with the "delete transfers" option by default', async () => {
     const { api } = renderPage({ 'DELETE /api/admin/users/u-ada': { status: 204 } });
     await screen.findByText('ada@example.com');
-    fireEvent.click(screen.getByRole('button', { name: 'Delete ada@example.com' }));
+    await chooseRowAction('ada@example.com', 'Delete');
     const dialog = await screen.findByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete user' }));
     await waitFor(() => expect(api.callsTo('DELETE /api/admin/users/u-ada')).toHaveLength(1));
@@ -149,7 +160,7 @@ describe('UsersPage', () => {
   it('shows the LAST_ADMIN error inside the delete dialog', async () => {
     renderPage({ 'DELETE /api/admin/users/u-ada': apiError(409, 'LAST_ADMIN') });
     await screen.findByText('ada@example.com');
-    fireEvent.click(screen.getByRole('button', { name: 'Delete ada@example.com' }));
+    await chooseRowAction('ada@example.com', 'Delete');
     const dialog = await screen.findByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete user' }));
     expect(
@@ -160,15 +171,19 @@ describe('UsersPage', () => {
   it('offers no delete action for the signed-in admin', async () => {
     renderPage();
     await screen.findByText('ada@example.com');
-    expect(screen.getByRole('button', { name: 'Delete ada@example.com' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Delete admin@example.com' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Edit admin@example.com' })).toBeInTheDocument();
+    await openRowMenu('ada@example.com');
+    expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+    await openRowMenu('admin@example.com');
+    expect(screen.queryByRole('menuitem', { name: 'Delete' })).toBeNull();
+    expect(screen.getByRole('menuitem', { name: 'Edit' })).toBeInTheDocument();
   });
 
   it('resets 2FA after confirmation', async () => {
     const { api } = renderPage({ 'POST /api/admin/users/u-ada/reset-2fa': { status: 204 } });
     await screen.findByText('ada@example.com');
-    fireEvent.click(screen.getByRole('button', { name: 'Reset 2FA of ada@example.com' }));
+    await chooseRowAction('ada@example.com', 'Reset 2FA');
     const dialog = await screen.findByRole('alertdialog');
     expect(within(dialog).getByText(/sign in with the password only/)).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Reset 2FA' }));
@@ -182,11 +197,21 @@ describe('UsersPage', () => {
       'PATCH /api/admin/users/u-ada': makeAdminListUser({ id: 'u-ada', quotaBytes: null }),
     });
     await screen.findByText('ada@example.com');
-    fireEvent.click(screen.getByRole('button', { name: 'Edit ada@example.com' }));
+    await chooseRowAction('ada@example.com', 'Edit');
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(within(dialog).getByLabelText('Storage quota'), { target: { value: '' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(api.callsTo('PATCH /api/admin/users/u-ada')).toHaveLength(1));
     expect(api.callsTo('PATCH /api/admin/users/u-ada')[0]?.body).toEqual({ quotaBytes: null });
+  });
+
+  it('returns the focus to the row menu after its dialog is cancelled', async () => {
+    renderPage();
+    await screen.findByText('ada@example.com');
+    await chooseRowAction('ada@example.com', 'Reset 2FA');
+    const dialog = await screen.findByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    const trigger = screen.getByRole('button', { name: 'Actions for ada@example.com' });
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 });

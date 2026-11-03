@@ -1,4 +1,4 @@
-import { PASSWORD_MAX_LENGTH, TOTP_CODE_LENGTH } from '@easysend/shared';
+import { PASSWORD_MAX_LENGTH, TOTP_CODE_REGEX } from '@easysend/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -7,25 +7,23 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useSession } from '@/app/providers/SessionProvider';
 import { queryKeys } from '@/app/query';
-import { CopyButton } from '@/components/common/CopyButton';
 import { FormErrorSummary } from '@/components/common/FormErrorSummary';
-import { FormField, fieldId } from '@/components/common/FormField';
+import { FormField } from '@/components/common/FormField';
 import { OtpInput } from '@/components/common/OtpInput';
 import { PasswordInput } from '@/components/common/PasswordInput';
-import { QrCode } from '@/components/common/QrCode';
 import { RecoveryCodes } from '@/components/common/RecoveryCodes';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { disable2fa, enable2fa, regenerateRecoveryCodes, start2faSetup } from '@/lib/api/me';
 import { errorMessage, hasErrorCode } from '@/lib/errors';
 import { notifySuccess } from '@/lib/toast';
+import { TwoFactorEnrollment } from '../auth/TwoFactorEnrollment';
 import { lockMessage } from './lock-message';
 import { Section } from './Section';
 
 const reauthFormSchema = z.object({
   password: z.string().min(1, 'profile.twoFactor.errors.passwordRequired').max(PASSWORD_MAX_LENGTH),
-  code: z.string().regex(new RegExp(`^[0-9]{${TOTP_CODE_LENGTH}}$`), {
+  code: z.string().regex(TOTP_CODE_REGEX, {
     message: 'profile.twoFactor.errors.codeRequired',
   }),
 });
@@ -160,80 +158,29 @@ function SetupPanel({
   onRestart: () => void;
 }) {
   const { t } = useTranslation();
-  const [code, setCode] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const codeId = fieldId('code', 'setup2fa');
-  const errorId = `${codeId}-error`;
-
-  const verify = async () => {
-    if (code.length !== TOTP_CODE_LENGTH) {
-      setError(t('profile.twoFactor.errors.codeRequired'));
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await enable2fa({ code });
-      onEnabled(result.recoveryCodes);
-    } catch (e) {
-      if (hasErrorCode(e, 'CONFLICT')) {
-        // The pending enrolment is gone: start again.
-        onRestart();
-        return;
-      }
-      setError(errorMessage(t, e));
-      setCode('');
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        void verify();
-      }}
-      noValidate
-      className="space-y-4 border-t pt-4"
-    >
-      <p className="text-sm">{t('profile.twoFactor.scan')}</p>
-      <QrCode value={uri} />
-      <div className="space-y-1">
-        <p className="text-sm font-medium">{t('profile.twoFactor.secretLabel')}</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <code className="bg-muted px-2 py-1 font-mono text-sm break-all">{secret}</code>
-          <CopyButton value={secret} variant="outline">
-            {t('profile.twoFactor.copySecret')}
-          </CopyButton>
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={codeId}>{t('profile.twoFactor.codeLabel')}</Label>
-        <OtpInput
-          id={codeId}
-          value={code}
-          onChange={setCode}
-          aria-label={t('profile.twoFactor.codeLabel')}
-          aria-invalid={error !== null}
-          aria-describedby={error ? errorId : undefined}
-        />
-        {error ? (
-          <p id={errorId} role="alert" className="text-destructive text-sm">
-            {error}
-          </p>
-        ) : null}
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={busy}>
-          {busy ? t('profile.twoFactor.verifying') : t('profile.twoFactor.verify')}
-        </Button>
-        <Button type="button" variant="outline" onClick={onCancel}>
-          {t('profile.twoFactor.cancel')}
-        </Button>
-      </div>
-    </form>
+    <div className="border-t pt-4">
+      <TwoFactorEnrollment
+        secret={secret}
+        otpauthUri={uri}
+        submitLabel={t('profile.twoFactor.verify')}
+        cancelLabel={t('profile.twoFactor.cancel')}
+        onCancel={onCancel}
+        onVerify={async (code) => {
+          try {
+            const result = await enable2fa({ code });
+            onEnabled(result.recoveryCodes);
+          } catch (e) {
+            if (hasErrorCode(e, 'CONFLICT')) {
+              // The pending enrolment is gone: start again.
+              onRestart();
+              return;
+            }
+            throw e;
+          }
+        }}
+      />
+    </div>
   );
 }
 

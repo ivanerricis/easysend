@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { FILENAME_MAX_LENGTH, PASSWORD_MAX_LENGTH } from '../constants.js';
-import { byteSizeSchema, idSchema, unixSecondsSchema } from './common.js';
+import { FILENAME_MAX_LENGTH } from '../constants.js';
+import { byteSizeSchema, currentPasswordSchema, idSchema, unixSecondsSchema } from './common.js';
 import { maxDownloadsSchema } from './transfers.js';
 import { displayNameSchema } from './users.js';
 
@@ -45,7 +45,7 @@ export const downloadInfoResponseSchema = z.discriminatedUnion('locked', [
 export type DownloadInfoResponse = z.infer<typeof downloadInfoResponseSchema>;
 
 export const unlockRequestSchema = z.object({
-  password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
+  password: currentPasswordSchema,
 });
 export type UnlockRequest = z.infer<typeof unlockRequestSchema>;
 

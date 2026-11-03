@@ -1,11 +1,8 @@
-import { randomInt } from 'node:crypto';
 import type { Clock } from '../clock.js';
+import { groupWithDashes, randomBase32 } from '../crypto/base32-code.js';
 import { sha256Hex, timingSafeEqualStrings } from '../crypto/hash.js';
 import type { Logger } from '../logger.js';
 import { SETUP_POLICY } from './policy.js';
-
-/** RFC 4648 base32 alphabet (no padding). */
-const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
 export type SetupCodeResult = 'ok' | 'invalid' | 'expired';
 
@@ -31,12 +28,9 @@ export function createSetupCodeService(deps: {
   let current: { hash: string; expiresAtMs: number } | null = null;
 
   const issue = (): string => {
-    let raw = '';
-    for (let i = 0; i < SETUP_POLICY.setupCodeLength; i += 1) {
-      raw += ALPHABET[randomInt(ALPHABET.length)];
-    }
+    const raw = randomBase32(SETUP_POLICY.setupCodeLength);
     current = { hash: sha256Hex(raw), expiresAtMs: clock() + ttlMinutes * 60_000 };
-    return `${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}`;
+    return groupWithDashes(raw, 4);
   };
 
   return {

@@ -19,6 +19,7 @@ import {
   deleteTransferFile,
   effectiveStatus,
   generateTransferToken,
+  listTransfersPage,
   loadTransferForUser,
   recomputeUsedBytes,
   toTransferDetail,
@@ -177,6 +178,26 @@ describe('transfer mappers', () => {
     const summary = toTransferSummary(app.ctx, row, NOW);
     expect(transferSummarySchema.parse(summary)).toEqual(summary);
     expect(toTransferSummary(app.ctx, row, NOW + 5000).status).toBe('expired');
+  });
+
+  it('lists transfers in one query with counts, owner email and share URL', async () => {
+    const app = await createTestApp();
+    const owner = await app.createUser();
+    const { transferId } = await seedTransfer(app, owner.id, { sizes: [30, 10] });
+    app.ctx.db.insert(transferRecipients).values({ transferId, email: 'a@example.com' }).run();
+    const draft = await seedTransfer(app, owner.id, { status: 'uploading' });
+    const token = app.ctx.db.select().from(transfers).where(eq(transfers.id, transferId)).get()!
+      .token;
+
+    const page = listTransfersPage(app.ctx, { page: 1, pageSize: 10 }, NOW);
+    expect(page.total).toBe(2);
+    const item = page.items.find((i) => i.id === transferId)!;
+    expect(transferSummarySchema.parse(item)).toEqual(item);
+    expect(item.ownerEmail).toBe(owner.email);
+    expect(item.fileCount).toBe(2);
+    expect(item.recipientCount).toBe(1);
+    expect(item.shareUrl).toBe(`http://localhost:8080/d/${token}`);
+    expect(page.items.find((i) => i.id === draft.transferId)!.shareUrl).toBeNull();
   });
 
   it('has no share URL for a draft', async () => {

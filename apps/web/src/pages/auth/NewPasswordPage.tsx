@@ -4,23 +4,21 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { z } from 'zod';
 import { FormErrorSummary } from '@/components/common/FormErrorSummary';
-import { FormField } from '@/components/common/FormField';
 import { PageHeader } from '@/components/common/PageHeader';
-import { PasswordInput } from '@/components/common/PasswordInput';
 import { PublicCard } from '@/components/layout/PublicLayout';
 import { Button } from '@/components/ui/button';
 import { confirmPasswordReset } from '@/lib/api/auth';
 import { hasErrorCode } from '@/lib/errors';
 import { useZodForm } from './form-errors';
 import { apiErrorText } from './helpers';
+import { NewPasswordFields } from './NewPasswordFields';
+import { withPasswordConfirmation } from './password-confirmation';
 import { Notice } from './Notice';
 
-const formSchema = z
-  .object({ newPassword: passwordSchema, confirmPassword: z.string() })
-  .refine((v) => v.newPassword === v.confirmPassword, {
-    path: ['confirmPassword'],
-    message: 'auth.errors.passwordMismatch',
-  });
+const formSchema = withPasswordConfirmation(
+  z.object({ newPassword: passwordSchema, confirmPassword: z.string() }),
+  'newPassword',
+);
 
 const linkClass =
   'text-primary inline-flex min-h-11 items-center underline underline-offset-4 hover:no-underline';
@@ -105,21 +103,10 @@ export function NewPasswordPage({ variant }: NewPasswordPageProps) {
           }}
         />
         {error ? <Notice tone="error">{error}</Notice> : null}
-        <FormField
+        <NewPasswordFields
           control={control}
-          name="newPassword"
-          label={t('auth.newPassword')}
           description={t('auth.passwordRule', { count: PASSWORD_MIN_LENGTH })}
-        >
-          {({ field, controlProps }) => (
-            <PasswordInput autoComplete="new-password" {...field} {...controlProps} />
-          )}
-        </FormField>
-        <FormField control={control} name="confirmPassword" label={t('auth.confirmPassword')}>
-          {({ field, controlProps }) => (
-            <PasswordInput autoComplete="new-password" {...field} {...controlProps} />
-          )}
-        </FormField>
+        />
         <Button type="submit" className="w-full" disabled={formState.isSubmitting}>
           {formState.isSubmitting ? t('common.actions.saving') : t(`auth.${variant}.submit`)}
         </Button>

@@ -7,7 +7,8 @@ import {
   type ListTransfersQuery,
   type UpdateTransferRequest,
 } from '@easysend/shared';
-import { audit, type AuditAction } from '../audit.js';
+import { auditRequest, type AuditAction } from '../audit.js';
+import { normalizeEmail } from '../users/service.js';
 import { nowSeconds } from '../clock.js';
 import type { AppContext } from '../context.js';
 import {
@@ -55,16 +56,17 @@ export function transfersRouter(ctx: AppContext): Router {
     metadata: Record<string, unknown> = {},
     writer: Pick<typeof db, 'insert'> = db,
   ): void {
-    const actorId = req.auth!.user.id;
-    audit(writer, {
-      actorId,
+    auditRequest(
+      ctx,
+      req,
       action,
-      targetType: 'transfer',
-      targetId: row.id,
-      metadata: { ...metadata, ...(actorId !== row.ownerId ? { byAdmin: true } : {}) },
-      ipHash: ctx.ipHashOf(req),
-      now: nowSeconds(ctx.clock),
-    });
+      {
+        targetType: 'transfer',
+        targetId: row.id,
+        metadata: { ...metadata, ...(req.auth!.user.id !== row.ownerId ? { byAdmin: true } : {}) },
+      },
+      writer,
+    );
   }
 
   async function limitCreation(res: Response, userId: string): Promise<void> {
@@ -82,7 +84,7 @@ export function transfersRouter(ctx: AppContext): Router {
 
     const now = nowSeconds(ctx.clock);
     const passwordHash = body.password ? await ctx.passwordHasher.hash(body.password) : null;
-    const recipients = [...new Set((body.recipients ?? []).map((r) => r.trim().toLowerCase()))];
+    const recipients = [...new Set((body.recipients ?? []).map((r) => normalizeEmail(r)))];
     const id = db.transaction((tx) => {
       const created = tx
         .insert(transfers)
