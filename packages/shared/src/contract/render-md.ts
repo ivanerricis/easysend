@@ -45,6 +45,16 @@ const TAG_INFO: Record<EndpointTag, { title: string; intro: string }> = {
     intro:
       'Flow: create a draft, upload the files with tus, finalize. Users manage their own transfers; admins manage all of them.',
   },
+  requests: {
+    title: 'Upload requests',
+    intro:
+      'Links that let anyone without an account send files to the owner. Users manage their own requests.',
+  },
+  submissions: {
+    title: 'Submissions (public)',
+    intro:
+      'Token-based endpoints for people who upload through a request link. A submission is authorized by the link token plus, once created, a signed `X-Submission-Token` header (also used on tus).',
+  },
   uploads: {
     title: 'Uploads (tus)',
     intro: 'Resumable upload with the tus protocol, mounted at `/api/uploads`.',
