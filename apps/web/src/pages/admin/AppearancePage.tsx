@@ -17,7 +17,7 @@ import { z } from 'zod';
 import { useAppearance } from '@/app/providers/AppearanceProvider';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { FormErrorSummary } from '@/components/common/FormErrorSummary';
-import { FormField, TextField } from '@/components/common/FormField';
+import { FormField, TextField, SelectField } from '@/components/common/FormField';
 import { PageHeader } from '@/components/common/PageHeader';
 import { LoadingState } from '@/components/common/States';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -26,7 +26,6 @@ import { Slider } from '@/components/ui/slider';
 import { resetAppearance, updateAppearance } from '@/lib/api/settings';
 import { errorMessage } from '@/lib/errors';
 import { notifyError, notifySuccess } from '@/lib/toast';
-import { SelectInput } from '@/components/common/SelectInput';
 import { BrandingImages } from './appearance/BrandingImages';
 import { ColorField } from './appearance/ColorField';
 
@@ -198,47 +197,27 @@ function AppearanceForm({ initial }: { initial: Appearance }) {
           )}
         </FormField>
         <div className="grid gap-5 sm:grid-cols-2">
-          <FormField
+          <SelectField
             control={control}
             name="font"
             idPrefix="appearance"
             label={t('admin.appearance.fields.font')}
-          >
-            {({ field, controlProps }) => (
-              <SelectInput
-                {...controlProps}
-                name={field.name}
-                value={field.value}
-                onBlur={field.onBlur}
-                onValueChange={field.onChange}
-                options={AVAILABLE_FONTS.map((font) => ({
-                  value: font,
-                  label: t(`admin.appearance.fonts.${font}`),
-                }))}
-              />
-            )}
-          </FormField>
-          <FormField
+            options={AVAILABLE_FONTS.map((font) => ({
+              value: font,
+              label: t(`admin.appearance.fonts.${font}`),
+            }))}
+          />
+          <SelectField
             control={control}
             name="defaultTheme"
             idPrefix="appearance"
             label={t('admin.appearance.fields.defaultTheme')}
             description={t('admin.appearance.fields.defaultThemeHelp')}
-          >
-            {({ field, controlProps }) => (
-              <SelectInput
-                {...controlProps}
-                name={field.name}
-                value={field.value}
-                onBlur={field.onBlur}
-                onValueChange={field.onChange}
-                options={THEME_PREFERENCES.map((theme) => ({
-                  value: theme,
-                  label: t(`common.theme.${theme}`),
-                }))}
-              />
-            )}
-          </FormField>
+            options={THEME_PREFERENCES.map((theme) => ({
+              value: theme,
+              label: t(`common.theme.${theme}`),
+            }))}
+          />
         </div>
         <div className="flex flex-wrap gap-3">
           <Button type="submit" disabled={save.isPending} aria-busy={save.isPending}>

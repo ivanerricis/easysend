@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { queryKeys } from '@/app/query';
 import { FormErrorSummary } from '@/components/common/FormErrorSummary';
-import { FormField, TextField } from '@/components/common/FormField';
+import { FormField, TextField, SelectField } from '@/components/common/FormField';
 import { PasswordInput } from '@/components/common/PasswordInput';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,6 @@ import { isApiError } from '@/lib/api/client';
 import { saveSmtp, testSmtp } from '@/lib/api/settings';
 import { errorMessage } from '@/lib/errors';
 import { notifySuccess } from '@/lib/toast';
-import { SelectInput } from '@/components/common/SelectInput';
 
 const formSchema = z.object({
   host: z
@@ -180,26 +179,16 @@ export function SmtpSection({ smtp }: { smtp: SmtpSettingsPublic | null }) {
           label={t('admin.settings.smtp.port')}
         />
       </div>
-      <FormField
+      <SelectField
         control={control}
         name="security"
         idPrefix="smtp"
         label={t('admin.settings.smtp.security')}
-      >
-        {({ field, controlProps }) => (
-          <SelectInput
-            {...controlProps}
-            name={field.name}
-            value={field.value}
-            onBlur={field.onBlur}
-            onValueChange={field.onChange}
-            options={SMTP_SECURITY.map((value) => ({
-              value: value,
-              label: t(`admin.settings.smtp.securityOptions.${value}`),
-            }))}
-          />
-        )}
-      </FormField>
+        options={SMTP_SECURITY.map((value) => ({
+          value: value,
+          label: t(`admin.settings.smtp.securityOptions.${value}`),
+        }))}
+      />
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField
           control={control}
