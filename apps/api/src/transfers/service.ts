@@ -2,6 +2,7 @@ import { and, asc, count, desc, eq, gt, inArray, lte, or, sql, type SQL } from '
 import type {
   TransferDetail,
   TransferMode,
+  TransferSource,
   TransferStatus,
   TransferSummary,
   UserRole,
@@ -93,6 +94,10 @@ export function summaryFrom(
     downloadCount: row.downloadCount,
     maxDownloads: row.maxDownloads,
     hasPassword: row.passwordHash !== null,
+    source: row.source,
+    uploadRequestId: row.uploadRequestId,
+    senderName: row.senderName,
+    senderEmail: row.senderEmail,
     shareUrl: shareUrlOf(row, extra.publicUrl),
   };
 }
@@ -368,6 +373,7 @@ export interface TransferListFilter {
   /** Effective status: `expired` also matches `active` rows past their expiry. */
   status?: TransferStatus | undefined;
   mode?: TransferMode | undefined;
+  source?: TransferSource | undefined;
   /** Substring of the title or of a recipient email. */
   q?: string | undefined;
   page: number;
@@ -396,6 +402,7 @@ export function listTransfersPage(
     filter.ownerId ? eq(transfers.ownerId, filter.ownerId) : undefined,
     filter.status ? statusCondition(filter.status, nowSec) : undefined,
     filter.mode ? eq(transfers.mode, filter.mode) : undefined,
+    filter.source ? eq(transfers.source, filter.source) : undefined,
     pattern
       ? or(
           sql`${transfers.title} LIKE ${pattern} ESCAPE '\\'`,
