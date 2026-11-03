@@ -27,6 +27,7 @@ export function CreatedLinkCard({
         {request.shareUrl ? (
           <div className="flex flex-col gap-2 sm:flex-row">
             <Input
+              id="created-share-url"
               readOnly
               aria-label={t('requests.created.link')}
               value={request.shareUrl}

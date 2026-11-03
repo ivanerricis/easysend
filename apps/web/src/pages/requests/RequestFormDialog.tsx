@@ -268,6 +268,7 @@ function RequestForm({
                 name="sizeUnit"
                 render={({ field: unit }) => (
                   <SelectInput
+                    name="sizeUnit"
                     aria-label={t('requests.form.sizeUnit')}
                     className="w-28"
                     value={unit.value}
