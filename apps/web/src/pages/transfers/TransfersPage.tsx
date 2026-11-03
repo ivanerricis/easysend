@@ -25,6 +25,7 @@ import { listTransfers } from '@/lib/api/transfers';
 import { formatBytes, formatDateTime, formatRelative } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { TransferActionsMenu } from './actions/TransferActionsMenu';
+import { ReceivedFrom } from './ReceivedFrom';
 import { downloadsText, readListParams, transferTitle } from './list-utils';
 
 const STATUS_FILTERS = ['active', 'uploading', 'revoked', 'expired'] as const;
@@ -54,17 +55,17 @@ function Expires({ transfer }: { transfer: TransferSummary }) {
 export default function TransfersPage() {
   const { t, i18n } = useTranslation();
   const { params, update, page } = useUrlState();
-  const { status, mode, q } = readListParams(params);
+  const { status, mode, source, q } = readListParams(params);
   const [search, setSearch] = useUrlSearch(q, update);
 
-  const query = { page, pageSize: PAGE_SIZE_DEFAULT, status, mode, q: q || undefined };
+  const query = { page, pageSize: PAGE_SIZE_DEFAULT, status, mode, source, q: q || undefined };
   const list = useQuery({
     queryKey: queryKeys.transfers.list(query),
     queryFn: () => listTransfers(query),
     placeholderData: keepPreviousData,
   });
 
-  const filtered = Boolean(status || mode || q);
+  const filtered = Boolean(status || mode || source || q);
   const pages = list.data ? Math.max(1, Math.ceil(list.data.total / list.data.pageSize)) : 1;
   const untitled = t('transfers.list.untitled');
   const locale = i18n.language;
@@ -90,7 +91,7 @@ export default function TransfersPage() {
         role="search"
         aria-label={t('transfers.list.filters')}
         onSubmit={(event) => event.preventDefault()}
-        className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_12rem_12rem]"
+        className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_12rem_12rem_12rem]"
       >
         <div className="relative sm:col-span-2 lg:col-span-1">
           <label htmlFor="transfers-search" className="sr-only">
@@ -139,6 +140,21 @@ export default function TransfersPage() {
             ]}
           />
         </div>
+        <div>
+          <label htmlFor="transfers-source" className="sr-only">
+            {t('transfers.list.origin')}
+          </label>
+          <SelectInput
+            id="transfers-source"
+            value={source ?? ''}
+            onValueChange={(value) => update({ source: value })}
+            options={[
+              { value: '', label: t('transfers.list.allOrigins') },
+              { value: 'sent', label: t('transfers.origin.sent') },
+              { value: 'received', label: t('transfers.origin.received') },
+            ]}
+          />
+        </div>
       </form>
 
       {list.isPending ? (
@@ -158,7 +174,7 @@ export default function TransfersPage() {
                 variant="outline"
                 onClick={() => {
                   setSearch('');
-                  update({ q: undefined, status: undefined, mode: undefined });
+                  update({ q: undefined, status: undefined, mode: undefined, source: undefined });
                 }}
               >
                 {t('transfers.list.clearFilters')}
@@ -202,6 +218,10 @@ export default function TransfersPage() {
                     >
                       {transferTitle(transfer, untitled)}
                     </Link>
+                    <ReceivedFrom
+                      transfer={transfer}
+                      className="text-muted-foreground mt-1 flex items-center gap-1 text-xs"
+                    />
                   </TableCell>
                   <TableCell>
                     <StatusBadge status={transfer.status} />
@@ -243,6 +263,10 @@ export default function TransfersPage() {
                     </span>
                     <StatusBadge status={transfer.status} />
                   </span>
+                  <ReceivedFrom
+                    transfer={transfer}
+                    className="text-muted-foreground flex items-center gap-1 text-xs"
+                  />
                   <span className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-sm">
                     <ModeLabel mode={transfer.mode} />
                     <span className="font-mono text-xs">

@@ -121,6 +121,8 @@
       "allStatuses": "Tutti gli stati",
       "mode": "Tipo",
       "allModes": "Tutti i tipi",
+      "origin": "Origine",
+      "allOrigins": "Inviati e ricevuti",
       "owner": "Proprietario",
       "allOwners": "Tutti gli utenti",
       "clear": "Azzera i filtri"

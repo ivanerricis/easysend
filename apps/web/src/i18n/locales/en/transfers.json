@@ -148,6 +148,8 @@
     "allStatuses": "All statuses",
     "mode": "Mode",
     "allModes": "All modes",
+    "origin": "Origin",
+    "allOrigins": "Sent and received",
     "untitled": "Untitled transfer",
     "emptyTitle": "No transfers yet",
     "emptyDescription": "Send your first files to see them here.",
@@ -166,7 +168,21 @@
       "actions": "Actions"
     }
   },
+  "origin": {
+    "sent": "Sent",
+    "received": "Received"
+  },
+  "received": {
+    "from": "Received from {{who}}",
+    "anonymous": "anonymous"
+  },
   "detail": {
+    "sender": "Sender",
+    "senderName": "Name",
+    "senderEmail": "Email",
+    "anonymousSender": "Anonymous",
+    "receivedVia": "Received through an upload request",
+    "openRequest": "Open the request",
     "backToList": "All transfers",
     "notFoundTitle": "Transfer not found",
     "draftNotice": "This transfer was never completed: it has no link yet. Resume the upload from the Send page or delete it.",

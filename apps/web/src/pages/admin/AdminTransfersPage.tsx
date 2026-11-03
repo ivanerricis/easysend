@@ -1,10 +1,11 @@
-import { TRANSFER_MODES, TRANSFER_STATUSES } from '@easysend/shared';
+import { TRANSFER_MODES, TRANSFER_SOURCES, TRANSFER_STATUSES } from '@easysend/shared';
 import { useQuery } from '@tanstack/react-query';
 import { Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { queryKeys } from '@/app/query';
 import { TransferActionsMenu } from '../transfers/actions/TransferActionsMenu';
+import { ReceivedFrom } from '../transfers/ReceivedFrom';
 import { Pager } from '@/components/common/Pager';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/States';
@@ -35,6 +36,7 @@ export default function AdminTransfersPage() {
   const q = params.get('q') ?? '';
   const status = TRANSFER_STATUSES.find((value) => value === params.get('status'));
   const mode = TRANSFER_MODES.find((value) => value === params.get('mode'));
+  const source = TRANSFER_SOURCES.find((value) => value === params.get('source'));
   const ownerId = params.get('owner') ?? '';
 
   const [search, setSearch] = useUrlSearch(q, update);
@@ -50,6 +52,7 @@ export default function AdminTransfersPage() {
     ...(q ? { q } : {}),
     ...(status ? { status } : {}),
     ...(mode ? { mode } : {}),
+    ...(source ? { source } : {}),
     ...(ownerId ? { ownerId } : {}),
   };
   const transfers = useQuery({
@@ -58,7 +61,12 @@ export default function AdminTransfersPage() {
     placeholderData: (previous) => previous,
   });
 
-  const filtered = q !== '' || status !== undefined || mode !== undefined || ownerId !== '';
+  const filtered =
+    q !== '' ||
+    status !== undefined ||
+    mode !== undefined ||
+    source !== undefined ||
+    ownerId !== '';
 
   return (
     <>
@@ -112,7 +120,24 @@ export default function AdminTransfersPage() {
             ]}
           />
         </div>
-        <div className="space-y-1.5 sm:col-span-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="transfers-source" className="text-sm font-medium">
+            {t('admin.transfers.filters.origin')}
+          </Label>
+          <SelectInput
+            id="transfers-source"
+            value={source ?? ''}
+            onValueChange={(value) => update({ source: value })}
+            options={[
+              { value: '', label: t('admin.transfers.filters.allOrigins') },
+              ...TRANSFER_SOURCES.map((value) => ({
+                value,
+                label: t(`transfers.origin.${value}`),
+              })),
+            ]}
+          />
+        </div>
+        <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
           <Label htmlFor="transfers-owner" className="text-sm font-medium">
             {t('admin.transfers.filters.owner')}
           </Label>
@@ -148,7 +173,13 @@ export default function AdminTransfersPage() {
                 variant="outline"
                 onClick={() => {
                   setSearch('');
-                  update({ q: undefined, status: undefined, mode: undefined, owner: undefined });
+                  update({
+                    q: undefined,
+                    status: undefined,
+                    mode: undefined,
+                    source: undefined,
+                    owner: undefined,
+                  });
                 }}
               >
                 {t('admin.transfers.filters.clear')}
@@ -183,6 +214,10 @@ export default function AdminTransfersPage() {
                       >
                         {item.title ?? t('admin.transfers.untitled')}
                       </Link>
+                      <ReceivedFrom
+                        transfer={item}
+                        className="text-muted-foreground flex items-center justify-end gap-1 text-xs lg:justify-start"
+                      />
                       <p className="text-muted-foreground flex items-center justify-end gap-1.5 text-xs lg:justify-start">
                         {t(`admin.transfers.modes.${item.mode}`)}
                         {item.mode === 'email'
