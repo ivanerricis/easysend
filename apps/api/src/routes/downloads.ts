@@ -19,7 +19,7 @@ import { parseRange } from '../downloads/range.js';
 import { claimDownload, logDownloadOnClose } from '../downloads/record.js';
 import { endpointGuards } from '../http/endpoint-guards.js';
 import { AppError } from '../http/errors.js';
-import { assertNotLimited, limitedError } from '../http/rate-limit.js';
+import { verifyLinkPassword } from '../http/link-password.js';
 import { sendJson, validBody, validParams, validQuery } from '../http/validate.js';
 import { contentDisposition, dedupeNames, sanitizeFileName } from '../storage/filenames.js';
 import { storagePath } from '../storage/paths.js';
@@ -114,24 +114,14 @@ export function downloadsRouter(ctx: AppContext): Router {
         res.status(204).end();
         return;
       }
-      const { downloadPasswordToken, downloadPasswordIp } = transferLimiters;
-      const ipKey = `${token}:${ipHash}`;
-      assertNotLimited(res, await downloadPasswordToken.check(token));
-      assertNotLimited(res, await downloadPasswordIp.check(ipKey));
-
-      const { password } = validBody<{ password: string }>(req);
-      if (!(await ctx.passwordHasher.verify(transfer.passwordHash, password))) {
-        const [byToken, byIp] = await Promise.all([
-          downloadPasswordToken.fail(token),
-          downloadPasswordIp.fail(ipKey),
-        ]);
-        const limited = [byToken, byIp].filter((s) => s.limited);
-        if (limited.length > 0) {
-          throw limitedError(res, Math.max(...limited.map((s) => s.retryAfterSeconds)));
-        }
-        throw new AppError('PASSWORD_INCORRECT', 'Incorrect password');
-      }
-      await downloadPasswordIp.reset(ipKey);
+      await verifyLinkPassword(res, ctx.passwordHasher, {
+        passwordHash: transfer.passwordHash,
+        password: validBody<{ password: string }>(req).password,
+        ipKey: `${token}:${ipHash}`,
+        tokenKey: token,
+        byIp: transferLimiters.downloadPasswordIp,
+        byToken: transferLimiters.downloadPasswordToken,
+      });
       setUnlockCookie(ctx, res, transfer, nowSec);
       res.status(204).end();
     },

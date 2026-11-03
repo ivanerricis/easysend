@@ -24,10 +24,16 @@ import { TUS_BASE_PATH, TUS_VERSION } from '@easysend/shared/contract';
 import { requireAuth } from '../auth/guards.js';
 import { nowSeconds } from '../clock.js';
 import type { AppContext } from '../context.js';
-import { transferFiles, transfers, uploads, users } from '../db/schema/index.js';
+import { transferFiles, transfers, uploadRequests, uploads, users } from '../db/schema/index.js';
 import { cookieParser } from '../http/cookies.js';
 import { AppError } from '../http/errors.js';
+import { assertNotLimited } from '../http/rate-limit.js';
 import { getRequestId } from '../http/request-id.js';
+import {
+  requestClosedError,
+  SUBMISSION_TOKEN_HEADER,
+  verifySubmissionToken,
+} from '../requests/service.js';
 import { createByteCounter } from '../storage/byte-counter.js';
 import { reserveBytes } from '../storage/disk.js';
 import { sanitizeFileName } from '../storage/filenames.js';
@@ -77,12 +83,13 @@ function expressRequest(req: TusRequest): Request {
   return node.req;
 }
 
-function authOf(req: TusRequest) {
-  const auth = expressRequest(req).auth;
-  if (!auth || auth.level !== 'session') {
-    throw new AppError('UNAUTHENTICATED', 'Authentication required');
-  }
-  return auth;
+/**
+ * Who is uploading: a logged-in user, or the holder of a submission token (then the effective
+ * user is the owner of the upload request and `requestId` is set).
+ */
+interface UploaderScope {
+  userId: string;
+  requestId: string | null;
 }
 
 /** Standard error code for an error raised by tus itself, from its HTTP status. */
@@ -150,19 +157,77 @@ export function uploadsRouter(ctx: AppContext): Router {
 
   // ---- Hook helpers ------------------------------------------------------------------------
 
-  /** Draft owned by `userId` (admins do not upload into other people's drafts). */
+  /**
+   * Uploader of this request for `transferId`: the session user, or, when `X-Submission-Token`
+   * is sent, the owner of the request the signed draft belongs to. A token that does not match
+   * the transfer reads as "not found".
+   */
+  function scopeFor(req: Request, transferId: string | null): UploaderScope {
+    const token = req.get(SUBMISSION_TOKEN_HEADER);
+    if (token !== undefined && transferId === null) {
+      throw new AppError('TRANSFER_NOT_FOUND', 'Transfer not found');
+    }
+    if (token !== undefined && transferId !== null) {
+      const row = db
+        .select({
+          ownerId: transfers.ownerId,
+          source: transfers.source,
+          uploadRequestId: transfers.uploadRequestId,
+        })
+        .from(transfers)
+        .where(eq(transfers.id, transferId))
+        .get();
+      if (
+        !row ||
+        row.source !== 'received' ||
+        row.uploadRequestId === null ||
+        !verifySubmissionToken(ctx, token, transferId, nowSeconds(ctx.clock))
+      ) {
+        throw new AppError('TRANSFER_NOT_FOUND', 'Transfer not found');
+      }
+      return { userId: row.ownerId, requestId: row.uploadRequestId };
+    }
+    const auth = req.auth;
+    if (!auth || auth.level !== 'session') {
+      throw new AppError('UNAUTHENTICATED', 'Authentication required');
+    }
+    return { userId: auth.user.id, requestId: null };
+  }
+
+  /** The upload request of a submission, which must still accept files. */
+  function openRequestOf(
+    reader: Pick<typeof db, 'select'>,
+    requestId: string,
+  ): typeof uploadRequests.$inferSelect {
+    const request = reader
+      .select()
+      .from(uploadRequests)
+      .where(eq(uploadRequests.id, requestId))
+      .get();
+    if (!request) throw new AppError('REQUEST_NOT_FOUND', 'Upload request not found');
+    const closed = requestClosedError(request, nowSeconds(ctx.clock));
+    if (closed) throw closed;
+    return request;
+  }
+
+  /** Draft owned by the scope's user (admins do not upload into other people's drafts). */
   function uploadableDraft(
     reader: Pick<typeof db, 'select'>,
-    userId: string,
+    scope: UploaderScope,
     transferId: string,
   ): typeof transfers.$inferSelect {
     const row = reader.select().from(transfers).where(eq(transfers.id, transferId)).get();
-    if (!row || row.ownerId !== userId) {
+    if (!row || row.ownerId !== scope.userId) {
       throw new AppError('TRANSFER_NOT_FOUND', 'Transfer not found');
     }
     if (row.status !== 'uploading') {
       throw new AppError('TRANSFER_NOT_UPLOADABLE', 'The transfer no longer accepts files');
     }
+    // A received draft is filled by the person who started it, not through the owner's session.
+    if (scope.requestId === null && row.source === 'received') {
+      throw new AppError('TRANSFER_NOT_UPLOADABLE', 'The transfer no longer accepts files');
+    }
+    if (scope.requestId !== null) openRequestOf(reader, scope.requestId);
     return row;
   }
 
@@ -187,14 +252,15 @@ export function uploadsRouter(ctx: AppContext): Router {
    * transaction: two creations racing each other cannot both pass the checks.
    */
   function registerUpload(
-    userId: string,
+    scope: UploaderScope,
     uploadId: string,
     size: number,
     metadata: TusUploadMetadata,
   ): void {
     const now = nowSeconds(ctx.clock);
+    const userId = scope.userId;
     db.transaction((tx) => {
-      uploadableDraft(tx, userId, metadata.transferId);
+      uploadableDraft(tx, scope, metadata.transferId);
       const files = tx
         .select({ n: count() })
         .from(transferFiles)
@@ -235,6 +301,42 @@ export function uploadsRouter(ctx: AppContext): Router {
         }
       }
 
+      if (scope.requestId !== null) {
+        const request = openRequestOf(tx, scope.requestId);
+        if (request.maxTotalBytes !== null) {
+          // Finalized bytes + completed files of unfinished submissions + uploads in flight.
+          const stored =
+            tx
+              .select({ total: sql<number>`coalesce(sum(${transferFiles.sizeBytes}), 0)` })
+              .from(transferFiles)
+              .innerJoin(transfers, eq(transfers.id, transferFiles.transferId))
+              .where(
+                and(eq(transfers.uploadRequestId, request.id), eq(transfers.status, 'uploading')),
+              )
+              .get()?.total ?? 0;
+          const flying =
+            tx
+              .select({ total: sql<number>`coalesce(sum(${uploads.totalSize}), 0)` })
+              .from(uploads)
+              .innerJoin(transfers, eq(transfers.id, uploads.transferId))
+              .where(
+                and(
+                  eq(transfers.uploadRequestId, request.id),
+                  inArray(uploads.status, ACTIVE_UPLOAD_STATUSES),
+                ),
+              )
+              .get()?.total ?? 0;
+          if (
+            request.receivedBytes + Number(stored) + Number(flying) + size >
+            request.maxTotalBytes
+          ) {
+            throw new AppError('REQUEST_SIZE_LIMIT', 'Upload request size limit exceeded', {
+              maxTotalBytes: request.maxTotalBytes,
+            });
+          }
+        }
+      }
+
       tx.insert(uploads)
         .values({
           id: uploadId,
@@ -268,17 +370,17 @@ export function uploadsRouter(ctx: AppContext): Router {
     onIncomingRequest(req, uploadId) {
       // A creation has no row yet: `onUploadCreate` checks and inserts it.
       if (req.method === 'POST') return Promise.resolve();
-      const userId = authOf(req).user.id;
+      const node = expressRequest(req);
       // Validate the id (contract schema) before any DB access; invalid reads as "not found".
       if (!tusUploadParamsSchema.safeParse({ id: uploadId }).success) {
         throw new AppError('NOT_FOUND', 'Upload not found');
       }
-      const row = db
-        .select()
-        .from(uploads)
-        .where(and(eq(uploads.id, uploadId), eq(uploads.ownerId, userId)))
-        .get();
+      const row = db.select().from(uploads).where(eq(uploads.id, uploadId)).get();
       if (!row || row.status === 'aborted') throw new AppError('NOT_FOUND', 'Upload not found');
+      const scope = scopeFor(node, row.transferId);
+      if (row.ownerId !== scope.userId) throw new AppError('NOT_FOUND', 'Upload not found');
+      // A revoked or expired request refuses the next chunk (but still lets a submission cancel).
+      if (scope.requestId !== null && req.method !== 'DELETE') openRequestOf(db, scope.requestId);
       if (req.method === 'PATCH' || req.method === 'DELETE') {
         if (row.status !== 'in_progress') {
           throw new AppError('CONFLICT', 'The upload is already complete');
@@ -294,18 +396,25 @@ export function uploadsRouter(ctx: AppContext): Router {
     },
 
     async onUploadCreate(req, upload) {
-      const userId = authOf(req).user.id;
+      const node = expressRequest(req);
       const metadata = parseMetadata(upload);
       if (upload.size === undefined) {
         throw new AppError('VALIDATION_ERROR', 'Upload-Length is required');
       }
-      uploadableDraft(db, userId, metadata.transferId);
+      const scope = scopeFor(node, metadata.transferId);
+      if (scope.requestId !== null) {
+        assertNotLimited(
+          node.res!,
+          await ctx.transferLimiters.anonymousUploadCreate.consume(ctx.ipHashOf(node)),
+        );
+      }
+      uploadableDraft(db, scope, metadata.transferId);
 
       const { freeBytes } = await ctx.diskSpace(config.storageDir);
       if (freeBytes - reserveBytes(ctx) < 2 * upload.size) {
         throw new AppError('INSUFFICIENT_DISK_SPACE', 'Not enough free disk space');
       }
-      registerUpload(userId, upload.id, upload.size, metadata);
+      registerUpload(scope, upload.id, upload.size, metadata);
       return {};
     },
 
@@ -353,6 +462,12 @@ export function uploadsRouter(ctx: AppContext): Router {
 
   // ---- Express chain -----------------------------------------------------------------------
 
+  /** A session or a submission token (validated against the transfer by the hooks). */
+  const requireUploader: RequestHandler = (req, res, next) =>
+    req.get(SUBMISSION_TOKEN_HEADER) !== undefined
+      ? next()
+      : requireAuth('session')(req, res, next);
+
   const requireCsrfWhenUnsafe: RequestHandler = (req, res, next) =>
     UNSAFE_METHODS.has(req.method) ? ctx.csrf.requireCsrf(req, res, next) : next();
 
@@ -366,13 +481,17 @@ export function uploadsRouter(ctx: AppContext): Router {
     // An invalid id never reaches the DB: tus rejects it in `onIncomingRequest`.
     const row =
       id && tusUploadParamsSchema.safeParse({ id }).success
-        ? db
-            .select()
-            .from(uploads)
-            .where(and(eq(uploads.id, id), eq(uploads.ownerId, req.auth!.user.id)))
-            .get()
+        ? db.select().from(uploads).where(eq(uploads.id, id)).get()
         : undefined;
     if (!row || (row.status !== 'processing' && row.status !== 'completed')) return next();
+    try {
+      const scope = scopeFor(req, row.transferId);
+      if (row.ownerId !== scope.userId) return next();
+      if (scope.requestId !== null) openRequestOf(db, scope.requestId);
+    } catch {
+      // The tus hooks raise the proper error for this request.
+      return next();
+    }
     res
       .status(200)
       .set({
@@ -396,7 +515,7 @@ export function uploadsRouter(ctx: AppContext): Router {
     cookieParser,
     ctx.csrf.rejectCrossSite,
     ctx.sessions.loadSession,
-    requireAuth('session'),
+    requireUploader,
     requireCsrfWhenUnsafe,
     headShortcut,
     handleTus,

@@ -15,8 +15,10 @@ import { authRouter } from './routes/auth.js';
 import { downloadsRouter } from './routes/downloads.js';
 import { healthRouter } from './routes/health.js';
 import { meRouter } from './routes/me.js';
+import { requestsRouter } from './routes/requests.js';
 import { settingsRouter } from './routes/settings.js';
 import { setupRouter } from './routes/setup.js';
+import { submissionsRouter } from './routes/submissions.js';
 import { transfersRouter } from './routes/transfers.js';
 import { uploadsRouter } from './uploads/tus.js';
 
@@ -109,6 +111,8 @@ export function createAppWithContext(deps: AppDeps): { app: Express; ctx: AppCon
     adminUsersRouter(ctx),
     transfersRouter(ctx),
     downloadsRouter(ctx),
+    requestsRouter(ctx),
+    submissionsRouter(ctx),
     setupRouter(ctx),
     settingsRouter(ctx),
     adminTunnelRouter(ctx),

@@ -28,6 +28,7 @@ import {
   deleteTransfer,
   deleteTransferFile,
   effectiveStatus,
+  finalizableFileCount,
   generateTransferToken,
   listTransfersPage,
   loadTransferForUser,
@@ -113,23 +114,11 @@ export function transfersRouter(ctx: AppContext): Router {
 
   router.post('/transfers/:id/finalize', ...guards('transfers.finalize'), async (req, res) => {
     const row = loadTransferForUser(ctx, validParams<IdParams>(req).id, req.auth!);
-    if (row.status !== 'uploading') {
+    // A received draft is finalized by the person who uploads, through the submissions API.
+    if (row.status !== 'uploading' || row.source === 'received') {
       throw new AppError('TRANSFER_NOT_UPLOADABLE', 'The transfer is not a draft');
     }
-    const pending = db
-      .select({ n: count() })
-      .from(uploads)
-      .where(
-        and(eq(uploads.transferId, row.id), inArray(uploads.status, ['in_progress', 'processing'])),
-      )
-      .get()!.n;
-    if (pending > 0) throw new AppError('UPLOAD_INCOMPLETE', 'Some uploads are not finished yet');
-    const fileCount = db
-      .select({ n: count() })
-      .from(transferFiles)
-      .where(eq(transferFiles.transferId, row.id))
-      .get()!.n;
-    if (fileCount === 0) throw new AppError('TRANSFER_EMPTY', 'The transfer has no files');
+    const fileCount = finalizableFileCount(db, row.id);
 
     const now = nowSeconds(ctx.clock);
     const expiresAt = now + (row.expiresAt - row.createdAt);
@@ -270,7 +259,7 @@ export function transfersRouter(ctx: AppContext): Router {
     const status = effectiveStatus(row, nowSeconds(ctx.clock));
     if (status === 'expired') throw new AppError('TRANSFER_EXPIRED', 'The transfer has expired');
     if (status === 'revoked') throw new AppError('TRANSFER_REVOKED', 'The transfer was revoked');
-    if (row.mode !== 'email' || status === 'uploading') {
+    if (row.source === 'received' || row.mode !== 'email' || status === 'uploading') {
       throw new AppError('CONFLICT', 'Only active email transfers can be sent again');
     }
     const sent = await notifyRecipients(ctx, row, senderNameOf(req));
