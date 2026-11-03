@@ -16,6 +16,8 @@ removes the EasySend images. Data volumes, .env and .deploy/ are KEPT, so a late
 
 --purge  ALSO deletes the data volumes (all transfers, users, the master key), .deploy/ and .env.
          The backups directory is kept. You are offered a backup first and must type 'easysend'.
+         With DATA_PATH set in .env the host folder is NEVER deleted by the script: the path and
+         the command to remove it are printed at the end.
 --yes    do not ask questions (with --purge no backup is made: run backup.sh first)
 
 Cloudflare is not touched (the API token is never stored): after --purge remove the tunnel and
@@ -89,6 +91,8 @@ main() {
     versions=("0.0.0")
   fi
 
+  local host_data=''
+  host_data="$(data_path)"
   if ((purge)); then
     warn "--purge DELETES all data: transfers, users, settings and the master key."
     if [[ "$ASSUME_YES" != "1" ]]; then
@@ -119,6 +123,10 @@ main() {
     rm -rf "$EASYSEND_DIR/updates"
     rm -f "$EASYSEND_DIR/.env"
     ok "Data volumes, .deploy/ and .env removed (the backups directory, if any, is kept)."
+    if [[ -n "$host_data" ]]; then
+      warn "The data folder $host_data was NOT deleted (it holds the database, files and the master key)."
+      warn "To delete it for good, once you are sure you do not need it: sudo rm -rf -- '$host_data'"
+    fi
     cat <<'CF'
 
 Manual Cloudflare cleanup (the API token is never stored, so this cannot be automated):
