@@ -1,10 +1,11 @@
+import type { CreateTransferInput } from '@/lib/api/transfers';
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { deleteTransfer, finalizeTransfer, getTransfer, createTransfer } from '@/lib/api/transfers';
 import { TransferRunner, type RunParams, type RunnerDeps, type UploadItem } from './runner';
 import { createFileUpload } from './tus-file';
 import { initialSessionState, sessionReducer, type RunnerEvent } from './types';
 
-const defaultDeps: RunnerDeps = {
+const defaultDeps: RunnerDeps<CreateTransferInput> = {
   createTransfer,
   getTransfer,
   finalizeTransfer,
@@ -14,22 +15,22 @@ const defaultDeps: RunnerDeps = {
 
 const ACTIVE_PHASES = new Set(['creating', 'uploading', 'paused', 'processing', 'finalizing']);
 
-interface Options {
+interface Options<C> {
   /** Receives every runner event (the page persists the draft on `transfer`). */
   onEvent?: (event: RunnerEvent) => void;
   /** Replaces the real API / tus (tests). */
-  deps?: Partial<RunnerDeps>;
+  deps?: Partial<RunnerDeps<C>>;
 }
 
 /**
  * Upload session: state machine idle → creating → uploading ⇄ paused → processing →
  * finalizing → done / error, driven by a `TransferRunner`.
  */
-export function useUploadSession(options: Options = {}) {
+export function useUploadSession<C = CreateTransferInput>(options: Options<C> = {}) {
   const [state, dispatch] = useReducer(sessionReducer, initialSessionState);
   const stateRef = useRef(state);
-  const runnerRef = useRef<TransferRunner | null>(null);
-  const paramsRef = useRef<RunParams | null>(null);
+  const runnerRef = useRef<TransferRunner<C> | null>(null);
+  const paramsRef = useRef<RunParams<C> | null>(null);
   const optionsRef = useRef(options);
 
   // Refs follow the latest render; they are only read from callbacks, never during render.
@@ -38,10 +39,11 @@ export function useUploadSession(options: Options = {}) {
     optionsRef.current = options;
   });
 
-  const launch = useCallback((params: RunParams) => {
+  const launch = useCallback((params: RunParams<C>) => {
     paramsRef.current = params;
-    const runner = new TransferRunner(
-      { ...defaultDeps, ...optionsRef.current.deps },
+    const runner = new TransferRunner<C>(
+      // Callers of a non-default `C` (submissions) provide every dependency.
+      { ...(defaultDeps as unknown as RunnerDeps<C>), ...optionsRef.current.deps },
       (event: RunnerEvent) => {
         if (runnerRef.current !== runner) return;
         dispatch(event);
@@ -52,7 +54,7 @@ export function useUploadSession(options: Options = {}) {
     void runner.run(params);
   }, []);
 
-  const start = useCallback((params: RunParams) => launch(params), [launch]);
+  const start = useCallback((params: RunParams<C>) => launch(params), [launch]);
 
   const pause = useCallback(() => runnerRef.current?.pause(), []);
   const resume = useCallback(() => runnerRef.current?.resume(), []);
