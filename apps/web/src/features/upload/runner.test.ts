@@ -113,7 +113,7 @@ describe('TransferRunner', () => {
     expect(state.phase).toBe('done');
     expect(state.transferId).toBe('draft1');
     expect(state.files[0]?.status).toBe('ready');
-    expect(state.result?.id).toBe('draft1');
+    expect(state.result && 'id' in state.result ? state.result.id : null).toBe('draft1');
   });
 
   it('skips files the server already has when continuing a draft', async () => {

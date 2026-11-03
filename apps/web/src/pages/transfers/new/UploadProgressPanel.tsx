@@ -24,6 +24,8 @@ interface UploadProgressPanelProps {
   onRetry: () => void;
   /** Return to the form keeping what was typed (only when no draft exists yet). */
   onBack: () => void;
+  /** Move focus to the heading when the panel appears (step change for screen readers). */
+  focusOnMount?: boolean;
 }
 
 /** Message for a polite live region: announced every 10% step, on file completion and on errors. */
@@ -83,10 +85,15 @@ export function UploadProgressPanel({
   onCancel,
   onRetry,
   onBack,
+  focusOnMount = false,
 }: UploadProgressPanelProps) {
   const { t, i18n } = useTranslation();
   const [confirmCancel, setConfirmCancel] = useState(false);
   const announcement = useProgressAnnouncement(state);
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (focusOnMount) heading.current?.focus({ preventScroll: true });
+  }, [focusOnMount]);
   const total = totalBytes(state);
   const sent = sentBytes(state);
   const percent = state.phase === 'done' ? 100 : percentOf(sent, total);
@@ -133,7 +140,12 @@ export function UploadProgressPanel({
         ) : state.phase === 'error' ? (
           <AlertCircle aria-hidden="true" className="text-destructive size-5 shrink-0" />
         ) : null}
-        <h2 id="progress-heading" className="text-lg font-semibold">
+        <h2
+          id="progress-heading"
+          ref={heading}
+          tabIndex={-1}
+          className="text-lg font-semibold outline-none"
+        >
           {t(`transfers.progress.heading.${headingKey}`)}
         </h2>
       </div>

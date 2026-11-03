@@ -2,29 +2,33 @@ import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, CircleDashed } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { queryKeys } from '@/app/query';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import {
-  clearDraft,
-  matchPickedFiles,
-  splitDraftFiles,
-  type DraftRecord,
-} from '@/features/upload/draft';
+import { matchPickedFiles, splitDraftFiles, type DraftFile } from '@/features/upload/draft';
 import type { UploadItem } from '@/features/upload/runner';
 import { isApiError } from '@/lib/api/client';
-import { deleteTransfer, getTransfer } from '@/lib/api/transfers';
 import { formatBytes } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/toast';
 import { errorMessage } from '@/lib/errors';
 
-interface ResumeBannerProps {
-  draft: DraftRecord;
+interface ResumeBannerProps<T extends { files: DraftFile[] }> {
+  draft: T;
+  /** Cache key of the draft status query. */
+  queryKey: readonly unknown[];
+  /** Reads what the server holds for the draft (a transfer or a submission). */
+  load: () => Promise<{ status: string; files: { name: string; sizeBytes: number }[] }>;
+  /** Deletes the draft on the server; `TRANSFER_NOT_FOUND` counts as done. */
+  remove: () => Promise<unknown>;
+  /** Forgets the stored draft (it is gone, or the user discarded it). */
+  onForget: () => void;
   /** The draft is gone (deleted, expired, already finalized): forget it. */
   onGone: () => void;
   onDiscarded: () => void;
-  onResume: (draft: DraftRecord, items: UploadItem[]) => void;
+  onResume: (draft: T, items: UploadItem[]) => void;
+  /** Texts of the banner (default: the transfer wording). */
+  title?: string;
+  description?: string;
 }
 
 /**
@@ -32,27 +36,38 @@ interface ResumeBannerProps {
  * missing ones (the browser cannot reopen files by itself). tus then continues from the stored
  * offset thanks to the draft-bound fingerprint.
  */
-export function ResumeBanner({ draft, onGone, onDiscarded, onResume }: ResumeBannerProps) {
+export function ResumeBanner<T extends { files: DraftFile[] }>({
+  draft,
+  queryKey,
+  load,
+  remove,
+  onForget,
+  onGone,
+  onDiscarded,
+  onResume,
+  title,
+  description,
+}: ResumeBannerProps<T>) {
   const { t, i18n } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [missing, setMissing] = useState<string[]>([]);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   const query = useQuery({
-    queryKey: queryKeys.transfers.detail(draft.transferId),
-    queryFn: () => getTransfer(draft.transferId),
+    queryKey,
+    queryFn: load,
     retry: false,
   });
 
   const gone =
-    (isApiError(query.error) && query.error.code === 'TRANSFER_NOT_FOUND') ||
+    (isApiError(query.error) && query.error.status === 404) ||
     (query.data !== undefined && query.data.status !== 'uploading');
   useEffect(() => {
     if (gone) {
-      clearDraft();
+      onForget();
       onGone();
     }
-  }, [gone, onGone]);
+  }, [gone, onForget, onGone]);
 
   const rows = useMemo(
     () =>
@@ -89,14 +104,14 @@ export function ResumeBanner({ draft, onGone, onDiscarded, onResume }: ResumeBan
 
   const discard = async () => {
     try {
-      await deleteTransfer(draft.transferId);
+      await remove();
     } catch (error) {
-      if (!(isApiError(error) && error.code === 'TRANSFER_NOT_FOUND')) {
+      if (!(isApiError(error) && error.status === 404)) {
         notifyError(errorMessage(t, error));
         throw error;
       }
     }
-    clearDraft();
+    onForget();
     notifySuccess(t('transfers.resume.discarded'));
     onDiscarded();
   };
@@ -104,9 +119,9 @@ export function ResumeBanner({ draft, onGone, onDiscarded, onResume }: ResumeBan
   return (
     <Alert className="mb-6" role="region" aria-labelledby="resume-title">
       <AlertTriangle aria-hidden="true" />
-      <AlertTitle id="resume-title">{t('transfers.resume.title')}</AlertTitle>
+      <AlertTitle id="resume-title">{title ?? t('transfers.resume.title')}</AlertTitle>
       <AlertDescription className="space-y-3">
-        <p>{t('transfers.resume.description')}</p>
+        <p>{description ?? t('transfers.resume.description')}</p>
         <ul className="space-y-1">
           {rows.map((row, index) => (
             <li key={`${index}-${row.item.name}`} className="flex items-start gap-2 text-sm">

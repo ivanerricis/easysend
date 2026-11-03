@@ -1,4 +1,7 @@
-import type { TransferDetail } from '@easysend/shared';
+import type { FinalizeSubmissionResponse, TransferDetail } from '@easysend/shared';
+
+/** What finalize returns: the transfer, or the summary of a submission to an upload request. */
+export type RunResult = TransferDetail | FinalizeSubmissionResponse;
 
 export type UploadPhase =
   'idle' | 'creating' | 'uploading' | 'paused' | 'processing' | 'finalizing' | 'done' | 'error';
@@ -23,7 +26,7 @@ export interface UploadSessionState {
   error: unknown;
   /** Phase the session was in when the error happened (to decide what a retry does). */
   failedPhase: UploadPhase | null;
-  result: TransferDetail | null;
+  result: RunResult | null;
 }
 
 export type RunnerEvent =
@@ -32,7 +35,7 @@ export type RunnerEvent =
   | { type: 'files'; files: { name: string; size: number }[] }
   | { type: 'fileStatus'; index: number; status: FileStatus }
   | { type: 'progress'; index: number; sent: number; speed: number }
-  | { type: 'done'; result: TransferDetail }
+  | { type: 'done'; result: RunResult }
   | { type: 'error'; error: unknown; index?: number }
   | { type: 'reset' };
 
