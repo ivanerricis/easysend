@@ -28,7 +28,7 @@ import type { TransferRow } from '../transfers/service.js';
 type FileRow = typeof transferFiles.$inferSelect;
 
 /**
- * Public download API (phase 3): `/downloads/:token` (info, unlock, file, zip). These endpoints
+ * Public download API: `/downloads/:token` (info, unlock, file, zip). These endpoints
  * never need a session. Mounted under `/api` by `app.ts`.
  */
 export function downloadsRouter(ctx: AppContext): Router {

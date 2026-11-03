@@ -3,7 +3,7 @@ import type { LimitPolicy } from '../auth/policy.js';
 const MINUTE = 60;
 const HOUR = 3600;
 
-/** Rate limits and fixed durations of transfers and public downloads (phase 3 plan). */
+/** Rate limits and fixed durations of transfers and public downloads. */
 export const TRANSFER_POLICY = {
   limits: {
     /** Creating a draft or resending the notification emails, per user. */
