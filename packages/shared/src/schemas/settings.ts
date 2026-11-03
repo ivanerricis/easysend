@@ -38,7 +38,6 @@ export type Appearance = z.infer<typeof appearanceSchema>;
 
 /** Metadata of an uploaded branding image. `updatedAt` is used as cache-busting query (`?v=`). */
 export const brandingAssetInfoSchema = z.object({ updatedAt: unixSecondsSchema });
-export type BrandingAssetInfo = z.infer<typeof brandingAssetInfoSchema>;
 
 /** Which branding images are set; `null` means the built-in default is used. */
 export const brandingAssetsSchema = z.object({
@@ -90,7 +89,6 @@ export type UpdateGeneralSettingsRequest = z.infer<typeof updateGeneralSettingsR
 
 // ---- SMTP --------------------------------------------------------------------
 export const SMTP_SECURITY = ['none', 'starttls', 'tls'] as const;
-export type SmtpSecurity = (typeof SMTP_SECURITY)[number];
 
 /** SMTP configuration as sent by the client. The password is stored encrypted. */
 export const smtpSettingsSchema = z.object({
