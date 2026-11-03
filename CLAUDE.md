@@ -57,7 +57,7 @@ docs/              SPEC.md, FASI.md, api.md
 - Accessibilità WCAG 2.2 AA.
 
 ## Comandi
-Prerequisiti: Node 26 (versione in `.node-version`/`.nvmrc`, con fnm basta `fnm use`), pnpm 12.14.0 (campo `packageManager`), Docker Desktop avviato per `local:*`.
+Prerequisiti: Node 26 (versione in `.nvmrc`, con fnm basta `fnm use`), pnpm 12.14.0 (campo `packageManager`), Docker Desktop avviato per `local:*`.
 
 | Comando               | Cosa fa                                                                   |
 | --------------------- | ------------------------------------------------------------------------- |

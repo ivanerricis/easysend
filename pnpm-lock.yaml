@@ -635,12 +635,6 @@ importers:
       '@fontsource-variable/plus-jakarta-sans':
         specifier: 'catalog:'
         version: 5.3.0
-      '@types/node':
-        specifier: 'catalog:'
-        version: 26.6.5
-      typescript:
-        specifier: 'catalog:'
-        version: 6.0.3
       vitepress:
         specifier: 'catalog:'
         version: 1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.5)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.30)(search-insights@2.17.3)(tsx@4.23.15)(typescript@6.0.3)
@@ -653,18 +647,12 @@ importers:
       '@playwright/test':
         specifier: 'catalog:'
         version: 1.64.1
-      '@types/node':
-        specifier: 'catalog:'
-        version: 26.6.5
       '@types/yauzl':
         specifier: 'catalog:'
         version: 3.4.0
       otpauth:
         specifier: 'catalog:'
         version: 9.5.2
-      typescript:
-        specifier: 'catalog:'
-        version: 6.0.3
       yauzl:
         specifier: 'catalog:'
         version: 3.4.0
