@@ -2828,6 +2828,7 @@ Public information of an upload request
     requireEmail: boolean
     remainingBytes: integer (min 0) | null
     expiresAt: integer (min 0)
+    chunkSizeBytes: integer (> 0)
   }
 ```
 

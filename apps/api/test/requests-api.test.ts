@@ -186,6 +186,7 @@ describe('upload requests: public API', () => {
       message: 'Hi',
       ownerName: null,
       remainingBytes: 1000,
+      chunkSizeBytes: 25 * 1024 * 1024,
     });
     expect(JSON.stringify(info.body)).not.toContain('owner@example.com');
 

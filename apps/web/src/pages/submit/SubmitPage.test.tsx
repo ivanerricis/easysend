@@ -34,6 +34,7 @@ function openInfo(overrides: Record<string, unknown> = {}) {
     requireName: false,
     requireEmail: false,
     remainingBytes: null,
+    chunkSizeBytes: 26_214_400,
     expiresAt: future,
     ...overrides,
   };

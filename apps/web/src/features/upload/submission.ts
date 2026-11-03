@@ -11,9 +11,6 @@ import { readStorage, removeStorage, writeStorage } from '@/lib/storage';
 import type { RunnerDeps } from './runner';
 import { createFileUpload } from './tus-file';
 
-/** Chunk size of public uploads: `GET /api/config` needs a login, so the default is used. */
-export const PUBLIC_CHUNK_SIZE_BYTES = 25 * 1024 * 1024;
-
 /**
  * Binds the runner to one upload request: the same sequencing as a normal transfer (draft, tus
  * one file at a time, wait for encryption, finalize) with the submission endpoints, and the

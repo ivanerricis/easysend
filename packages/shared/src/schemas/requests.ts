@@ -143,6 +143,8 @@ export const requestInfoResponseSchema = z.discriminatedUnion('locked', [
     /** Bytes that can still be uploaded; `null` when the request has no total limit. */
     remainingBytes: byteSizeSchema.nullable(),
     expiresAt: unixSecondsSchema,
+    /** tus chunk size of this instance (the public page cannot read `GET /api/config`). */
+    chunkSizeBytes: z.number().int().positive(),
   }),
 ]);
 export type RequestInfoResponse = z.infer<typeof requestInfoResponseSchema>;

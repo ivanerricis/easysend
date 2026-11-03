@@ -27,7 +27,6 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import type { UploadItem } from '@/features/upload/runner';
 import {
-  PUBLIC_CHUNK_SIZE_BYTES,
   clearSubmissionDraft,
   createSubmissionDeps,
   loadSubmissionDraft,
@@ -242,7 +241,7 @@ export function SubmitView({ token, info }: SubmitViewProps) {
     session.start({
       create: toSubmissionRequest(values),
       files: files.map<UploadItem>((file) => ({ name: file.name, size: file.size, file })),
-      chunkSize: PUBLIC_CHUNK_SIZE_BYTES,
+      chunkSize: info.chunkSizeBytes,
     });
   });
 
@@ -256,7 +255,7 @@ export function SubmitView({ token, info }: SubmitViewProps) {
     session.start({
       transferId: record.transferId,
       files: items,
-      chunkSize: PUBLIC_CHUNK_SIZE_BYTES,
+      chunkSize: info.chunkSizeBytes,
     });
   };
 
