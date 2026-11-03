@@ -1,4 +1,4 @@
-import { PASSWORD_MAX_LENGTH, TOTP_CODE_LENGTH } from '@easysend/shared';
+import { PASSWORD_MAX_LENGTH, TOTP_CODE_LENGTH, TOTP_CODE_REGEX } from '@easysend/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -25,7 +25,7 @@ import { Section } from './Section';
 
 const reauthFormSchema = z.object({
   password: z.string().min(1, 'profile.twoFactor.errors.passwordRequired').max(PASSWORD_MAX_LENGTH),
-  code: z.string().regex(new RegExp(`^[0-9]{${TOTP_CODE_LENGTH}}$`), {
+  code: z.string().regex(TOTP_CODE_REGEX, {
     message: 'profile.twoFactor.errors.codeRequired',
   }),
 });

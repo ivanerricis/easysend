@@ -54,6 +54,17 @@ export const FOOTER_MAX_LENGTH = 200;
 export const MAX_RECIPIENTS = 20;
 export const MAX_FILES_PER_TRANSFER = 100;
 export const MAX_DOWNLOADS_LIMIT = 100_000;
+/** Free disk space (MB) that can be reserved: 10 TiB. */
+export const DISK_RESERVE_MAX_MB = 10_485_760;
+
+// ---- SMTP and Cloudflare form limits ---------------------------------------
+export const SMTP_HOST_MAX_LENGTH = 255;
+export const SMTP_PORT_MAX = 65_535;
+export const SMTP_USERNAME_MAX_LENGTH = 255;
+export const SMTP_PASSWORD_MAX_LENGTH = 1024;
+export const SMTP_FROM_NAME_MAX_LENGTH = 100;
+export const CLOUDFLARE_TOKEN_MIN_LENGTH = 20;
+export const CLOUDFLARE_TOKEN_MAX_LENGTH = 256;
 
 // ---- Branding --------------------------------------------------------------
 export const BRANDING_ASSET_KINDS = ['logoLight', 'logoDark', 'favicon', 'background'] as const;

@@ -3,6 +3,7 @@ import {
   AVAILABLE_FONTS,
   DEFAULT_APPEARANCE,
   FOOTER_MAX_LENGTH,
+  HEX_COLOR_REGEX,
   INSTANCE_NAME_MAX_LENGTH,
   THEME_PREFERENCES,
   appearanceSchema,
@@ -33,7 +34,7 @@ const hexColor = (error: string) =>
   z
     .string()
     .trim()
-    .regex(/^#[0-9a-fA-F]{6}$/, { error });
+    .regex(HEX_COLOR_REGEX, { error });
 
 // The shared schema with translatable messages for the fields the admin edits.
 const formSchema = appearanceSchema.extend({
