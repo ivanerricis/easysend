@@ -13,6 +13,9 @@ interface TwoFactorEnrollmentProps {
   onVerify: (code: string) => Promise<void>;
   /** Label of the submit button. */
   submitLabel?: string;
+  /** Shows a secondary cancel button next to the submit one. */
+  onCancel?: () => void;
+  cancelLabel?: string;
 }
 
 /**
@@ -24,6 +27,8 @@ export function TwoFactorEnrollment({
   otpauthUri,
   onVerify,
   submitLabel,
+  onCancel,
+  cancelLabel,
 }: TwoFactorEnrollmentProps) {
   const { t } = useTranslation();
   const id = useId();
@@ -99,14 +104,27 @@ export function TwoFactorEnrollment({
           </div>
         </li>
       </ol>
-      <Button
-        type="button"
-        className="w-full sm:w-auto"
-        disabled={pending || code.length !== 6}
-        onClick={() => void submit(code)}
-      >
-        {submitLabel ?? t('auth.enroll.verify')}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          className="w-full sm:w-auto"
+          disabled={pending || code.length !== 6}
+          onClick={() => void submit(code)}
+        >
+          {submitLabel ?? t('auth.enroll.verify')}
+        </Button>
+        {onCancel ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full sm:w-auto"
+            disabled={pending}
+            onClick={onCancel}
+          >
+            {cancelLabel ?? t('common.actions.cancel')}
+          </Button>
+        ) : null}
+      </div>
     </div>
   );
 }
