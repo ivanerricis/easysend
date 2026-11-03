@@ -6,6 +6,7 @@ import enAuth from './locales/en/auth.json';
 import enCommon from './locales/en/common.json';
 import enDownload from './locales/en/download.json';
 import enErrors from './locales/en/errors.json';
+import enRequests from './locales/en/requests.json';
 import enProfile from './locales/en/profile.json';
 import enSetup from './locales/en/setup.json';
 import enTransfers from './locales/en/transfers.json';
@@ -14,6 +15,7 @@ import itAuth from './locales/it/auth.json';
 import itCommon from './locales/it/common.json';
 import itDownload from './locales/it/download.json';
 import itErrors from './locales/it/errors.json';
+import itRequests from './locales/it/requests.json';
 import itProfile from './locales/it/profile.json';
 import itSetup from './locales/it/setup.json';
 import itTransfers from './locales/it/transfers.json';
@@ -33,6 +35,7 @@ export const NAMESPACES = [
   'auth',
   'setup',
   'transfers',
+  'requests',
   'download',
   'profile',
   'admin',
@@ -46,6 +49,7 @@ export const resources = {
       auth: itAuth,
       setup: itSetup,
       transfers: itTransfers,
+      requests: itRequests,
       download: itDownload,
       profile: itProfile,
       admin: itAdmin,
@@ -58,6 +62,7 @@ export const resources = {
       auth: enAuth,
       setup: enSetup,
       transfers: enTransfers,
+      requests: enRequests,
       download: enDownload,
       profile: enProfile,
       admin: enAdmin,

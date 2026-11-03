@@ -10,6 +10,7 @@
     "main": "Main navigation",
     "send": "Send",
     "transfers": "Transfers",
+    "requests": "Receive files",
     "admin": "Administration",
     "users": "Users",
     "allTransfers": "All transfers",

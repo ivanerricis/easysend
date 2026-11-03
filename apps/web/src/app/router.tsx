@@ -16,6 +16,8 @@ const DownloadPage = lazy(() => import('@/pages/download/DownloadPage'));
 const NewTransferPage = lazy(() => import('@/pages/transfers/NewTransferPage'));
 const TransfersPage = lazy(() => import('@/pages/transfers/TransfersPage'));
 const TransferDetailPage = lazy(() => import('@/pages/transfers/TransferDetailPage'));
+const RequestsPage = lazy(() => import('@/pages/requests/RequestsPage'));
+const RequestDetailPage = lazy(() => import('@/pages/requests/RequestDetailPage'));
 const ProfilePage = lazy(() => import('@/pages/profile/ProfilePage'));
 const UsersPage = lazy(() => import('@/pages/admin/UsersPage'));
 const AdminTransfersPage = lazy(() => import('@/pages/admin/AdminTransfersPage'));
@@ -78,6 +80,8 @@ export const appRoutes: RouteObject[] = [
               { index: true, element: <NewTransferPage /> },
               { path: 'transfers', element: <TransfersPage /> },
               { path: 'transfers/:id', element: <TransferDetailPage /> },
+              { path: 'requests', element: <RequestsPage /> },
+              { path: 'requests/:id', element: <RequestDetailPage /> },
               { path: 'profile', element: <ProfilePage /> },
               {
                 element: <RequireAdmin />,
