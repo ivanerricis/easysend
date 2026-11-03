@@ -383,6 +383,8 @@ catalogs:
 
 overrides:
   vitepress>vite: 6.4.4
+  body-parser@<2.4.0: ^2.4.0
+  systeminformation@<5.33.16: ^5.33.16
 
 importers:
 
@@ -633,12 +635,6 @@ importers:
       '@fontsource-variable/plus-jakarta-sans':
         specifier: 'catalog:'
         version: 5.3.0
-      '@types/node':
-        specifier: 'catalog:'
-        version: 26.6.5
-      typescript:
-        specifier: 'catalog:'
-        version: 6.0.3
       vitepress:
         specifier: 'catalog:'
         version: 1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.5)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.30)(search-insights@2.17.3)(tsx@4.23.15)(typescript@6.0.3)
@@ -651,18 +647,12 @@ importers:
       '@playwright/test':
         specifier: 'catalog:'
         version: 1.64.1
-      '@types/node':
-        specifier: 'catalog:'
-        version: 26.6.5
       '@types/yauzl':
         specifier: 'catalog:'
         version: 3.4.0
       otpauth:
         specifier: 'catalog:'
         version: 9.5.2
-      typescript:
-        specifier: 'catalog:'
-        version: 6.0.3
       yauzl:
         specifier: 'catalog:'
         version: 3.4.0
@@ -3561,8 +3551,8 @@ packages:
   birpc@2.9.0:
     resolution: {integrity: sha512-KrayHS5pBi69Xi9JmvoqrIgYGDkD6mcSe/i6YKi3w5kekCLzrX4+nawcXqrj2tIp50Kw/mT/s3p+GVK0A0sKxw==}
 
-  body-parser@2.3.0:
-    resolution: {integrity: sha512-2cGmJupaNgg+QUwVLAucDuWuoMZ6EX9iHDRswZ5lsNYEmwPaRknMPCLZz07yTzVq/83p4o/wzbDZbBrTvGGTIw==}
+  body-parser@2.4.0:
+    resolution: {integrity: sha512-Ifk1KcLrxaGt1occQagQNFNNOqRt1LFuehEnHHzB8Z6cRgIxRU1TBaiIsUiCdA+gy5PL7Y1IX31DNKkRmxtXjQ==}
     engines: {node: '>=18'}
 
   brace-expansion@1.1.21:
@@ -5845,8 +5835,8 @@ packages:
     resolution: {integrity: sha512-vNaNCFoCR/edDbErQZp5KLNT8R4dSPHX7rlDLoE8hWLAm/878j6ShMbe8HK/E6RwwuhlSXVelXAIg9AxR5WWPw==}
     engines: {node: '>=14.18.0'}
 
-  systeminformation@5.33.15:
-    resolution: {integrity: sha512-s5RloL0F7xhN0ZjfHtLGnbf7EW74EI0N8NFL+1xR7Oxz9QA33obNZsl7lyfnJOhN04E/kGFPoJPlvY7TZ5fzmw==}
+  systeminformation@5.33.19:
+    resolution: {integrity: sha512-Zm7wGeCG7PqfvzegMJIzrxICopWqYCeLATVmvxOOci1isLcNVKgY4Fr0hhYQzvc7cgtK3377jQVChTFAnznOiA==}
     engines: {node: '>=10.0.0'}
     os: [darwin, linux, win32, freebsd, openbsd, netbsd, sunos, android]
     hasBin: true
@@ -6789,7 +6779,7 @@ snapshots:
       object-treeify: 1.1.33
       open: 8.4.2
       picomatch: 4.0.7
-      systeminformation: 5.33.15
+      systeminformation: 5.33.19
       undici: 7.30.1
       which: 4.0.0
       yocto-spinner: 1.2.2
@@ -8977,7 +8967,7 @@ snapshots:
 
   birpc@2.9.0: {}
 
-  body-parser@2.3.0:
+  body-parser@2.4.0:
     dependencies:
       bytes: 3.1.2
       content-type: 2.1.0
@@ -9647,7 +9637,7 @@ snapshots:
   express@5.3.0:
     dependencies:
       accepts: 2.0.0
-      body-parser: 2.3.0
+      body-parser: 2.4.0
       content-disposition: 2.0.1
       content-type: 2.1.0
       cookie: 0.7.2
@@ -11411,7 +11401,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  systeminformation@5.33.15: {}
+  systeminformation@5.33.19: {}
 
   tabbable@6.5.0: {}
 

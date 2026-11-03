@@ -55,14 +55,12 @@ export const brandingAssetEntrySchema = z.object({
   updatedAt: z.number().int(),
   fileName: z.string().min(1),
 });
-export type BrandingAssetEntry = z.infer<typeof brandingAssetEntrySchema>;
 
 /**
  * `emailLogo` is not a public asset kind: it is the PNG rendition of the light logo embedded in
  * emails (always PNG, hence no content type).
  */
 export const emailLogoEntrySchema = brandingAssetEntrySchema.omit({ contentType: true });
-export type EmailLogoEntry = z.infer<typeof emailLogoEntrySchema>;
 
 const brandingAssetsSettingSchema = z.object({
   ...(Object.fromEntries(

@@ -15,3 +15,8 @@ test-results
 blob-report
 .pnpm-store
 **/*.tsbuildinfo
+.claude
+scripts
+updates
+.deploy
+apps/*/test

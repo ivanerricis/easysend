@@ -19,8 +19,6 @@ export function fontStack(appearance: Appearance): string {
   return FONT_STACKS[appearance.font];
 }
 
-export const MONO_STACK = "'JetBrains Mono', ui-monospace, Consolas, monospace";
-
 /** Zinc neutrals of the app. #18181b on #fff is 17:1, #52525b on #fff 7.7:1, on #f4f4f5 7:1. */
 export const COLORS = {
   text: '#18181b',
@@ -358,28 +356,6 @@ export function LinkFallback({
         {url}
       </a>
     </p>
-  );
-}
-
-export function Divider(): ReactNode {
-  return (
-    <table role="presentation" width="100%" cellPadding={0} cellSpacing={0}>
-      <tbody>
-        <tr>
-          <td
-            style={{
-              fontSize: 1,
-              lineHeight: '1px',
-              height: 1,
-              borderTop: `1px solid ${COLORS.border}`,
-              padding: 0,
-            }}
-          >
-            &nbsp;
-          </td>
-        </tr>
-      </tbody>
-    </table>
   );
 }
 

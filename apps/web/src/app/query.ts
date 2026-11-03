@@ -30,7 +30,6 @@ export const queryKeys = {
   },
   admin: {
     users: (query?: object) => ['admin', 'users', query ?? {}] as const,
-    user: (id: string) => ['admin', 'users', 'detail', id] as const,
     transfers: (query?: object) => ['admin', 'transfers', query ?? {}] as const,
     storage: ['admin', 'storage'] as const,
     settings: ['admin', 'settings'] as const,

@@ -1,4 +1,4 @@
-import { ERROR_CODES, type ErrorCode } from '@easysend/shared';
+import { httpStatusFor, type ErrorCode } from '@easysend/shared';
 
 /** Application error carrying a stable shared error code. The HTTP status comes from the code. */
 export class AppError extends Error {
@@ -10,7 +10,7 @@ export class AppError extends Error {
     super(message ?? code);
     this.name = 'AppError';
     this.code = code;
-    this.status = ERROR_CODES[code];
+    this.status = httpStatusFor(code);
     this.details = details;
   }
 }

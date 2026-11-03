@@ -17,6 +17,10 @@ auditConfig:
 # vite 6 instead. The app itself uses vite 8. Drop this with VitePress 2.
 overrides:
   'vitepress>vite': 6.4.4
+  # GHSA-27r3-jxmh-p828 (DoS): express still allows body-parser below 2.4.0.
+  'body-parser@<2.4.0': ^2.4.0
+  # GHSA-3f7j-7jwc-fxfj: comes in through the shadcn CLI (build time only).
+  'systeminformation@<5.33.16': ^5.33.16
 
 catalog:
   # tooling
