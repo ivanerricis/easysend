@@ -11,6 +11,7 @@ import { useAppearance } from '@/app/providers/AppearanceProvider';
 import { queryKeys } from '@/app/query';
 import { FormErrorSummary } from '@/components/common/FormErrorSummary';
 import { FormField } from '@/components/common/FormField';
+import { RequestId } from '@/components/common/RequestId';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PasswordInput } from '@/components/common/PasswordInput';
 import { LoadingState } from '@/components/common/States';
@@ -67,11 +68,7 @@ function ErrorView({ error, onRetry }: { error: unknown; onRetry: () => void }) 
     <PublicCard width="default">
       <PageHeader title={t(`download.states.${key}.title`)} />
       <p className="text-muted-foreground text-sm">{t(`download.states.${key}.description`)}</p>
-      {key === 'generic' && requestId ? (
-        <p className="text-muted-foreground mt-3 text-xs">
-          {t('common.states.requestId')}: <code className="font-mono">{requestId}</code>
-        </p>
-      ) : null}
+      {key === 'generic' ? <RequestId requestId={requestId} className="mt-3" /> : null}
       {retryable ? (
         <Button type="button" variant="outline" className="mt-6" onClick={onRetry}>
           {t('common.actions.retry')}
