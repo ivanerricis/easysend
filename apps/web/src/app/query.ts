@@ -44,4 +44,6 @@ export const queryKeys = {
     smtp: ['setup', 'smtp'] as const,
   },
   download: (token: string) => ['download', token] as const,
+  submitRequest: (token: string) => ['submit-request', token] as const,
+  submission: (token: string, id: string) => ['submit-request', token, 'submission', id] as const,
 };

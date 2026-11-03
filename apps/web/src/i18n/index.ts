@@ -8,6 +8,7 @@ import enDownload from './locales/en/download.json';
 import enErrors from './locales/en/errors.json';
 import enProfile from './locales/en/profile.json';
 import enSetup from './locales/en/setup.json';
+import enSubmit from './locales/en/submit.json';
 import enTransfers from './locales/en/transfers.json';
 import itAdmin from './locales/it/admin.json';
 import itAuth from './locales/it/auth.json';
@@ -16,6 +17,7 @@ import itDownload from './locales/it/download.json';
 import itErrors from './locales/it/errors.json';
 import itProfile from './locales/it/profile.json';
 import itSetup from './locales/it/setup.json';
+import itSubmit from './locales/it/submit.json';
 import itTransfers from './locales/it/transfers.json';
 
 export const SUPPORTED_LOCALES = ['it', 'en'] as const;
@@ -34,6 +36,7 @@ export const NAMESPACES = [
   'setup',
   'transfers',
   'download',
+  'submit',
   'profile',
   'admin',
 ] as const;
@@ -47,6 +50,7 @@ export const resources = {
       setup: itSetup,
       transfers: itTransfers,
       download: itDownload,
+      submit: itSubmit,
       profile: itProfile,
       admin: itAdmin,
     },
@@ -59,6 +63,7 @@ export const resources = {
       setup: enSetup,
       transfers: enTransfers,
       download: enDownload,
+      submit: enSubmit,
       profile: enProfile,
       admin: enAdmin,
     },

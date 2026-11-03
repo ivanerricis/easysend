@@ -13,6 +13,7 @@ const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'));
 const WelcomePage = lazy(() => import('@/pages/auth/WelcomePage'));
 const DownloadPage = lazy(() => import('@/pages/download/DownloadPage'));
+const SubmitPage = lazy(() => import('@/pages/submit/SubmitPage'));
 const NewTransferPage = lazy(() => import('@/pages/transfers/NewTransferPage'));
 const TransfersPage = lazy(() => import('@/pages/transfers/TransfersPage'));
 const TransferDetailPage = lazy(() => import('@/pages/transfers/TransferDetailPage'));
@@ -67,6 +68,7 @@ export const appRoutes: RouteObject[] = [
           { path: 'reset-password', element: <ResetPasswordPage /> },
           { path: 'welcome', element: <WelcomePage /> },
           { path: 'd/:token', element: <DownloadPage /> },
+          { path: 'r/:token', element: <SubmitPage /> },
         ],
       },
       {
