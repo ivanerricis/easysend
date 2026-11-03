@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { createWriteStream } from 'node:fs';
+import { createWriteStream, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import type { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -69,6 +69,16 @@ class DiskAwareFileStore extends FileStore {
     return offset + counter.bytes();
   }
 }
+
+// The stock constructor creates the directory with an async `fs.mkdir` whose callback throws:
+// a failure (e.g. the directory removed meanwhile) becomes an uncaught exception. Create it
+// synchronously instead, so an error surfaces where the store is built. The method is private in
+// the typings, hence the prototype assignment.
+Object.defineProperty(DiskAwareFileStore.prototype, 'checkOrCreateDirectory', {
+  value(this: FileStore) {
+    mkdirSync(this.directory, { recursive: true });
+  },
+});
 
 /** The Express request behind a tus (srvx) request: it carries `auth` and the request id. */
 function expressRequest(req: TusRequest): Request {
