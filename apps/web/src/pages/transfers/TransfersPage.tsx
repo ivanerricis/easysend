@@ -24,14 +24,28 @@ import { SelectInput } from '@/components/common/SelectInput';
 import { listTransfers } from '@/lib/api/transfers';
 import { formatBytes, formatDateTime, formatRelative } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { ShareLinkButton } from './actions/ShareLinkButton';
 import { TransferActionsMenu } from './actions/TransferActionsMenu';
 import { downloadsText, readListParams, transferTitle } from './list-utils';
 
 const STATUS_FILTERS = ['active', 'uploading', 'revoked', 'expired'] as const;
 
-function ModeLabel({ mode }: { mode: TransferMode }) {
+function ModeLabel({
+  mode,
+  link,
+  title,
+}: {
+  mode: TransferMode;
+  link?: string | null;
+  title: string;
+}) {
   const { t } = useTranslation();
   const Icon = mode === 'email' ? Mail : Link2;
+  if (link) {
+    return (
+      <ShareLinkButton url={link} title={title} label={t(`transfers.mode.${mode}`)} withLinkIcon />
+    );
+  }
   return (
     <span className="inline-flex items-center gap-1.5">
       <Icon aria-hidden="true" className="size-4" />
@@ -207,7 +221,11 @@ export default function TransfersPage() {
                     <StatusBadge status={transfer.status} />
                   </TableCell>
                   <TableCell>
-                    <ModeLabel mode={transfer.mode} />
+                    <ModeLabel
+                      mode={transfer.mode}
+                      link={transfer.status === 'active' ? transfer.shareUrl : null}
+                      title={transferTitle(transfer, untitled)}
+                    />
                   </TableCell>
                   <TableCell className="text-right font-mono text-xs">
                     {formatBytes(transfer.totalBytes, locale)}
@@ -244,7 +262,11 @@ export default function TransfersPage() {
                     <StatusBadge status={transfer.status} />
                   </span>
                   <span className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                    <ModeLabel mode={transfer.mode} />
+                    <ModeLabel
+                      mode={transfer.mode}
+                      link={transfer.status === 'active' ? transfer.shareUrl : null}
+                      title={transferTitle(transfer, untitled)}
+                    />
                     <span className="font-mono text-xs">
                       {formatBytes(transfer.totalBytes, locale)} Â·{' '}
                       {t('common.units.files', { count: transfer.fileCount })}

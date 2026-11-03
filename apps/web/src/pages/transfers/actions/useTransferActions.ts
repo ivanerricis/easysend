@@ -6,9 +6,10 @@ import { queryKeys } from '@/app/query';
 import { deleteTransfer, resendTransfer, revokeTransfer } from '@/lib/api/transfers';
 import { errorMessage } from '@/lib/errors';
 import { notifyError, notifySuccess } from '@/lib/toast';
+import { useCopyShareLink } from './useCopyShareLink';
 
 /**
- * Revoke, delete and resend of a transfer with the same API calls, toasts and query
+ * Revoke, delete, resend and copy-link of a transfer with the same API calls, toasts and query
  * invalidations wherever they are offered (detail page, list rows). `revoke` and `remove` throw
  * after reporting the error, so a `ConfirmDialog` stays open; `resend` reports and swallows it.
  */
@@ -16,6 +17,7 @@ export function useTransferActions(id: string, options: { isDraft?: boolean } = 
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [resending, setResending] = useState(false);
+  const copyLink = useCopyShareLink();
 
   const refreshLists = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.transfers.all });
@@ -64,5 +66,5 @@ export function useTransferActions(id: string, options: { isDraft?: boolean } = 
     }
   };
 
-  return { revoke, remove, resend, resending, setDetail, refreshLists };
+  return { revoke, remove, resend, resending, copyLink, setDetail, refreshLists };
 }
