@@ -1,13 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { SelectInput } from '@/components/common/SelectInput';
 import { useLocale } from '@/i18n/LocaleProvider';
-import { SUPPORTED_LOCALES, type Locale } from '@/i18n';
-
-const NAMES: Record<Locale, string> = { it: 'Italiano', en: 'English' };
+import { SUPPORTED_LOCALES } from '@/i18n';
+import { LOCALE_NAMES } from './LocaleRadioGroup';
 
 const OPTIONS = SUPPORTED_LOCALES.map((option) => ({
   value: option,
-  label: NAMES[option],
+  label: LOCALE_NAMES[option],
   lang: option,
 }));
 

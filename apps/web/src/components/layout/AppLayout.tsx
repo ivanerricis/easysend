@@ -26,8 +26,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
@@ -49,10 +47,10 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { useUpdateStatus } from '@/hooks/use-update-status';
-import { SUPPORTED_LOCALES, type Locale } from '@/i18n';
-import { useLocale } from '@/i18n/LocaleProvider';
 import { notifyError } from '@/lib/toast';
-import { useTheme, type ThemePreference } from '@/theme/theme-context';
+import { LocaleRadioGroup } from '@/components/LocaleRadioGroup';
+import { ThemeRadioGroup } from '@/components/ThemeRadioGroup';
+import { useTheme } from '@/theme/theme-context';
 
 interface NavItem {
   to: string;
@@ -72,8 +70,6 @@ const ADMIN_NAV: NavItem[] = [
   { to: '/admin/settings', labelKey: 'common.nav.settings', icon: Settings },
   { to: '/admin/appearance', labelKey: 'common.nav.appearance', icon: Palette },
 ];
-
-const LOCALE_NAMES: Record<Locale, string> = { it: 'Italiano', en: 'English' };
 
 function isActivePath(current: string, to: string): boolean {
   return to === '/' ? current === '/' : current === to || current.startsWith(`${to}/`);
@@ -109,13 +105,10 @@ function UserMenu() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, logout } = useSession();
-  const { theme, source, setTheme } = useTheme();
-  const { locale, changeLocale } = useLocale();
   const { isMobile } = useSidebar();
   if (!user) return null;
 
   const name = user.displayName ?? user.email;
-  const themeChoice = source === 'instance' ? 'instance' : theme;
 
   const onLogout = async () => {
     try {
@@ -151,36 +144,13 @@ function UserMenu() {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>{t('common.userMenu.theme')}</DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
-            <DropdownMenuRadioGroup
-              value={themeChoice}
-              onValueChange={(value) =>
-                setTheme(value === 'instance' ? null : (value as ThemePreference))
-              }
-            >
-              <DropdownMenuRadioItem value="light">{t('common.theme.light')}</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="dark">{t('common.theme.dark')}</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="system">
-                {t('common.theme.system')}
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="instance">
-                {t('common.theme.instance')}
-              </DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
+            <ThemeRadioGroup />
           </DropdownMenuSubContent>
         </DropdownMenuSub>
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>{t('common.userMenu.language')}</DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
-            <DropdownMenuRadioGroup
-              value={locale}
-              onValueChange={(value) => changeLocale(value === 'it' ? 'it' : 'en')}
-            >
-              {SUPPORTED_LOCALES.map((option) => (
-                <DropdownMenuRadioItem key={option} value={option} lang={option}>
-                  {LOCALE_NAMES[option]}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
+            <LocaleRadioGroup />
           </DropdownMenuSubContent>
         </DropdownMenuSub>
         <DropdownMenuSeparator />
