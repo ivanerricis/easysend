@@ -22,6 +22,7 @@ export type UserRole = (typeof USER_ROLES)[number];
 export const THEME_PREFERENCES = ['light', 'dark', 'system'] as const;
 export type ThemePreference = (typeof THEME_PREFERENCES)[number];
 
+/** `expired` and `deleted` are reserved: never stored (expiry is derived, deleting removes the row). */
 export const TRANSFER_STATUSES = ['uploading', 'active', 'revoked', 'expired', 'deleted'] as const;
 export type TransferStatus = (typeof TRANSFER_STATUSES)[number];
 
@@ -54,13 +55,24 @@ export const FOOTER_MAX_LENGTH = 200;
 export const MAX_RECIPIENTS = 20;
 export const MAX_FILES_PER_TRANSFER = 100;
 export const MAX_DOWNLOADS_LIMIT = 100_000;
+/** Free disk space (MB) that can be reserved: 10 TiB. */
+export const DISK_RESERVE_MAX_MB = 10_485_760;
+
+// ---- SMTP and Cloudflare form limits ---------------------------------------
+export const SMTP_HOST_MAX_LENGTH = 255;
+export const SMTP_PORT_MAX = 65_535;
+export const SMTP_USERNAME_MAX_LENGTH = 255;
+export const SMTP_PASSWORD_MAX_LENGTH = 1024;
+export const SMTP_FROM_NAME_MAX_LENGTH = 100;
+export const CLOUDFLARE_TOKEN_MIN_LENGTH = 20;
+export const CLOUDFLARE_TOKEN_MAX_LENGTH = 256;
 
 // ---- Branding --------------------------------------------------------------
 export const BRANDING_ASSET_KINDS = ['logoLight', 'logoDark', 'favicon', 'background'] as const;
 export type BrandingAssetKind = (typeof BRANDING_ASSET_KINDS)[number];
 
 /** Maximum size of an uploaded branding image, in bytes. */
-export const BRANDING_MAX_BYTES = 2 * 1024 * 1024;
+export const BRANDING_MAX_BYTES = 2 * BYTES_PER_MB;
 
 /** Only raster images: no SVG, to avoid stored XSS. */
 export const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const;

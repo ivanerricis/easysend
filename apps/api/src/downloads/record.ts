@@ -1,9 +1,10 @@
 import { and, eq, gt, isNull, lt, or, sql } from 'drizzle-orm';
 import type { Request, Response } from 'express';
-import { Transform } from 'node:stream';
 import { nowSeconds } from '../clock.js';
 import type { AppContext } from '../context.js';
+import type { Transform } from 'node:stream';
 import { downloadLogs, transfers, users } from '../db/schema/index.js';
+import { createByteCounter } from '../storage/byte-counter.js';
 import { AppError } from '../http/errors.js';
 import type { TransferRow } from '../transfers/service.js';
 import { unavailableError } from './access.js';
@@ -107,13 +108,7 @@ export function logDownloadOnClose(
   res: Response,
   entry: { transferId: string; fileId: string | null; ipHash: string },
 ): Transform {
-  let bytes = 0;
-  const counter = new Transform({
-    transform(chunk: Buffer, _encoding, done) {
-      bytes += chunk.length;
-      done(null, chunk);
-    },
-  });
+  const counter = createByteCounter();
   res.once('close', () => {
     try {
       ctx.db
@@ -123,7 +118,7 @@ export function logDownloadOnClose(
           fileId: entry.fileId,
           ipHash: entry.ipHash,
           userAgent: (req.get('user-agent') ?? '').slice(0, USER_AGENT_MAX) || null,
-          bytesSent: bytes,
+          bytesSent: counter.bytes(),
         })
         .run();
     } catch (error) {
@@ -131,5 +126,5 @@ export function logDownloadOnClose(
       ctx.logger.warn({ transferId: entry.transferId, err: error }, 'download log failed');
     }
   });
-  return counter;
+  return counter.stream;
 }

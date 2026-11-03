@@ -1,7 +1,7 @@
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { pipeline } from 'node:stream';
-import express, { Router, type Request } from 'express';
+import express, { Router } from 'express';
 import {
   ALLOWED_IMAGE_TYPES,
   BRANDING_MAX_BYTES,
@@ -14,7 +14,7 @@ import {
   type SmtpSettings,
   type UpdateGeneralSettingsRequest,
 } from '@easysend/shared';
-import { audit, type AuditAction } from '../audit.js';
+import { auditRequest } from '../audit.js';
 import {
   brandingAssetFile,
   brandingAssetsView,
@@ -22,7 +22,6 @@ import {
   removeAllBranding,
   saveBrandingAsset,
 } from '../branding/store.js';
-import { nowSeconds } from '../clock.js';
 import type { AppContext } from '../context.js';
 import { endpointGuards } from '../http/endpoint-guards.js';
 import { AppError, notFound } from '../http/errors.js';
@@ -42,16 +41,6 @@ function etagMatches(header: string | undefined, etag: string): boolean {
 export function settingsRouter(ctx: AppContext): Router {
   const router = Router();
   const { settings } = ctx;
-
-  const record = (req: Request, action: AuditAction, metadata?: Record<string, unknown>) =>
-    audit(ctx.db, {
-      actorId: req.auth?.user.id ?? null,
-      action,
-      targetType: 'settings',
-      metadata,
-      ipHash: ctx.ipHashOf(req),
-      now: nowSeconds(ctx.clock),
-    });
 
   const effectiveGeneral = (): GeneralSettings => ({
     diskReserveMb: ctx.config.defaultDiskReserveMb,
@@ -112,7 +101,10 @@ export function settingsRouter(ctx: AppContext): Router {
     (req, res) => {
       const body = validBody<UpdateGeneralSettingsRequest>(req);
       settings.set('general', { ...effectiveGeneral(), ...body });
-      record(req, 'settings.general_updated', { changed: Object.keys(body) });
+      auditRequest(ctx, req, 'settings.general_updated', {
+        targetType: 'settings',
+        metadata: { changed: Object.keys(body) },
+      });
       sendJson(res, 'settings.adminUpdate', 200, adminView());
     },
   );
@@ -133,7 +125,10 @@ export function settingsRouter(ctx: AppContext): Router {
     ...endpointGuards(ctx.csrf, 'settings.smtpSave'),
     (req, res) => {
       const view = saveVerifiedSmtpSettings(ctx, validBody<SmtpSettings>(req));
-      record(req, 'settings.smtp_updated', { host: view.host, port: view.port });
+      auditRequest(ctx, req, 'settings.smtp_updated', {
+        targetType: 'settings',
+        metadata: { host: view.host, port: view.port },
+      });
       sendJson(res, 'settings.smtpSave', 200, view);
     },
   );
@@ -144,7 +139,7 @@ export function settingsRouter(ctx: AppContext): Router {
     (req, res) => {
       const appearance = validBody<Appearance>(req);
       settings.set('appearance', appearance);
-      record(req, 'settings.appearance_updated');
+      auditRequest(ctx, req, 'settings.appearance_updated', { targetType: 'settings' });
       sendJson(res, 'settings.appearanceUpdate', 200, {
         appearance: settings.getAppearance(),
         assets: brandingAssetsView(ctx),
@@ -158,7 +153,7 @@ export function settingsRouter(ctx: AppContext): Router {
     async (req, res) => {
       settings.delete('appearance');
       await removeAllBranding(ctx);
-      record(req, 'settings.appearance_reset');
+      auditRequest(ctx, req, 'settings.appearance_reset', { targetType: 'settings' });
       sendJson(res, 'settings.appearanceReset', 200, {
         appearance: DEFAULT_APPEARANCE,
         assets: brandingAssetsView(ctx),
@@ -182,7 +177,10 @@ export function settingsRouter(ctx: AppContext): Router {
         throw new AppError('INVALID_IMAGE', 'The file is empty');
       }
       const { updatedAt } = await saveBrandingAsset(ctx, kind, body, declared as AllowedImageType);
-      record(req, 'settings.asset_updated', { kind });
+      auditRequest(ctx, req, 'settings.asset_updated', {
+        targetType: 'settings',
+        metadata: { kind },
+      });
       sendJson(res, 'settings.assetUpload', 200, { kind, updatedAt });
     },
   );
@@ -193,7 +191,10 @@ export function settingsRouter(ctx: AppContext): Router {
     async (req, res) => {
       const { kind } = validParams<{ kind: BrandingAssetKind }>(req);
       await deleteBrandingAsset(ctx, kind);
-      record(req, 'settings.asset_deleted', { kind });
+      auditRequest(ctx, req, 'settings.asset_deleted', {
+        targetType: 'settings',
+        metadata: { kind },
+      });
       res.status(204).end();
     },
   );

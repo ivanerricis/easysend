@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
 import path from 'node:path';
-import { Transform, type Readable } from 'node:stream';
+import type { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { FileStore } from '@tus/file-store';
 import { ERRORS, EVENTS, Server, type ServerOptions } from '@tus/server';
@@ -28,6 +28,7 @@ import { transferFiles, transfers, uploads, users } from '../db/schema/index.js'
 import { cookieParser } from '../http/cookies.js';
 import { AppError } from '../http/errors.js';
 import { getRequestId } from '../http/request-id.js';
+import { createByteCounter } from '../storage/byte-counter.js';
 import { reserveBytes } from '../storage/disk.js';
 import { sanitizeFileName } from '../storage/filenames.js';
 
@@ -54,15 +55,9 @@ class DiskAwareFileStore extends FileStore {
       flags: 'r+',
       start: offset,
     });
-    let received = 0;
-    const counter = new Transform({
-      transform(chunk: Buffer, _encoding, callback) {
-        received += chunk.length;
-        callback(null, chunk);
-      },
-    });
+    const counter = createByteCounter();
     try {
-      await pipeline(readable, counter, writable);
+      await pipeline(readable, counter.stream, writable);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOSPC') {
         throw new AppError('INSUFFICIENT_DISK_SPACE', 'Not enough free disk space');
@@ -71,7 +66,7 @@ class DiskAwareFileStore extends FileStore {
       // eslint-disable-next-line @typescript-eslint/only-throw-error
       throw ERRORS.FILE_WRITE_ERROR;
     }
-    return offset + received;
+    return offset + counter.bytes();
   }
 }
 

@@ -1,16 +1,16 @@
 import { PAGE_SIZE_DEFAULT, type TransferMode, type TransferSummary } from '@easysend/shared';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Link2, Mail, Plus, Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useSearchParams } from 'react-router';
+import { Link } from 'react-router';
 import { queryKeys } from '@/app/query';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/States';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Pagination, PaginationContent, PaginationItem } from '@/components/ui/pagination';
+import { useUrlSearch, useUrlState } from '@/hooks/use-url-state';
+import { Pager } from '@/components/common/Pager';
 import {
   Table,
   TableBody,
@@ -24,10 +24,10 @@ import { SelectInput } from '@/components/common/SelectInput';
 import { listTransfers } from '@/lib/api/transfers';
 import { formatBytes, formatDateTime, formatRelative } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { TransferActionsMenu } from './actions/TransferActionsMenu';
 import { downloadsText, readListParams, transferTitle } from './list-utils';
 
 const STATUS_FILTERS = ['active', 'uploading', 'revoked', 'expired'] as const;
-const SEARCH_DEBOUNCE_MS = 300;
 
 function ModeLabel({ mode }: { mode: TransferMode }) {
   const { t } = useTranslation();
@@ -42,7 +42,7 @@ function ModeLabel({ mode }: { mode: TransferMode }) {
 
 function Expires({ transfer }: { transfer: TransferSummary }) {
   const { i18n } = useTranslation();
-  if (transfer.status === 'uploading') return <span aria-hidden="true">—</span>;
+  if (transfer.status === 'uploading') return <span aria-hidden="true">â€”</span>;
   const iso = new Date(transfer.expiresAt * 1000).toISOString();
   return (
     <HintText content={formatDateTime(transfer.expiresAt, i18n.language)}>
@@ -53,40 +53,9 @@ function Expires({ transfer }: { transfer: TransferSummary }) {
 
 export default function TransfersPage() {
   const { t, i18n } = useTranslation();
-  const [params, setParams] = useSearchParams();
-  const { status, mode, q, page } = readListParams(params);
-  const [search, setSearch] = useState(q);
-
-  // Keep the box in sync with back/forward navigation (but never rewrite what is being typed).
-  const [syncedQ, setSyncedQ] = useState(q);
-  if (q !== syncedQ) {
-    setSyncedQ(q);
-    if (q !== search.trim()) setSearch(q);
-  }
-
-  const update = (changes: Record<string, string | undefined>, keepPage = false) => {
-    const next = new URLSearchParams(params);
-    for (const [key, value] of Object.entries(changes)) {
-      if (value) next.set(key, value);
-      else next.delete(key);
-    }
-    if (!keepPage) next.delete('page');
-    setParams(next, { replace: true });
-  };
-
-  // Debounced search: the URL (and so the query) changes only after typing stops.
-  useEffect(() => {
-    const value = search.trim();
-    if (value === q) return;
-    const timer = window.setTimeout(() => {
-      const next = new URLSearchParams(params);
-      if (value) next.set('q', value);
-      else next.delete('q');
-      next.delete('page');
-      setParams(next, { replace: true });
-    }, SEARCH_DEBOUNCE_MS);
-    return () => window.clearTimeout(timer);
-  }, [search, q, params, setParams]);
+  const { params, update, page } = useUrlState();
+  const { status, mode, q } = readListParams(params);
+  const [search, setSearch] = useUrlSearch(q, update);
 
   const query = { page, pageSize: PAGE_SIZE_DEFAULT, status, mode, q: q || undefined };
   const list = useQuery({
@@ -148,7 +117,7 @@ export default function TransfersPage() {
           <SelectInput
             id="transfers-status"
             value={status ?? ''}
-            onValueChange={(value) => update({ status: value || undefined })}
+            onValueChange={(value) => update({ status: value })}
             options={[
               { value: '', label: t('transfers.list.allStatuses') },
               ...STATUS_FILTERS.map((value) => ({ value, label: t(`common.status.${value}`) })),
@@ -162,7 +131,7 @@ export default function TransfersPage() {
           <SelectInput
             id="transfers-mode"
             value={mode ?? ''}
-            onValueChange={(value) => update({ mode: value || undefined })}
+            onValueChange={(value) => update({ mode: value })}
             options={[
               { value: '', label: t('transfers.list.allModes') },
               { value: 'link', label: t('transfers.mode.link') },
@@ -187,7 +156,10 @@ export default function TransfersPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setParams({}, { replace: true })}
+                onClick={() => {
+                  setSearch('');
+                  update({ q: undefined, status: undefined, mode: undefined });
+                }}
               >
                 {t('transfers.list.clearFilters')}
               </Button>
@@ -215,6 +187,9 @@ export default function TransfersPage() {
                 </TableHead>
                 <TableHead>{t('transfers.list.columns.created')}</TableHead>
                 <TableHead>{t('transfers.list.columns.expires')}</TableHead>
+                <TableHead>
+                  <span className="sr-only">{t('transfers.list.columns.actions')}</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -247,6 +222,9 @@ export default function TransfersPage() {
                   <TableCell>
                     <Expires transfer={transfer} />
                   </TableCell>
+                  <TableCell>
+                    <TransferActionsMenu transfer={transfer} fallbackTitle={untitled} />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -254,10 +232,10 @@ export default function TransfersPage() {
 
           <ul className="space-y-3 md:hidden">
             {list.data.items.map((transfer) => (
-              <li key={transfer.id}>
+              <li key={transfer.id} className="flex items-start gap-2">
                 <Link
                   to={`/transfers/${transfer.id}`}
-                  className="border-border hover:bg-muted/50 block space-y-2 border p-4"
+                  className="border-border hover:bg-muted/50 block min-w-0 flex-1 space-y-2 border p-4"
                 >
                   <span className="flex items-start justify-between gap-3">
                     <span className="min-w-0 font-medium break-words">
@@ -268,7 +246,7 @@ export default function TransfersPage() {
                   <span className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-sm">
                     <ModeLabel mode={transfer.mode} />
                     <span className="font-mono text-xs">
-                      {formatBytes(transfer.totalBytes, locale)} ·{' '}
+                      {formatBytes(transfer.totalBytes, locale)} Â·{' '}
                       {t('common.units.files', { count: transfer.fileCount })}
                     </span>
                   </span>
@@ -282,40 +260,20 @@ export default function TransfersPage() {
                     </span>
                   </span>
                 </Link>
+                <TransferActionsMenu transfer={transfer} fallbackTitle={untitled} />
               </li>
             ))}
           </ul>
 
           {pages > 1 ? (
-            <Pagination className="mt-6" aria-label={t('common.pagination.label')}>
-              <PaginationContent className="gap-2">
-                <PaginationItem>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={page <= 1}
-                    onClick={() => update({ page: String(page - 1) }, true)}
-                  >
-                    {t('common.pagination.previous')}
-                  </Button>
-                </PaginationItem>
-                <PaginationItem>
-                  <span className="px-2 text-sm" aria-current="page">
-                    {t('common.pagination.pageOf', { page, pages })}
-                  </span>
-                </PaginationItem>
-                <PaginationItem>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={page >= pages}
-                    onClick={() => update({ page: String(page + 1) }, true)}
-                  >
-                    {t('common.pagination.next')}
-                  </Button>
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
+            <Pager
+              className="mt-6"
+              page={page}
+              pageSize={list.data.pageSize}
+              total={list.data.total}
+              showTotal={false}
+              onPageChange={(next) => update({ page: String(next) })}
+            />
           ) : null}
         </div>
       )}

@@ -9,6 +9,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field';
+import { SelectInput, type SelectOptionItem } from '@/components/common/SelectInput';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
@@ -19,6 +20,14 @@ import { cn } from '@/lib/utils';
  */
 export function fieldId(name: string, prefix = 'field'): string {
   return `${prefix}-${name.replace(/\./g, '-')}`;
+}
+
+/** Ids of the description and error elements, and the `aria-describedby` that joins them. */
+function describedByIds(id: string, hasDescription: boolean, message: string | undefined) {
+  const descriptionId = hasDescription ? `${id}-description` : undefined;
+  const errorId = message ? `${id}-error` : undefined;
+  const describedBy = [descriptionId, errorId].filter(Boolean).join(' ') || undefined;
+  return { descriptionId, errorId, describedBy };
 }
 
 /** Attributes to spread on the control so label, description and error are wired up. */
@@ -73,9 +82,7 @@ export function FormField<TValues extends FieldValues, TName extends FieldPath<T
       name={name}
       render={({ field, fieldState }) => {
         const message = fieldState.error?.message;
-        const descriptionId = description ? `${id}-description` : undefined;
-        const errorId = message ? `${id}-error` : undefined;
-        const describedBy = [descriptionId, errorId].filter(Boolean).join(' ') || undefined;
+        const { descriptionId, errorId, describedBy } = describedByIds(id, !!description, message);
         return (
           <Field data-invalid={fieldState.invalid || undefined} className={className}>
             <FieldLabel htmlFor={id} className="text-sm font-medium">
@@ -180,9 +187,7 @@ export function CheckboxField<TValues extends FieldValues, TName extends FieldPa
       name={name}
       render={({ field, fieldState }) => {
         const message = fieldState.error?.message;
-        const descriptionId = description ? `${id}-description` : undefined;
-        const errorId = message ? `${id}-error` : undefined;
-        const describedBy = [descriptionId, errorId].filter(Boolean).join(' ') || undefined;
+        const { descriptionId, errorId, describedBy } = describedByIds(id, !!description, message);
         return (
           <Field data-invalid={fieldState.invalid || undefined} className={className}>
             <div className="flex min-h-11 items-start gap-3">
@@ -231,7 +236,7 @@ export function SwitchField<TValues extends FieldValues, TName extends FieldPath
       control={control}
       name={name}
       render={({ field, fieldState }) => {
-        const descriptionId = description ? `${id}-description` : undefined;
+        const { descriptionId } = describedByIds(id, !!description, undefined);
         return (
           <Field data-invalid={fieldState.invalid || undefined} className={className}>
             <div className="flex min-h-11 items-center justify-between gap-4">
@@ -256,5 +261,39 @@ export function SwitchField<TValues extends FieldValues, TName extends FieldPath
         );
       }}
     />
+  );
+}
+
+interface SelectFieldProps<
+  TValues extends FieldValues,
+  TName extends FieldPath<TValues>,
+> extends Omit<FormFieldProps<TValues, TName>, 'children'> {
+  options: readonly SelectOptionItem[];
+  disabled?: boolean;
+  placeholder?: string;
+}
+
+/** `FormField` + `SelectInput` for a choice among a fixed list of options. */
+export function SelectField<TValues extends FieldValues, TName extends FieldPath<TValues>>({
+  options,
+  disabled,
+  placeholder,
+  ...fieldProps
+}: SelectFieldProps<TValues, TName>) {
+  return (
+    <FormField {...fieldProps}>
+      {({ field, controlProps }) => (
+        <SelectInput
+          disabled={disabled}
+          placeholder={placeholder}
+          {...controlProps}
+          name={field.name}
+          value={field.value}
+          onBlur={field.onBlur}
+          onValueChange={field.onChange}
+          options={options}
+        />
+      )}
+    </FormField>
   );
 }

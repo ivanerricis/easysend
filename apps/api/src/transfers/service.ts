@@ -11,6 +11,7 @@ import { nowSeconds } from '../clock.js';
 import type { AppContext } from '../context.js';
 import { randomToken } from '../crypto/hash.js';
 import type { Db } from '../db/client.js';
+import { escapeLike } from '../db/like.js';
 import {
   transferFiles,
   transferRecipients,
@@ -19,7 +20,7 @@ import {
   users,
 } from '../db/schema/index.js';
 import { AppError } from '../http/errors.js';
-import { isStorageName, storagePath, tusFilePaths } from '../storage/paths.js';
+import { isStorageName, storagePath, tusPathList } from '../storage/paths.js';
 import { removeFileQuietly } from '../storage/remove.js';
 import { TRANSFER_POLICY } from './policy.js';
 
@@ -59,10 +60,22 @@ export function loadTransferForUser(
   return row;
 }
 
-/** Summary from a row plus the three values that come from other tables (pure, for list queries). */
+/** `<PUBLIC_URL>/d/<token>`, or null for a draft or when no public URL is known. */
+export function shareUrlOf(row: TransferRow, publicUrl: string | undefined): string | null {
+  return row.status !== 'uploading' && publicUrl
+    ? new URL(`/d/${row.token}`, publicUrl).toString()
+    : null;
+}
+
+/** Summary from a row plus the values that come from elsewhere (pure, for list queries). */
 export function summaryFrom(
   row: TransferRow,
-  extra: { ownerEmail: string; fileCount: number; recipientCount: number },
+  extra: {
+    ownerEmail: string;
+    fileCount: number;
+    recipientCount: number;
+    publicUrl: string | undefined;
+  },
   nowSec: number,
 ): TransferSummary {
   return {
@@ -80,6 +93,7 @@ export function summaryFrom(
     downloadCount: row.downloadCount,
     maxDownloads: row.maxDownloads,
     hasPassword: row.passwordHash !== null,
+    shareUrl: shareUrlOf(row, extra.publicUrl),
   };
 }
 
@@ -88,7 +102,7 @@ function countFor(db: Db, table: typeof transferFiles | typeof transferRecipient
 }
 
 export function toTransferSummary(
-  ctx: Pick<AppContext, 'db'>,
+  ctx: Pick<AppContext, 'db' | 'publicUrl'>,
   row: TransferRow,
   nowSec: number,
 ): TransferSummary {
@@ -103,6 +117,7 @@ export function toTransferSummary(
       ownerEmail: owner?.email ?? '',
       fileCount: countFor(ctx.db, transferFiles, row.id),
       recipientCount: countFor(ctx.db, transferRecipients, row.id),
+      publicUrl: ctx.publicUrl(),
     },
     nowSec,
   );
@@ -151,14 +166,11 @@ export function toTransferDetail(
         ownerEmail: owner?.email ?? '',
         fileCount: files.length,
         recipientCount: recipients.length,
+        publicUrl: ctx.publicUrl(),
       },
       nowSec,
     ),
     message: row.message,
-    shareUrl:
-      row.status !== 'uploading' && ctx.publicUrl()
-        ? new URL(`/d/${row.token}`, ctx.publicUrl()).toString()
-        : null,
     firstDownloadedAt: row.firstDownloadedAt,
     files: files.map((file) => ({
       id: file.id,
@@ -257,10 +269,7 @@ export async function deleteTransfer(
   let unlinkFailures = 0;
   const targets = [
     ...outcome.storageNames.filter(isStorageName).map((name) => storagePath(ctx.config, name)),
-    ...outcome.uploadIds.filter(isStorageName).flatMap((id) => {
-      const { data, info } = tusFilePaths(ctx.config, id);
-      return [data, info];
-    }),
+    ...outcome.uploadIds.flatMap((id) => tusPathList(ctx.config, id)),
   ];
   for (const target of targets) {
     if (!(await removeFileQuietly(target, ctx.logger))) unlinkFailures += 1;
@@ -353,9 +362,6 @@ export function recomputeUsedBytes(db: Db): number {
   return result.changes;
 }
 
-/** Escapes `%`, `_` and the escape character itself for a `LIKE ... ESCAPE '\'` pattern. */
-export const escapeLike = (text: string): string => text.replace(/[\\%_]/g, (c) => `\\${c}`);
-
 export interface TransferListFilter {
   /** Restrict to one owner (the user's own list, or the admin's `ownerId` filter). */
   ownerId?: string | undefined;
@@ -373,17 +379,15 @@ function statusCondition(status: TransferStatus, nowSec: number): SQL | undefine
     return and(eq(transfers.status, 'active'), gt(transfers.expiresAt, nowSec));
   }
   if (status === 'expired') {
-    return or(
-      eq(transfers.status, 'expired'),
-      and(eq(transfers.status, 'active'), lte(transfers.expiresAt, nowSec)),
-    );
+    // `expired` is never stored: it is an active transfer past its expiry.
+    return and(eq(transfers.status, 'active'), lte(transfers.expiresAt, nowSec));
   }
   return eq(transfers.status, status);
 }
 
 /** One page of transfers, newest first, with the total number of matches. */
 export function listTransfersPage(
-  ctx: Pick<AppContext, 'db'>,
+  ctx: Pick<AppContext, 'db' | 'publicUrl'>,
   filter: TransferListFilter,
   nowSec: number,
 ): { items: TransferSummary[]; total: number } {
@@ -401,14 +405,35 @@ export function listTransfersPage(
   );
   const total = ctx.db.select({ n: count() }).from(transfers).where(where).get()!.n;
   const rows = ctx.db
-    .select()
+    .select({
+      row: transfers,
+      ownerEmail: users.email,
+      fileCount: sql<number>`(SELECT COUNT(*) FROM ${transferFiles} WHERE ${transferFiles.transferId} = ${transfers.id})`,
+      recipientCount: sql<number>`(SELECT COUNT(*) FROM ${transferRecipients} WHERE ${transferRecipients.transferId} = ${transfers.id})`,
+    })
     .from(transfers)
+    .leftJoin(users, eq(users.id, transfers.ownerId))
     .where(where)
     .orderBy(desc(transfers.createdAt), desc(transfers.id))
     .limit(filter.pageSize)
     .offset((filter.page - 1) * filter.pageSize)
     .all();
-  return { items: rows.map((row) => toTransferSummary(ctx, row, nowSec)), total };
+  const publicUrl = ctx.publicUrl();
+  return {
+    items: rows.map(({ row, ownerEmail, fileCount, recipientCount }) =>
+      summaryFrom(
+        row,
+        {
+          ownerEmail: ownerEmail ?? '',
+          fileCount: Number(fileCount),
+          recipientCount: Number(recipientCount),
+          publicUrl,
+        },
+        nowSec,
+      ),
+    ),
+    total,
+  };
 }
 
 /**
@@ -435,27 +460,30 @@ export async function notifyRecipients(
     .all();
 
   let sent = 0;
-  for (const recipient of recipients) {
-    const ok = await ctx.mailer.sendTransferLink({
-      to: recipient.email,
-      transfer: {
-        token: row.token,
-        title: row.title,
-        message: row.message,
-        senderName,
-        expiresAt: row.expiresAt,
-        fileCount: files.n,
-        totalBytes: files.bytes,
-      },
-    });
-    if (!ok) continue;
-    sent += 1;
-    ctx.db
-      .update(transferRecipients)
-      .set({ notifiedAt: nowSeconds(ctx.clock) })
-      .where(eq(transferRecipients.id, recipient.id))
-      .run();
-  }
+  // One SMTP connection for the whole batch.
+  await ctx.mailer.batch(async (mailer) => {
+    for (const recipient of recipients) {
+      const ok = await mailer.sendTransferLink({
+        to: recipient.email,
+        transfer: {
+          token: row.token,
+          title: row.title,
+          message: row.message,
+          senderName,
+          expiresAt: row.expiresAt,
+          fileCount: files.n,
+          totalBytes: files.bytes,
+        },
+      });
+      if (!ok) continue;
+      sent += 1;
+      ctx.db
+        .update(transferRecipients)
+        .set({ notifiedAt: nowSeconds(ctx.clock) })
+        .where(eq(transferRecipients.id, recipient.id))
+        .run();
+    }
+  });
   // `transfers.notified_at` is not touched: it means only "the owner got the first-download notice".
   return sent;
 }

@@ -97,23 +97,29 @@ test('the user enables 2FA; the admin resets it', async ({ page, newSession }) =
   const secret = ((await secretBox.textContent()) ?? '').replace(/\s/g, '');
   expect(secret).toMatch(/^[A-Z2-7]{16,}$/);
   await checkA11y(memberPage, 'profile-2fa-setup');
+  // The code is submitted automatically at the sixth digit.
   await memberPage
-    .getByLabel("Codice dell'app")
+    .getByLabel("3. Inserisci il codice a 6 cifre mostrato dall'app")
     .first()
     .fill(await nextTotp(secret));
-  await memberPage.getByRole('button', { name: 'Verifica e attiva' }).click();
   await memberPage.getByLabel('Ho salvato i codici di recupero in un posto sicuro').check();
   await memberPage.getByRole('button', { name: 'Fatto' }).click();
   await expect(memberPage.getByText('Attiva', { exact: true }).first()).toBeVisible();
 
   await page.goto('/admin/users');
-  const resetButton = page.getByRole('button', { name: `Azzera il 2FA di ${member.email}` });
-  await expect(resetButton).toBeVisible();
-  await resetButton.click();
+  const rowMenu = page.getByRole('button', { name: `Azioni per ${member.email}` });
+  const resetItem = page.getByRole('menuitem', { name: 'Azzera 2FA' });
+  await rowMenu.click();
+  await resetItem.click();
   await checkA11y(page, 'admin-reset-2fa-dialog');
   await page.getByRole('alertdialog').getByRole('button', { name: 'Azzera 2FA' }).click();
   await expect(page.getByText(`2FA azzerato per ${member.email}.`)).toBeVisible();
-  await expect(resetButton).toBeHidden();
+  // Focus is back on the row menu, which no longer offers the reset.
+  await expect(rowMenu).toBeFocused();
+  await rowMenu.click();
+  await expect(page.getByRole('menuitem', { name: 'Modifica' })).toBeVisible();
+  await expect(resetItem).toBeHidden();
+  await page.keyboard.press('Escape');
 
   // The user was signed out everywhere and now needs only the password.
   await memberPage.goto('/transfers');
@@ -153,7 +159,9 @@ test('disable the user, then delete it reassigning its transfers', async ({
   problems.allow(/status of 4\d\d/);
   const member = requireAccount('member');
   await page.goto('/admin/users');
-  await page.getByRole('button', { name: `Modifica ${member.email}` }).click();
+  const rowMenu = page.getByRole('button', { name: `Azioni per ${member.email}` });
+  await rowMenu.click();
+  await page.getByRole('menuitem', { name: 'Modifica' }).click();
   const edit = page.getByRole('dialog');
   await edit.getByRole('checkbox', { name: 'Disabilita questo account' }).click();
   await checkA11y(page, 'admin-edit-user');
@@ -169,14 +177,15 @@ test('disable the user, then delete it reassigning its transfers', async ({
   await memberPage.getByRole('button', { name: 'Accedi', exact: true }).click();
   await expect(memberPage.getByRole('alert').first()).toBeVisible();
 
-  await page.getByRole('button', { name: `Elimina ${member.email}` }).click();
+  await rowMenu.click();
+  await page.getByRole('menuitem', { name: 'Elimina' }).click();
   const remove = page.getByRole('dialog');
   await remove.getByRole('radio', { name: /Assegnali a un altro utente/ }).click();
   await pickOption(page, remove.getByLabel('Nuovo proprietario'), requireAdmin().email);
   await checkA11y(page, 'admin-delete-user');
   await remove.getByRole('button', { name: 'Elimina utente' }).click();
   await expect(page.getByText(`${member.email} eliminato.`)).toBeVisible();
-  await expect(page.getByRole('button', { name: `Elimina ${member.email}` })).toBeHidden();
+  await expect(rowMenu).toBeHidden();
 
   // The transfer survived and now belongs to the admin; its link still works.
   await page.goto('/transfers');

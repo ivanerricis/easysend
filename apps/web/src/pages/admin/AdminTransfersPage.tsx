@@ -1,10 +1,11 @@
 import { TRANSFER_MODES, TRANSFER_STATUSES } from '@easysend/shared';
 import { useQuery } from '@tanstack/react-query';
 import { Lock } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { queryKeys } from '@/app/query';
+import { TransferActionsMenu } from '../transfers/actions/TransferActionsMenu';
+import { Pager } from '@/components/common/Pager';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/States';
 import { StatusBadge } from '@/components/common/StatusBadge';
@@ -23,8 +24,7 @@ import {
   DataTable,
 } from './components/DataTable';
 import { SelectInput } from '@/components/common/SelectInput';
-import { Pager } from './components/Pager';
-import { useDebouncedValue, useUrlState } from './components/useUrlState';
+import { useUrlSearch, useUrlState } from '@/hooks/use-url-state';
 
 const PAGE_SIZE = 20;
 
@@ -37,12 +37,7 @@ export default function AdminTransfersPage() {
   const mode = TRANSFER_MODES.find((value) => value === params.get('mode'));
   const ownerId = params.get('owner') ?? '';
 
-  const [search, setSearch] = useState(q);
-  const debouncedSearch = useDebouncedValue(search.trim());
-  useEffect(() => {
-    if (debouncedSearch !== q) update({ q: debouncedSearch });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to the typed value
-  }, [debouncedSearch]);
+  const [search, setSearch] = useUrlSearch(q, update);
 
   const owners = useQuery({
     queryKey: queryKeys.admin.users({ pageSize: 100, purpose: 'owners' }),
@@ -172,6 +167,9 @@ export default function AdminTransfersPage() {
                 <DataHeadCell>{t('admin.transfers.columns.content')}</DataHeadCell>
                 <DataHeadCell>{t('admin.transfers.columns.downloads')}</DataHeadCell>
                 <DataHeadCell>{t('admin.transfers.columns.expires')}</DataHeadCell>
+                <DataHeadCell>
+                  <span className="sr-only">{t('admin.transfers.columns.actions')}</span>
+                </DataHeadCell>
               </DataRow>
             </DataHead>
             <DataBody>
@@ -188,7 +186,7 @@ export default function AdminTransfersPage() {
                       <p className="text-muted-foreground flex items-center justify-end gap-1.5 text-xs lg:justify-start">
                         {t(`admin.transfers.modes.${item.mode}`)}
                         {item.mode === 'email'
-                          ? ` · ${t('common.units.recipients', { count: item.recipientCount })}`
+                          ? ` Ã‚Â· ${t('common.units.recipients', { count: item.recipientCount })}`
                           : ''}
                         {item.hasPassword ? (
                           <>
@@ -207,7 +205,7 @@ export default function AdminTransfersPage() {
                   </DataCell>
                   <DataCell label={t('admin.transfers.columns.content')}>
                     <span className="font-mono text-xs">
-                      {t('common.units.files', { count: item.fileCount })} ·{' '}
+                      {t('common.units.files', { count: item.fileCount })} Ã‚Â·{' '}
                       {formatBytes(item.totalBytes, i18n.language)}
                     </span>
                   </DataCell>
@@ -220,6 +218,14 @@ export default function AdminTransfersPage() {
                   </DataCell>
                   <DataCell label={t('admin.transfers.columns.expires')}>
                     {formatDateTime(item.expiresAt, i18n.language)}
+                  </DataCell>
+                  <DataCell>
+                    <div className="max-lg:flex max-lg:w-full max-lg:justify-end">
+                      <TransferActionsMenu
+                        transfer={item}
+                        fallbackTitle={t('admin.transfers.untitled')}
+                      />
+                    </div>
                   </DataCell>
                 </DataRow>
               ))}

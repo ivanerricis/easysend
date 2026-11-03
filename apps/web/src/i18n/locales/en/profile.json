@@ -41,8 +41,7 @@
       "currentRequired": "Enter your current password.",
       "tooShort": "The new password is too short.",
       "tooLong": "The new password is too long.",
-      "confirmRequired": "Repeat the new password.",
-      "mismatch": "The two passwords do not match."
+      "confirmRequired": "Repeat the new password."
     }
   },
   "twoFactor": {

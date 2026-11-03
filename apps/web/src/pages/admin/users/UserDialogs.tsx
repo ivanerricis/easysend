@@ -16,7 +16,10 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useAppearance } from '@/app/providers/AppearanceProvider';
 import { queryKeys } from '@/app/query';
-import { CheckboxField, FormField, TextField } from '@/components/common/FormField';
+import { restoreRowFocus } from '@/components/common/RowActionsMenu';
+import { SelectInput } from '@/components/common/SelectInput';
+import { CheckboxField, FormField, TextField, SelectField } from '@/components/common/FormField';
+import { LocaleSelectField } from '@/components/common/LocaleSelectField';
 import { FormErrorSummary } from '@/components/common/FormErrorSummary';
 import { PasswordInput } from '@/components/common/PasswordInput';
 import { LoadingState } from '@/components/common/States';
@@ -36,7 +39,6 @@ import { createUser, deleteUser, listUsers, updateUser } from '@/lib/api/admin';
 import { isApiError } from '@/lib/api/client';
 import { errorMessage, hasErrorCode } from '@/lib/errors';
 import { notifySuccess } from '@/lib/toast';
-import { SelectInput } from '@/components/common/SelectInput';
 import { QuotaField } from '../components/QuotaField';
 import { QUOTA_UNITS, bytesToQuotaFields, quotaToBytes } from '../quota';
 
@@ -46,7 +48,7 @@ function useInvalidateUsers() {
   const queryClient = useQueryClient();
   return () =>
     Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.usersAll }),
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.storage }),
     ]);
 }
@@ -201,46 +203,22 @@ function CreateUserForm({ onDone }: { onDone: () => void }) {
         description={t('admin.users.fields.displayNameHelp')}
       />
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField
+        <SelectField
           control={control}
           name="role"
           idPrefix="create-user"
           label={t('admin.users.fields.role')}
-        >
-          {({ field, controlProps }) => (
-            <SelectInput
-              {...controlProps}
-              name={field.name}
-              value={field.value}
-              onBlur={field.onBlur}
-              onValueChange={field.onChange}
-              options={USER_ROLES.map((role) => ({
-                value: role,
-                label: t(`admin.users.roles.${role}`),
-              }))}
-            />
-          )}
-        </FormField>
-        <FormField
+          options={USER_ROLES.map((role) => ({
+            value: role,
+            label: t(`admin.users.roles.${role}`),
+          }))}
+        />
+        <LocaleSelectField
           control={control}
           name="locale"
           idPrefix="create-user"
           label={t('admin.users.fields.locale')}
-        >
-          {({ field, controlProps }) => (
-            <SelectInput
-              {...controlProps}
-              name={field.name}
-              value={field.value}
-              onBlur={field.onBlur}
-              onValueChange={field.onChange}
-              options={LOCALES.map((locale) => ({
-                value: locale,
-                label: t(`admin.locales.${locale}`),
-              }))}
-            />
-          )}
-        </FormField>
+        />
       </div>
       <FormField
         control={control}
@@ -294,7 +272,7 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId }: Edit
   const { t } = useTranslation();
   return (
     <Dialog open={open && user !== null} onOpenChange={onOpenChange}>
-      <DialogContent className={DIALOG_CLASS}>
+      <DialogContent className={DIALOG_CLASS} onCloseAutoFocus={restoreRowFocus}>
         <DialogHeader>
           <DialogTitle>{t('admin.users.edit.title')}</DialogTitle>
           <DialogDescription>{user?.email}</DialogDescription>
@@ -387,48 +365,24 @@ function EditUserForm({
         description={t('admin.users.fields.displayNameHelp')}
       />
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField
+        <SelectField
           control={control}
           name="role"
           idPrefix="edit-user"
           label={t('admin.users.fields.role')}
           description={isSelf ? t('admin.users.edit.selfLocked') : undefined}
-        >
-          {({ field, controlProps }) => (
-            <SelectInput
-              disabled={isSelf}
-              {...controlProps}
-              name={field.name}
-              value={field.value}
-              onBlur={field.onBlur}
-              onValueChange={field.onChange}
-              options={USER_ROLES.map((role) => ({
-                value: role,
-                label: t(`admin.users.roles.${role}`),
-              }))}
-            />
-          )}
-        </FormField>
-        <FormField
+          disabled={isSelf}
+          options={USER_ROLES.map((role) => ({
+            value: role,
+            label: t(`admin.users.roles.${role}`),
+          }))}
+        />
+        <LocaleSelectField
           control={control}
           name="locale"
           idPrefix="edit-user"
           label={t('admin.users.fields.locale')}
-        >
-          {({ field, controlProps }) => (
-            <SelectInput
-              {...controlProps}
-              name={field.name}
-              value={field.value}
-              onBlur={field.onBlur}
-              onValueChange={field.onChange}
-              options={LOCALES.map((locale) => ({
-                value: locale,
-                label: t(`admin.locales.${locale}`),
-              }))}
-            />
-          )}
-        </FormField>
+        />
       </div>
       <QuotaField control={control} idPrefix="edit-user" />
       <CheckboxField
@@ -460,7 +414,7 @@ export function DeleteUserDialog({ open, onOpenChange, user }: DeleteUserDialogP
   const { t } = useTranslation();
   return (
     <Dialog open={open && user !== null} onOpenChange={onOpenChange}>
-      <DialogContent className={DIALOG_CLASS}>
+      <DialogContent className={DIALOG_CLASS} onCloseAutoFocus={restoreRowFocus}>
         <DialogHeader>
           <DialogTitle>{t('admin.users.delete.title')}</DialogTitle>
           <DialogDescription>{user?.email}</DialogDescription>

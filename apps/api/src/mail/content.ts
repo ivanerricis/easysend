@@ -1,12 +1,8 @@
-import type { ReactElement } from 'react';
-import type { Appearance, Locale } from '@easysend/shared';
+import { createElement } from 'react';
+import { formatBytes, type Appearance, type Locale } from '@easysend/shared';
 import { sentByLine, type EmailBrand } from './components.js';
 import { renderEmail } from './render.js';
-import { FirstDownloadEmail } from './templates/first-download.js';
-import { PasswordResetEmail } from './templates/password-reset.js';
-import { SmtpTestEmail } from './templates/smtp-test.js';
-import { TransferLinkEmail } from './templates/transfer-link.js';
-import { WelcomeEmail } from './templates/welcome.js';
+import { StandardEmail } from './templates/standard.js';
 
 /** A ready-to-send email: header-safe subject, hidden preview text, plain text and HTML. */
 export interface EmailContent {
@@ -38,21 +34,6 @@ export interface EmailCopy {
 /** One line: CR/LF (header injection) and runs of whitespace become single spaces. */
 export const oneLine = (value: string): string => value.replace(/\s+/g, ' ').trim();
 
-/** `1536` becomes `1.5 KB`. Binary units, one decimal at most, formatted for the locale. */
-export function formatBytes(bytes: number, locale: Locale): string {
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  const number = new Intl.NumberFormat(locale, {
-    maximumFractionDigits: unit === 0 ? 0 : 1,
-  }).format(value);
-  return `${number} ${units[unit]}`;
-}
-
 /** Date and time in the language of the email and the configured time zone. */
 export function formatDateTime(unixSeconds: number, locale: Locale, timezone: string): string {
   return new Intl.DateTimeFormat(locale, {
@@ -81,16 +62,12 @@ export function copyToText(copy: EmailCopy, brand: EmailBrand): string {
   ].join('\n');
 }
 
-function build(
-  copy: EmailCopy,
-  brand: EmailBrand,
-  template: (props: { copy: EmailCopy; brand: EmailBrand }) => ReactElement,
-): EmailContent {
+function build(copy: EmailCopy, brand: EmailBrand): EmailContent {
   return {
     subject: copy.subject,
     preheader: copy.preheader,
     text: copyToText(copy, brand),
-    html: renderEmail(template({ copy, brand })),
+    html: renderEmail(createElement(StandardEmail, { copy, brand })),
   };
 }
 
@@ -148,7 +125,7 @@ export function passwordResetEmail(input: BaseInput & { link: string; ttlMinutes
             'Se non l’hai chiesto tu, ignora questa email: la password non cambia.',
           ],
         };
-  return build(copy, brand, PasswordResetEmail);
+  return build(copy, brand);
 }
 
 // ---- Welcome -----------------------------------------------------------------------------
@@ -189,7 +166,7 @@ export function welcomeEmail(input: BaseInput & { link: string; ttlHours: number
           },
           after: [`Il link vale ${ttlHours} ore e si può usare una sola volta.`],
         };
-  return build(copy, brand, WelcomeEmail);
+  return build(copy, brand);
 }
 
 // ---- Transfer link -----------------------------------------------------------------------
@@ -279,7 +256,7 @@ export function transferLinkEmail(input: TransferLinkInput) {
             'Se il link chiede una password, chiedila al mittente: non è inclusa in questa email.',
           ],
         };
-  return build(copy, brand, TransferLinkEmail);
+  return build(copy, brand);
 }
 
 // ---- First download ----------------------------------------------------------------------
@@ -347,7 +324,7 @@ export function firstDownloadEmail(input: FirstDownloadInput) {
           },
           after: [],
         };
-  return build(copy, brand, FirstDownloadEmail);
+  return build(copy, brand);
 }
 
 // ---- SMTP test ---------------------------------------------------------------------------
@@ -380,5 +357,5 @@ export function smtpTestEmail(input: BaseInput) {
           details: [],
           after: [],
         };
-  return build(copy, brand, SmtpTestEmail);
+  return build(copy, brand);
 }

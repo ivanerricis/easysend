@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { APP_MODES } from '../constants.js';
-import { emailSchema } from './common.js';
+import { CLOUDFLARE_TOKEN_MAX_LENGTH, CLOUDFLARE_TOKEN_MIN_LENGTH } from '../constants.js';
+import { appModeSchema, emailSchema } from './common.js';
 import {
   displayNameSchema,
   recoveryCodeSchema,
@@ -14,7 +14,7 @@ import { appearanceSchema, generalSettingsSchema, smtpSettingsPublicSchema } fro
 // ---- Status and setup code ---------------------------------------------------
 export const setupStatusResponseSchema = z.object({
   setupCompleted: z.boolean(),
-  appMode: z.enum(APP_MODES),
+  appMode: appModeSchema,
   /** The setup code was accepted for this browser (valid `es_setup` cookie). */
   codeVerified: z.boolean(),
   steps: z.object({
@@ -71,7 +71,7 @@ export const subdomainSchema = z.string().regex(/^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}
 export const cloudflareRequestSchema = z.object({
   domain: domainSchema,
   subdomain: subdomainSchema.optional(),
-  apiToken: z.string().min(20).max(256),
+  apiToken: z.string().min(CLOUDFLARE_TOKEN_MIN_LENGTH).max(CLOUDFLARE_TOKEN_MAX_LENGTH),
 });
 export type CloudflareRequest = z.infer<typeof cloudflareRequestSchema>;
 

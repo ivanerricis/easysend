@@ -1,5 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { CHUNK_SIZE_MB, LOCALES, type GeneralSettings } from '@easysend/shared';
+import {
+  CHUNK_SIZE_MB,
+  DISK_RESERVE_MAX_MB,
+  LOCALES,
+  type GeneralSettings,
+} from '@easysend/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -8,15 +13,13 @@ import { z } from 'zod';
 import { useAppearance } from '@/app/providers/AppearanceProvider';
 import { queryKeys } from '@/app/query';
 import { FormErrorSummary } from '@/components/common/FormErrorSummary';
-import { FormField, SwitchField, TextField } from '@/components/common/FormField';
+import { SwitchField, TextField } from '@/components/common/FormField';
+import { LocaleSelectField } from '@/components/common/LocaleSelectField';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { updateGeneralSettings } from '@/lib/api/settings';
 import { errorMessage } from '@/lib/errors';
 import { notifySuccess } from '@/lib/toast';
-import { SelectInput } from '@/components/common/SelectInput';
-
-const RESERVE_MAX_MB = 10_485_760;
 
 const wholeNumber = (min: number, max: number, error: string) =>
   z
@@ -27,7 +30,7 @@ const wholeNumber = (min: number, max: number, error: string) =>
     });
 
 const formSchema = z.object({
-  diskReserveMb: wholeNumber(0, RESERVE_MAX_MB, 'admin.settings.general.errors.reserve'),
+  diskReserveMb: wholeNumber(0, DISK_RESERVE_MAX_MB, 'admin.settings.general.errors.reserve'),
   chunkSizeMb: wholeNumber(1, CHUNK_SIZE_MB.max, 'admin.settings.general.errors.chunk'),
   defaultLocale: z.enum(LOCALES),
   updateCheck: z.boolean(),
@@ -112,27 +115,13 @@ export function GeneralSection({ settings }: { settings: GeneralSettings }) {
         label={t('admin.settings.general.chunkSize')}
         description={t('admin.settings.general.chunkSizeHelp', { max: CHUNK_SIZE_MB.max })}
       />
-      <FormField
+      <LocaleSelectField
         control={control}
         name="defaultLocale"
         idPrefix="general"
         label={t('admin.settings.general.defaultLocale')}
         description={t('admin.settings.general.defaultLocaleHelp')}
-      >
-        {({ field, controlProps }) => (
-          <SelectInput
-            {...controlProps}
-            name={field.name}
-            value={field.value}
-            onBlur={field.onBlur}
-            onValueChange={field.onChange}
-            options={LOCALES.map((locale) => ({
-              value: locale,
-              label: t(`admin.locales.${locale}`),
-            }))}
-          />
-        )}
-      </FormField>
+      />
       <SwitchField
         control={control}
         name="updateCheck"
