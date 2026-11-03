@@ -1,8 +1,11 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { makeTransferDetail, makeTransferSummary } from '@/features/upload/fixtures';
 import { chooseOption, getSelect } from '@/test/select';
 import { makeUser, renderApp } from '@/test/render';
+
+const toasts = vi.hoisted(() => ({ notifySuccess: vi.fn(), notifyError: vi.fn() }));
+vi.mock('@/lib/toast', () => toasts);
 
 function list(items = [makeTransferSummary()], total = items.length) {
   return { items, total, page: 1, pageSize: 20 };
@@ -24,7 +27,54 @@ async function openList(
 
 const lastQuery = (calls: { query: URLSearchParams }[]) => calls[calls.length - 1]?.query;
 
+function mockClipboard(writeText = vi.fn().mockResolvedValue(undefined)) {
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+  return writeText;
+}
+
+afterEach(() => {
+  vi.clearAllMocks();
+});
+
 describe('TransfersPage', () => {
+  describe('share link cell', () => {
+    it('copies the link and shows a toast when the mode cell is clicked', async () => {
+      const writeText = mockClipboard();
+      await openList();
+      const [button] = await screen.findAllByRole('button', {
+        name: 'Copy the link of Holiday photos',
+      });
+      expect(button).toHaveTextContent('Link');
+      fireEvent.click(button!);
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith('http://localhost:8080/d/abc123'));
+      await waitFor(() => expect(toasts.notifySuccess).toHaveBeenCalledWith('Link copied'));
+    });
+
+    it('shows an error toast when the clipboard write fails', async () => {
+      mockClipboard(vi.fn().mockRejectedValue(new Error('denied')));
+      document.execCommand = vi.fn().mockReturnValue(false);
+      await openList();
+      const [button] = await screen.findAllByRole('button', {
+        name: 'Copy the link of Holiday photos',
+      });
+      fireEvent.click(button!);
+      await waitFor(() => expect(toasts.notifyError).toHaveBeenCalled());
+      expect(toasts.notifySuccess).not.toHaveBeenCalled();
+    });
+
+    it('is plain text without a share link', async () => {
+      await openList('/transfers', list([makeTransferSummary({ shareUrl: null })]));
+      await screen.findAllByRole('link', { name: 'Holiday photos' });
+      expect(screen.queryByRole('button', { name: /Copy the link of/ })).toBeNull();
+    });
+
+    it('is plain text when the transfer is no longer active', async () => {
+      await openList('/transfers', list([makeTransferSummary({ status: 'revoked' })]));
+      await screen.findAllByRole('link', { name: 'Holiday photos' });
+      expect(screen.queryByRole('button', { name: /Copy the link of/ })).toBeNull();
+    });
+  });
+
   it('lists the transfers with status, size and downloads', async () => {
     await openList();
     expect((await screen.findAllByRole('link', { name: 'Holiday photos' })).length).toBeGreaterThan(
@@ -129,7 +179,7 @@ describe('TransfersPage', () => {
     it('offers only the actions that fit an active link transfer', async () => {
       await openList();
       const menu = await openMenu();
-      expect(names(menu)).toEqual(['Open details', 'Edit', 'Revoke', 'Delete']);
+      expect(names(menu)).toEqual(['Open details', 'Copy link', 'Edit', 'Revoke', 'Delete']);
       expect(within(menu).getByRole('menuitem', { name: 'Open details' })).toHaveAttribute(
         'href',
         '/transfers/t1',
@@ -143,6 +193,19 @@ describe('TransfersPage', () => {
     it('offers only open and delete for a revoked transfer', async () => {
       await openList('/transfers', list([makeTransferSummary({ status: 'revoked' })]));
       expect(names(await openMenu())).toEqual(['Open details', 'Delete']);
+    });
+
+    it('leaves out copy link when the transfer has no share link', async () => {
+      await openList('/transfers', list([makeTransferSummary({ shareUrl: null })]));
+      expect(names(await openMenu())).toEqual(['Open details', 'Edit', 'Revoke', 'Delete']);
+    });
+
+    it('copies the share link from the menu', async () => {
+      const writeText = mockClipboard();
+      await openList();
+      fireEvent.click(within(await openMenu()).getByRole('menuitem', { name: 'Copy link' }));
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith('http://localhost:8080/d/abc123'));
+      await waitFor(() => expect(toasts.notifySuccess).toHaveBeenCalledWith('Link copied'));
     });
 
     it('revokes after confirmation', async () => {

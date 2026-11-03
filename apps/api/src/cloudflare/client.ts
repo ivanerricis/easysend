@@ -13,7 +13,7 @@ export const RECORD_EXISTS_CODES = new Set([81053, 81057, 81058]);
 /** The permission a call needs, used as a hint when Cloudflare refuses it. */
 export type CloudflarePermission = 'Zone:Read' | 'DNS:Edit' | 'Cloudflare Tunnel:Edit';
 
-type Method = 'GET' | 'POST' | 'PUT';
+type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
 const envelopeSchema = z.object({
   success: z.boolean().optional(),

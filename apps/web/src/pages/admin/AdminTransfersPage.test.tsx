@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { makeAdmin, renderWithProviders } from '@/test/render';
 import { chooseOption } from '@/test/select';
 import AdminTransfersPage from './AdminTransfersPage';
@@ -27,12 +27,24 @@ const item = {
   shareUrl: null,
 };
 
-function renderPage() {
+const toasts = vi.hoisted(() => ({ notifySuccess: vi.fn(), notifyError: vi.fn() }));
+vi.mock('@/lib/toast', () => toasts);
+
+afterEach(() => {
+  vi.clearAllMocks();
+});
+
+function renderPage(shareUrl: string | null = null) {
   return renderWithProviders(<AdminTransfersPage />, {
     session: makeAdmin(),
     route: '/admin/transfers',
     routes: {
-      'GET /api/admin/transfers': { items: [item], total: 1, page: 1, pageSize: 20 },
+      'GET /api/admin/transfers': {
+        items: [{ ...item, shareUrl }],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+      },
       'GET /api/admin/users': userList([
         makeAdminListAdmin(),
         makeAdminListUser({ id: 'u-ada', email: 'ada@example.com' }),
@@ -76,6 +88,26 @@ describe('AdminTransfersPage', () => {
           ),
       ).toBe(true),
     );
+  });
+
+  it('copies the share link from the mode cell and the menu, only when there is one', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    renderPage('http://localhost:8080/d/abc123');
+    fireEvent.click(await screen.findByRole('button', { name: 'Copy the link of Holiday photos' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('http://localhost:8080/d/abc123'));
+    await waitFor(() => expect(toasts.notifySuccess).toHaveBeenCalledWith('Link copied'));
+    const trigger = screen.getByRole('button', { name: 'Actions for Holiday photos' });
+    fireEvent.keyDown(trigger, { key: 'Enter' });
+    expect(
+      within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'Copy link' }),
+    ).toBeInTheDocument();
+  });
+
+  it('has no copy button without a share link', async () => {
+    renderPage(null);
+    await screen.findByRole('link', { name: 'Holiday photos' });
+    expect(screen.queryByRole('button', { name: /Copy the link of/ })).toBeNull();
   });
 
   it('opens a row actions menu with the admin actions, delete last', async () => {
