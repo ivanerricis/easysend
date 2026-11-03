@@ -18,6 +18,8 @@ EasySend è un'applicazione web self-hosted per inviare file di grandi dimension
 - Utenti con ruoli e quote, autenticazione a due fattori obbligatoria per gli admin.
 - Interfaccia in italiano e inglese, tema chiaro e scuro, branding configurabile.
 - Wizard di setup per admin, SMTP, tunnel Cloudflare e impostazioni generali.
+- Aggiornamento con un clic dal pannello admin, facoltativo, eseguito da una piccola unità systemd sull'host (niente socket di Docker nei container).
+- Dati in un volume Docker o in una cartella dell'host a tua scelta, per esempio un secondo disco.
 
 ## Avvio rapido
 
@@ -42,7 +44,7 @@ Documentazione completa: **https://ivanerricis.github.io/easysend/it/** (disponi
 - [Requisiti](https://ivanerricis.github.io/easysend/it/guide/requirements) e [preparazione dell'LXC](https://ivanerricis.github.io/easysend/it/guide/lxc)
 - [Installazione](https://ivanerricis.github.io/easysend/it/guide/install) e [primo setup](https://ivanerricis.github.io/easysend/it/guide/first-setup)
 - [Token API di Cloudflare](https://ivanerricis.github.io/easysend/it/guide/cloudflare)
-- [Backup e ripristino](https://ivanerricis.github.io/easysend/it/guide/backup)
+- [Posizione dei dati](https://ivanerricis.github.io/easysend/it/guide/data-location) e [backup e ripristino](https://ivanerricis.github.io/easysend/it/guide/backup)
 - [Aggiornamento e rollback](https://ivanerricis.github.io/easysend/it/guide/updates)
 - [Note di sicurezza](https://ivanerricis.github.io/easysend/it/guide/security) e [risoluzione dei problemi](https://ivanerricis.github.io/easysend/it/guide/troubleshooting)
 

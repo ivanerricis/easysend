@@ -18,6 +18,8 @@ EasySend is a self-hosted web application for sending large files, similar to We
 - Users with roles and quotas, mandatory two-factor authentication for admins.
 - Italian and English interface, light and dark theme, configurable branding.
 - Setup wizard for admin, SMTP, Cloudflare tunnel and general settings.
+- Optional one-click update from the admin panel, run by a small systemd unit on the host (no Docker socket in the containers).
+- Data in a Docker volume or in a host folder of your choice, for example a second disk.
 
 ## Quick start
 
@@ -42,7 +44,7 @@ Full documentation: **https://ivanerricis.github.io/easysend/** (also in [Italia
 - [Requirements](https://ivanerricis.github.io/easysend/guide/requirements) and [LXC preparation](https://ivanerricis.github.io/easysend/guide/lxc)
 - [Installation](https://ivanerricis.github.io/easysend/guide/install) and [first setup](https://ivanerricis.github.io/easysend/guide/first-setup)
 - [Cloudflare API token](https://ivanerricis.github.io/easysend/guide/cloudflare)
-- [Backup and restore](https://ivanerricis.github.io/easysend/guide/backup)
+- [Data location](https://ivanerricis.github.io/easysend/guide/data-location) and [backup and restore](https://ivanerricis.github.io/easysend/guide/backup)
 - [Updating and rollback](https://ivanerricis.github.io/easysend/guide/updates)
 - [Security notes](https://ivanerricis.github.io/easysend/guide/security) and [troubleshooting](https://ivanerricis.github.io/easysend/guide/troubleshooting)
 
