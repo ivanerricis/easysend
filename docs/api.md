@@ -195,13 +195,9 @@ Liveness and readiness probe
 }
 ```
 
-**Errors**
-
-- `503` `SERVICE_UNAVAILABLE`: The service is not ready (e.g. database unavailable).
-
 Also possible: `500` `INTERNAL_ERROR`.
 
-**Notes:** Answers 503 `SERVICE_UNAVAILABLE` when the database check fails. nginx also exposes the alias `/health`.
+**Notes:** Answers 503 when the database check fails; the body is then the same health body with `db` set to the failure. nginx also exposes the alias `/health`.
 
 ## Setup wizard
 

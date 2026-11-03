@@ -12,6 +12,7 @@ import {
   UPLOAD_STATUSES,
 } from '../constants.js';
 import {
+  atLeastOneField,
   byteSizeSchema,
   emailSchema,
   idSchema,
@@ -76,19 +77,18 @@ export type CreateTransferRequest = z.infer<typeof createTransferRequestSchema>;
  * Edits an existing transfer. `expiresIn` is counted from now (not from the creation date).
  * `password` and `removePassword` are mutually exclusive; at least one field is required.
  */
-export const updateTransferRequestSchema = z
-  .object({
+export const updateTransferRequestSchema = atLeastOneField(
+  z.object({
     title: transferTitleSchema.nullable().optional(),
     message: transferMessageSchema.nullable().optional(),
     expiresIn: expiryKeySchema.optional(),
     maxDownloads: maxDownloadsSchema.nullable().optional(),
     password: linkPasswordSchema.optional(),
     removePassword: z.literal(true).optional(),
-  })
-  .refine((v) => Object.keys(v).length > 0, { message: 'At least one field is required' })
-  .refine((v) => !(v.password !== undefined && v.removePassword), {
-    message: 'password and removePassword are mutually exclusive',
-  });
+  }),
+).refine((v) => !(v.password !== undefined && v.removePassword), {
+  message: 'password and removePassword are mutually exclusive',
+});
 export type UpdateTransferRequest = z.infer<typeof updateTransferRequestSchema>;
 
 export const transferFileParamsSchema = z.object({ id: idSchema, fileId: idSchema });

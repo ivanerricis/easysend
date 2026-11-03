@@ -1,3 +1,5 @@
+import { RELEASE_VERSION_PATTERN } from '@easysend/shared';
+
 /** Numeric `major.minor.patch` triple. */
 export type Semver = readonly [number, number, number];
 
@@ -6,9 +8,10 @@ export type Semver = readonly [number, number, number];
  * labels included (`0.0.0-dev`, `local`), is not a release and gives `null`.
  */
 export function parseSemver(value: string): Semver | null {
-  const match = /^v?(\d{1,9})\.(\d{1,9})\.(\d{1,9})$/.exec(value.trim());
+  const match = new RegExp(`^v?(${RELEASE_VERSION_PATTERN})$`).exec(value.trim());
   if (!match) return null;
-  return [Number(match[1]), Number(match[2]), Number(match[3])];
+  const [major, minor, patch] = match[1]!.split('.').map(Number);
+  return [major!, minor!, patch!];
 }
 
 /** Negative when `a < b`, 0 when equal, positive when `a > b`. */

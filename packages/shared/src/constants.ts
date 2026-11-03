@@ -61,7 +61,7 @@ export const BRANDING_ASSET_KINDS = ['logoLight', 'logoDark', 'favicon', 'backgr
 export type BrandingAssetKind = (typeof BRANDING_ASSET_KINDS)[number];
 
 /** Maximum size of an uploaded branding image, in bytes. */
-export const BRANDING_MAX_BYTES = 2 * 1024 * 1024;
+export const BRANDING_MAX_BYTES = 2 * BYTES_PER_MB;
 
 /** Only raster images: no SVG, to avoid stored XSS. */
 export const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const;
