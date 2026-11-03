@@ -244,6 +244,8 @@
   },
   "actions": {
     "menu": "Actions for {{title}}",
+    "linkCopied": "Link copied",
+    "copyLinkOf": "Copy the link of {{title}}",
     "open": "Open details"
   }
 }

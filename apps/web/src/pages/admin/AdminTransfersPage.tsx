@@ -4,6 +4,7 @@ import { Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { queryKeys } from '@/app/query';
+import { ShareLinkButton } from '../transfers/actions/ShareLinkButton';
 import { TransferActionsMenu } from '../transfers/actions/TransferActionsMenu';
 import { Pager } from '@/components/common/Pager';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -184,7 +185,15 @@ export default function AdminTransfersPage() {
                         {item.title ?? t('admin.transfers.untitled')}
                       </Link>
                       <p className="text-muted-foreground flex items-center justify-end gap-1.5 text-xs lg:justify-start">
-                        {t(`admin.transfers.modes.${item.mode}`)}
+                        {item.shareUrl ? (
+                          <ShareLinkButton
+                            url={item.shareUrl}
+                            title={item.title ?? t('admin.transfers.untitled')}
+                            label={t(`admin.transfers.modes.${item.mode}`)}
+                          />
+                        ) : (
+                          t(`admin.transfers.modes.${item.mode}`)
+                        )}
                         {item.mode === 'email'
                           ? ` Ã‚Â· ${t('common.units.recipients', { count: item.recipientCount })}`
                           : ''}

@@ -1,6 +1,6 @@
 import type { TransferMode, TransferStatus } from '@easysend/shared';
 import { useQuery } from '@tanstack/react-query';
-import { Ban, Eye, Mail, Pencil, Trash2 } from 'lucide-react';
+import { Ban, Copy, Eye, Mail, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { queryKeys } from '@/app/query';
@@ -11,14 +11,20 @@ import { EditTransferDialog } from '../detail/EditTransferDialog';
 import { useTransferActions } from './useTransferActions';
 
 interface TransferActionsMenuProps {
-  transfer: { id: string; title: string | null; status: TransferStatus; mode: TransferMode };
+  transfer: {
+    id: string;
+    title: string | null;
+    status: TransferStatus;
+    mode: TransferMode;
+    shareUrl: string | null;
+  };
   /** Title shown in the accessible name when the transfer has none. */
   fallbackTitle: string;
 }
 
 /**
  * Per-row actions menu of the transfer lists: open details, edit, resend, revoke and delete,
- * limited to what the row's status allows. It owns the dialogs it opens.
+ * copy the share link, limited to what the row's status allows. It owns the dialogs it opens.
  */
 export function TransferActionsMenu({ transfer, fallbackTitle }: TransferActionsMenuProps) {
   const { t } = useTranslation();
@@ -45,6 +51,13 @@ export function TransferActionsMenu({ transfer, fallbackTitle }: TransferActions
             label: t('transfers.actions.open'),
             icon: Eye,
             to: `/transfers/${transfer.id}`,
+          },
+          {
+            key: 'copy-link',
+            label: t('transfers.success.copyLink'),
+            icon: Copy,
+            hidden: !transfer.shareUrl,
+            onSelect: () => transfer.shareUrl && void actions.copyLink(transfer.shareUrl),
           },
           {
             key: 'edit',
