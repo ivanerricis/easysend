@@ -2,7 +2,7 @@
 
 # easysend API contract
 
-71 endpoints. Source of truth: the Zod schemas and the endpoint registry in `packages/shared`; this file is generated from them (`pnpm api:docs`, checked in CI).
+83 endpoints. Source of truth: the Zod schemas and the endpoint registry in `packages/shared`; this file is generated from them (`pnpm api:docs`, checked in CI).
 
 ## Decisions to approve
 
@@ -83,6 +83,11 @@
 | `TRANSFER_REVOKED` | 410 | The transfer was revoked by its owner or an admin. |
 | `DOWNLOAD_LIMIT_REACHED` | 410 | The maximum number of downloads was reached. |
 | `RANGE_NOT_SATISFIABLE` | 416 | The `Range` header is outside the file size. |
+| `REQUEST_NOT_FOUND` | 404 | No such upload request, or not visible to the caller (existence is never revealed). |
+| `REQUEST_EXPIRED` | 410 | The upload request is expired. |
+| `REQUEST_REVOKED` | 410 | The upload request was revoked by its owner or an admin. |
+| `REQUEST_FULL` | 410 | The maximum number of submissions of the upload request was reached. |
+| `REQUEST_SIZE_LIMIT` | 413 | The upload would exceed the total size limit of the upload request. |
 | `SETUP_ALREADY_COMPLETED` | 409 | The setup wizard was already completed. |
 | `SETUP_CODE_INVALID` | 401 | Wrong setup code. |
 | `SETUP_CODE_EXPIRED` | 410 | The setup code expired; restart the API to get a new one. |
@@ -148,6 +153,18 @@
 | DELETE | `/api/transfers/:id/files/:fileId` | session | Remove a file from a draft |
 | GET | `/api/transfers/:id/downloads` | session | Download log of a transfer |
 | GET | `/api/admin/transfers` | admin | List the transfers of all users |
+| GET | `/api/requests` | session | List your upload requests |
+| POST | `/api/requests` | session | Create an upload request |
+| GET | `/api/requests/:id` | session | Upload request details with the received transfers |
+| PATCH | `/api/requests/:id` | session | Edit title, instructions, expiry, password, limits or required fields |
+| POST | `/api/requests/:id/revoke` | session | Revoke the link |
+| DELETE | `/api/requests/:id` | session | Delete an upload request |
+| GET | `/api/r/:token` | public | Public information of an upload request |
+| POST | `/api/r/:token/unlock` | public | Unlock a password-protected upload request |
+| POST | `/api/r/:token/submissions` | public | Start a submission (creates a draft transfer for the owner) |
+| GET | `/api/r/:token/submissions/:id` | public | State of a submission (polled while files are processed) |
+| POST | `/api/r/:token/submissions/:id/finalize` | public | Complete the submission and notify the owner |
+| DELETE | `/api/r/:token/submissions/:id` | public | Cancel a submission that is not finalized |
 | OPTIONS | `/api/uploads` | session | tus: server capabilities |
 | POST | `/api/uploads` | session | tus: create an upload for a file of a draft transfer |
 | HEAD | `/api/uploads/:id` | session | tus: read the current offset (resume) |
@@ -1417,6 +1434,10 @@ Create a draft transfer
   downloadCount: integer (min 0)
   maxDownloads: integer (min 1, max 100000) | null
   hasPassword: boolean
+  source: "sent" | "received"
+  uploadRequestId: string (min 1, max 64) | null
+  senderName: string (max 80) | null
+  senderEmail: string (email, max 254) | null
   shareUrl: string | null
   message: string | null
   firstDownloadedAt: integer (min 0) | null
@@ -1478,6 +1499,10 @@ Activate a draft: make the link valid and send the emails
   downloadCount: integer (min 0)
   maxDownloads: integer (min 1, max 100000) | null
   hasPassword: boolean
+  source: "sent" | "received"
+  uploadRequestId: string (min 1, max 64) | null
+  senderName: string (max 80) | null
+  senderEmail: string (email, max 254) | null
   shareUrl: string | null
   message: string | null
   firstDownloadedAt: integer (min 0) | null
@@ -1528,6 +1553,7 @@ List your transfers
   pageSize?: integer (min 1, max 100)  // default 20
   status?: "uploading" | "active" | "revoked" | "expired" | "deleted"
   mode?: "link" | "email"
+  source?: "sent" | "received"
   q?: string (min 1, max 100)
 }
 ```
@@ -1551,6 +1577,10 @@ List your transfers
     downloadCount: integer (min 0)
     maxDownloads: integer (min 1, max 100000) | null
     hasPassword: boolean
+    source: "sent" | "received"
+    uploadRequestId: string (min 1, max 64) | null
+    senderName: string (max 80) | null
+    senderEmail: string (email, max 254) | null
     shareUrl: string | null
   }>
   total: integer (min 0)
@@ -1595,6 +1625,10 @@ Transfer details with files, recipients and uploads
   downloadCount: integer (min 0)
   maxDownloads: integer (min 1, max 100000) | null
   hasPassword: boolean
+  source: "sent" | "received"
+  uploadRequestId: string (min 1, max 64) | null
+  senderName: string (max 80) | null
+  senderEmail: string (email, max 254) | null
   shareUrl: string | null
   message: string | null
   firstDownloadedAt: integer (min 0) | null
@@ -1673,6 +1707,10 @@ Edit title, message, expiry, download limit or password
   downloadCount: integer (min 0)
   maxDownloads: integer (min 1, max 100000) | null
   hasPassword: boolean
+  source: "sent" | "received"
+  uploadRequestId: string (min 1, max 64) | null
+  senderName: string (max 80) | null
+  senderEmail: string (email, max 254) | null
   shareUrl: string | null
   message: string | null
   firstDownloadedAt: integer (min 0) | null
@@ -1740,6 +1778,10 @@ Revoke the link
   downloadCount: integer (min 0)
   maxDownloads: integer (min 1, max 100000) | null
   hasPassword: boolean
+  source: "sent" | "received"
+  uploadRequestId: string (min 1, max 64) | null
+  senderName: string (max 80) | null
+  senderEmail: string (email, max 254) | null
   shareUrl: string | null
   message: string | null
   firstDownloadedAt: integer (min 0) | null
@@ -1806,6 +1848,10 @@ Send the notification email again (email mode)
   downloadCount: integer (min 0)
   maxDownloads: integer (min 1, max 100000) | null
   hasPassword: boolean
+  source: "sent" | "received"
+  uploadRequestId: string (min 1, max 64) | null
+  senderName: string (max 80) | null
+  senderEmail: string (email, max 254) | null
   shareUrl: string | null
   message: string | null
   firstDownloadedAt: integer (min 0) | null
@@ -1960,6 +2006,7 @@ List the transfers of all users
   pageSize?: integer (min 1, max 100)  // default 20
   status?: "uploading" | "active" | "revoked" | "expired" | "deleted"
   mode?: "link" | "email"
+  source?: "sent" | "received"
   q?: string (min 1, max 100)
   ownerId?: string (min 1, max 64)
 }
@@ -1984,6 +2031,10 @@ List the transfers of all users
     downloadCount: integer (min 0)
     maxDownloads: integer (min 1, max 100000) | null
     hasPassword: boolean
+    source: "sent" | "received"
+    uploadRequestId: string (min 1, max 64) | null
+    senderName: string (max 80) | null
+    senderEmail: string (email, max 254) | null
     shareUrl: string | null
   }>
   total: integer (min 0)
@@ -2377,6 +2428,634 @@ Response headers:
 Also possible: `400` `VALIDATION_ERROR`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`.
 
 **Notes:** The zip is generated on the fly (decryption in streaming, nothing written to disk, constant memory). Entries are stored without compression (ZIP64 when needed), so the total size is known in advance. `fileIds` is a comma-separated list of file ids; an unknown id answers `FILE_NOT_FOUND`. `Content-Length` is sent; `Range` is still not supported. One zip request counts as one download.
+
+## Upload requests
+
+Links that let anyone without an account send files to the owner. Users manage their own requests.
+
+### `GET /api/requests`
+
+List your upload requests
+
+**Auth:** `session` · **CSRF:** no · **Success:** `200` json · **Id:** `requests.list`
+
+**Query**
+
+```ts
+{
+  page?: integer (min 1)  // default 1
+  pageSize?: integer (min 1, max 100)  // default 20
+  status?: "active" | "revoked" | "expired"
+  q?: string (min 1, max 100)
+}
+```
+
+**Response `200`**
+
+```ts
+{
+  items: Array<{
+    id: string (min 1, max 64)
+    title: string (min 1, max 120)
+    status: "active" | "revoked" | "expired"
+    createdAt: integer (min 0)
+    updatedAt: integer (min 0)
+    expiresAt: integer (min 0)
+    expiresIn: "3d" | "1w" | "1m"
+    hasPassword: boolean
+    maxTotalBytes: integer (min 1) | null
+    maxSubmissions: integer (min 1, max 1000) | null
+    requireName: boolean
+    requireEmail: boolean
+    submissionCount: integer (min 0)
+    receivedBytes: integer (min 0)
+    shareUrl: string | null
+  }>
+  total: integer (min 0)
+  page: integer (min 1)
+  pageSize: integer (min 1, max 100)
+}
+```
+
+Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `500` `INTERNAL_ERROR`.
+
+**Notes:** Newest first. `q` matches the title. An `active` request whose expiry has passed is reported as `expired` even before the cleanup job runs.
+
+### `POST /api/requests`
+
+Create an upload request
+
+**Auth:** `session` · **CSRF:** required · **Rate limit:** `requestCreate` · **Success:** `201` json · **Id:** `requests.create`
+
+**Body** (`application/json`)
+
+```ts
+{
+  title: string (min 1, max 120)
+  message?: string (max 2000)
+  expiresIn: "3d" | "1w" | "1m"
+  password?: string (min 8, max 128)
+  maxTotalBytes?: integer (min 1) | null
+  maxSubmissions?: integer (min 1, max 1000) | null
+  requireName?: boolean
+  requireEmail?: boolean
+}
+```
+
+**Response `201`**
+
+```ts
+{
+  id: string (min 1, max 64)
+  title: string (min 1, max 120)
+  status: "active" | "revoked" | "expired"
+  createdAt: integer (min 0)
+  updatedAt: integer (min 0)
+  expiresAt: integer (min 0)
+  expiresIn: "3d" | "1w" | "1m"
+  hasPassword: boolean
+  maxTotalBytes: integer (min 1) | null
+  maxSubmissions: integer (min 1, max 1000) | null
+  requireName: boolean
+  requireEmail: boolean
+  submissionCount: integer (min 0)
+  receivedBytes: integer (min 0)
+  shareUrl: string | null
+  message: string (max 2000) | null
+  transfers: Array<{
+    id: string (min 1, max 64)
+    title: string | null
+    mode: "link" | "email"
+    status: "uploading" | "active" | "revoked" | "expired" | "deleted"
+    ownerId: string (min 1, max 64)
+    ownerEmail: string (email, max 254)
+    createdAt: integer (min 0)
+    expiresAt: integer (min 0)
+    totalBytes: integer (min 0)
+    fileCount: integer (min 0)
+    recipientCount: integer (min 0)
+    downloadCount: integer (min 0)
+    maxDownloads: integer (min 1, max 100000) | null
+    hasPassword: boolean
+    source: "sent" | "received"
+    uploadRequestId: string (min 1, max 64) | null
+    senderName: string (max 80) | null
+    senderEmail: string (email, max 254) | null
+    shareUrl: string | null
+  }>
+}
+```
+
+Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`.
+
+**Notes:** Returns the link `shareUrl` (`<PUBLIC_URL>/r/<token>`), through which anyone can send files to the owner without an account. `expiresIn` (`3d`, `1w`, `1m`) is the validity of the link and also the lifetime of each received transfer, counted from the moment its submission is finalized. `maxTotalBytes` and `maxSubmissions` are optional limits (`null` or omitted for none). `requireName` and `requireEmail` default to false. The password is stored only as a strong hash.
+
+### `GET /api/requests/:id`
+
+Upload request details with the received transfers
+
+**Auth:** `session` · **CSRF:** no · **Success:** `200` json · **Id:** `requests.get`
+
+**Path parameters**
+
+```ts
+{
+  id: string (min 1, max 64)
+}
+```
+
+**Response `200`**
+
+```ts
+{
+  id: string (min 1, max 64)
+  title: string (min 1, max 120)
+  status: "active" | "revoked" | "expired"
+  createdAt: integer (min 0)
+  updatedAt: integer (min 0)
+  expiresAt: integer (min 0)
+  expiresIn: "3d" | "1w" | "1m"
+  hasPassword: boolean
+  maxTotalBytes: integer (min 1) | null
+  maxSubmissions: integer (min 1, max 1000) | null
+  requireName: boolean
+  requireEmail: boolean
+  submissionCount: integer (min 0)
+  receivedBytes: integer (min 0)
+  shareUrl: string | null
+  message: string (max 2000) | null
+  transfers: Array<{
+    id: string (min 1, max 64)
+    title: string | null
+    mode: "link" | "email"
+    status: "uploading" | "active" | "revoked" | "expired" | "deleted"
+    ownerId: string (min 1, max 64)
+    ownerEmail: string (email, max 254)
+    createdAt: integer (min 0)
+    expiresAt: integer (min 0)
+    totalBytes: integer (min 0)
+    fileCount: integer (min 0)
+    recipientCount: integer (min 0)
+    downloadCount: integer (min 0)
+    maxDownloads: integer (min 1, max 100000) | null
+    hasPassword: boolean
+    source: "sent" | "received"
+    uploadRequestId: string (min 1, max 64) | null
+    senderName: string (max 80) | null
+    senderEmail: string (email, max 254) | null
+    shareUrl: string | null
+  }>
+}
+```
+
+**Errors**
+
+- `404` `REQUEST_NOT_FOUND`: No such upload request, or not visible to the caller (existence is never revealed).
+
+Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `500` `INTERNAL_ERROR`.
+
+**Notes:** Available to the owner only; any other user (admins included) receives 404 `REQUEST_NOT_FOUND`.
+
+### `PATCH /api/requests/:id`
+
+Edit title, instructions, expiry, password, limits or required fields
+
+**Auth:** `session` · **CSRF:** required · **Success:** `200` json · **Id:** `requests.update`
+
+**Path parameters**
+
+```ts
+{
+  id: string (min 1, max 64)
+}
+```
+
+**Body** (`application/json`)
+
+```ts
+{
+  title?: string (min 1, max 120)
+  message?: string (max 2000) | null
+  expiresIn?: "3d" | "1w" | "1m"
+  password?: string (min 8, max 128)
+  removePassword?: true
+  maxTotalBytes?: integer (min 1) | null
+  maxSubmissions?: integer (min 1, max 1000) | null
+  requireName?: boolean
+  requireEmail?: boolean
+}
+```
+
+**Response `200`**
+
+```ts
+{
+  id: string (min 1, max 64)
+  title: string (min 1, max 120)
+  status: "active" | "revoked" | "expired"
+  createdAt: integer (min 0)
+  updatedAt: integer (min 0)
+  expiresAt: integer (min 0)
+  expiresIn: "3d" | "1w" | "1m"
+  hasPassword: boolean
+  maxTotalBytes: integer (min 1) | null
+  maxSubmissions: integer (min 1, max 1000) | null
+  requireName: boolean
+  requireEmail: boolean
+  submissionCount: integer (min 0)
+  receivedBytes: integer (min 0)
+  shareUrl: string | null
+  message: string (max 2000) | null
+  transfers: Array<{
+    id: string (min 1, max 64)
+    title: string | null
+    mode: "link" | "email"
+    status: "uploading" | "active" | "revoked" | "expired" | "deleted"
+    ownerId: string (min 1, max 64)
+    ownerEmail: string (email, max 254)
+    createdAt: integer (min 0)
+    expiresAt: integer (min 0)
+    totalBytes: integer (min 0)
+    fileCount: integer (min 0)
+    recipientCount: integer (min 0)
+    downloadCount: integer (min 0)
+    maxDownloads: integer (min 1, max 100000) | null
+    hasPassword: boolean
+    source: "sent" | "received"
+    uploadRequestId: string (min 1, max 64) | null
+    senderName: string (max 80) | null
+    senderEmail: string (email, max 254) | null
+    shareUrl: string | null
+  }>
+}
+```
+
+**Errors**
+
+- `404` `REQUEST_NOT_FOUND`: No such upload request, or not visible to the caller (existence is never revealed).
+- `410` `REQUEST_EXPIRED`: The upload request is expired.
+- `410` `REQUEST_REVOKED`: The upload request was revoked by its owner or an admin.
+
+Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`.
+
+**Notes:** `expiresIn` is counted from now. `password` sets or replaces the password, `removePassword: true` removes it (mutually exclusive). `maxTotalBytes` and `maxSubmissions` accept `null` to remove the limit. At least one field is required. Available to the owner only; any other user (admins included) receives 404 `REQUEST_NOT_FOUND`.
+
+### `POST /api/requests/:id/revoke`
+
+Revoke the link
+
+**Auth:** `session` · **CSRF:** required · **Success:** `200` json · **Id:** `requests.revoke`
+
+**Path parameters**
+
+```ts
+{
+  id: string (min 1, max 64)
+}
+```
+
+**Response `200`**
+
+```ts
+{
+  id: string (min 1, max 64)
+  title: string (min 1, max 120)
+  status: "active" | "revoked" | "expired"
+  createdAt: integer (min 0)
+  updatedAt: integer (min 0)
+  expiresAt: integer (min 0)
+  expiresIn: "3d" | "1w" | "1m"
+  hasPassword: boolean
+  maxTotalBytes: integer (min 1) | null
+  maxSubmissions: integer (min 1, max 1000) | null
+  requireName: boolean
+  requireEmail: boolean
+  submissionCount: integer (min 0)
+  receivedBytes: integer (min 0)
+  shareUrl: string | null
+  message: string (max 2000) | null
+  transfers: Array<{
+    id: string (min 1, max 64)
+    title: string | null
+    mode: "link" | "email"
+    status: "uploading" | "active" | "revoked" | "expired" | "deleted"
+    ownerId: string (min 1, max 64)
+    ownerEmail: string (email, max 254)
+    createdAt: integer (min 0)
+    expiresAt: integer (min 0)
+    totalBytes: integer (min 0)
+    fileCount: integer (min 0)
+    recipientCount: integer (min 0)
+    downloadCount: integer (min 0)
+    maxDownloads: integer (min 1, max 100000) | null
+    hasPassword: boolean
+    source: "sent" | "received"
+    uploadRequestId: string (min 1, max 64) | null
+    senderName: string (max 80) | null
+    senderEmail: string (email, max 254) | null
+    shareUrl: string | null
+  }>
+}
+```
+
+**Errors**
+
+- `404` `REQUEST_NOT_FOUND`: No such upload request, or not visible to the caller (existence is never revealed).
+
+Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`.
+
+**Notes:** The link stops accepting uploads immediately; submissions in progress are refused with `REQUEST_REVOKED`. Transfers already received are kept. Idempotent. Available to the owner only; any other user (admins included) receives 404 `REQUEST_NOT_FOUND`.
+
+### `DELETE /api/requests/:id`
+
+Delete an upload request
+
+**Auth:** `session` · **CSRF:** required · **Success:** `204` empty · **Id:** `requests.delete`
+
+**Path parameters**
+
+```ts
+{
+  id: string (min 1, max 64)
+}
+```
+
+**Response `204`**
+
+No body.
+
+**Errors**
+
+- `404` `REQUEST_NOT_FOUND`: No such upload request, or not visible to the caller (existence is never revealed).
+
+Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`.
+
+**Notes:** Transfers already received are kept (their `uploadRequestId` becomes null); drafts of submissions in progress are removed. Available to the owner only; any other user (admins included) receives 404 `REQUEST_NOT_FOUND`.
+
+## Submissions (public)
+
+Token-based endpoints for people who upload through a request link. A submission is authorized by the link token plus, once created, a signed `X-Submission-Token` header (also used on tus).
+
+### `GET /api/r/:token`
+
+Public information of an upload request
+
+**Auth:** `public` · **CSRF:** no · **Rate limit:** `requestView` · **Success:** `200` json · **Id:** `submissions.info`
+
+**Path parameters**
+
+```ts
+{
+  token: string (min 20, max 128)
+}
+```
+
+**Response `200`**
+
+```ts
+| {
+    locked: true
+    expiresAt: integer (min 0)
+  }
+| {
+    locked: false
+    title: string
+    message: string | null
+    ownerName: string (min 1, max 80) | null
+    requireName: boolean
+    requireEmail: boolean
+    remainingBytes: integer (min 0) | null
+    expiresAt: integer (min 0)
+  }
+```
+
+**Errors**
+
+- `404` `REQUEST_NOT_FOUND`: No such upload request, or not visible to the caller (existence is never revealed).
+- `410` `REQUEST_EXPIRED`: The upload request is expired.
+- `410` `REQUEST_REVOKED`: The upload request was revoked by its owner or an admin.
+- `410` `REQUEST_FULL`: The maximum number of submissions of the upload request was reached.
+
+Also possible: `400` `VALIDATION_ERROR`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`.
+
+**Notes:** No account is needed. Password-protected requests answer `{ locked: true }` (no title or instructions) until unlocked with a valid `es_ru` cookie. When `ownerName` is null the client shows the instance name (from `GET /api/public/settings`). The owner email is never exposed. `remainingBytes` is null when the request has no total limit.
+
+### `POST /api/r/:token/unlock`
+
+Unlock a password-protected upload request
+
+**Auth:** `public` · **CSRF:** required · **Rate limit:** `requestPassword` · **Success:** `204` empty · **Id:** `submissions.unlock`
+
+**Path parameters**
+
+```ts
+{
+  token: string (min 20, max 128)
+}
+```
+
+**Body** (`application/json`)
+
+```ts
+{
+  password: string (min 1, max 128)
+}
+```
+
+**Response `204`**
+
+No body.
+
+Response headers:
+
+- `Set-Cookie`: es_ru=<signed>; Path=/api/r/<token>; HttpOnly; Secure; SameSite=Strict; Max-Age=3600
+
+**Errors**
+
+- `403` `PASSWORD_INCORRECT`: The password supplied for confirmation or unlock is wrong.
+- `404` `REQUEST_NOT_FOUND`: No such upload request, or not visible to the caller (existence is never revealed).
+- `410` `REQUEST_EXPIRED`: The upload request is expired.
+- `410` `REQUEST_REVOKED`: The upload request was revoked by its owner or an admin.
+- `410` `REQUEST_FULL`: The maximum number of submissions of the upload request was reached.
+
+Also possible: `400` `VALIDATION_ERROR`, `403` `CSRF_INVALID`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`.
+
+**Notes:** Wrong attempts are rate limited per request and IP. On a request without password it answers 204 without a cookie. Needs the pre-login CSRF token (`GET /api/auth/csrf`).
+
+### `POST /api/r/:token/submissions`
+
+Start a submission (creates a draft transfer for the owner)
+
+**Auth:** `public` · **CSRF:** required · **Rate limit:** `submissionCreate` · **Success:** `201` json · **Id:** `submissions.create`
+
+**Path parameters**
+
+```ts
+{
+  token: string (min 20, max 128)
+}
+```
+
+**Body** (`application/json`)
+
+```ts
+{
+  name?: string (min 1, max 80)
+  email?: string (email, max 254)
+  message?: string (max 2000)
+}
+```
+
+**Response `201`**
+
+```ts
+{
+  transferId: string (min 1, max 64)
+  submissionToken: string (min 1, max 512)
+  submissionTokenExpiresAt: integer (min 0)
+}
+```
+
+**Errors**
+
+- `400` `VALIDATION_ERROR`: Params, query or body failed validation (`details.issues` lists the fields).
+- `401` `PASSWORD_REQUIRED`: The link is password protected and not unlocked (no valid `es_dl` cookie).
+- `404` `REQUEST_NOT_FOUND`: No such upload request, or not visible to the caller (existence is never revealed).
+- `410` `REQUEST_EXPIRED`: The upload request is expired.
+- `410` `REQUEST_REVOKED`: The upload request was revoked by its owner or an admin.
+- `410` `REQUEST_FULL`: The maximum number of submissions of the upload request was reached.
+
+Also possible: `403` `CSRF_INVALID`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`.
+
+**Notes:** `name` and `email` are mandatory when the request says so (`VALIDATION_ERROR` otherwise). Counts toward `maxSubmissions` only when finalized, but is refused with `REQUEST_FULL` once the limit is reached. The draft belongs to the request owner (quota, cleanup). Next: upload the files with tus passing `transferId` in the metadata and the `X-Submission-Token` header (no session needed), then call `finalize`. Needs the pre-login CSRF token.
+
+### `GET /api/r/:token/submissions/:id`
+
+State of a submission (polled while files are processed)
+
+**Auth:** `public` · **CSRF:** no · **Success:** `200` json · **Id:** `submissions.get`
+
+**Path parameters**
+
+```ts
+{
+  token: string (min 20, max 128)
+  id: string (min 1, max 64)
+}
+```
+
+**Request headers**
+
+- `X-Submission-Token`: Token returned by `submissions.create`.
+
+**Response `200`**
+
+```ts
+{
+  transferId: string (min 1, max 64)
+  status: "uploading" | "active" | "revoked" | "expired" | "deleted"
+  files: Array<{
+    id: string (min 1, max 64)
+    name: string (min 1, max 255)
+    sizeBytes: integer (min 0)
+  }>
+  uploads: Array<{
+    id: string (min 1, max 64)
+    fileName: string (max 255)
+    totalSize: integer (min 0)
+    status: "in_progress" | "processing" | "completed" | "aborted"
+    expiresAt: integer (min 0)
+  }>
+}
+```
+
+**Errors**
+
+- `404` `TRANSFER_NOT_FOUND`: No such transfer, or not visible to the caller (existence is never revealed).
+- `404` `REQUEST_NOT_FOUND`: No such upload request, or not visible to the caller (existence is never revealed).
+- `410` `REQUEST_EXPIRED`: The upload request is expired.
+- `410` `REQUEST_REVOKED`: The upload request was revoked by its owner or an admin.
+
+Also possible: `400` `VALIDATION_ERROR`, `500` `INTERNAL_ERROR`.
+
+**Notes:** Authorized by the `X-Submission-Token` header, which must belong to this transfer and request; anything else answers 404.
+
+### `POST /api/r/:token/submissions/:id/finalize`
+
+Complete the submission and notify the owner
+
+**Auth:** `public` · **CSRF:** required · **Success:** `200` json · **Id:** `submissions.finalize`
+
+**Path parameters**
+
+```ts
+{
+  token: string (min 20, max 128)
+  id: string (min 1, max 64)
+}
+```
+
+**Request headers**
+
+- `X-Submission-Token`: Token returned by `submissions.create`.
+
+**Response `200`**
+
+```ts
+{
+  transferId: string (min 1, max 64)
+  fileCount: integer (min 0)
+  totalBytes: integer (min 0)
+}
+```
+
+**Errors**
+
+- `404` `TRANSFER_NOT_FOUND`: No such transfer, or not visible to the caller (existence is never revealed).
+- `409` `TRANSFER_NOT_UPLOADABLE`: The transfer is not a draft: files can no longer be added or removed.
+- `409` `TRANSFER_EMPTY`: The draft has no completed file.
+- `409` `UPLOAD_INCOMPLETE`: Some uploads of the draft are still in progress.
+- `404` `REQUEST_NOT_FOUND`: No such upload request, or not visible to the caller (existence is never revealed).
+- `410` `REQUEST_EXPIRED`: The upload request is expired.
+- `410` `REQUEST_REVOKED`: The upload request was revoked by its owner or an admin.
+- `410` `REQUEST_FULL`: The maximum number of submissions of the upload request was reached.
+
+Also possible: `400` `VALIDATION_ERROR`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`.
+
+**Notes:** Needs at least one completed file and no upload in progress. Activates the received transfer (its expiry is the request duration counted from now), updates the request counters and emails the owner. Needs the pre-login CSRF token.
+
+### `DELETE /api/r/:token/submissions/:id`
+
+Cancel a submission that is not finalized
+
+**Auth:** `public` · **CSRF:** required · **Success:** `204` empty · **Id:** `submissions.cancel`
+
+**Path parameters**
+
+```ts
+{
+  token: string (min 20, max 128)
+  id: string (min 1, max 64)
+}
+```
+
+**Request headers**
+
+- `X-Submission-Token`: Token returned by `submissions.create`.
+
+**Response `204`**
+
+No body.
+
+**Errors**
+
+- `404` `TRANSFER_NOT_FOUND`: No such transfer, or not visible to the caller (existence is never revealed).
+- `409` `TRANSFER_NOT_UPLOADABLE`: The transfer is not a draft: files can no longer be added or removed.
+- `404` `REQUEST_NOT_FOUND`: No such upload request, or not visible to the caller (existence is never revealed).
+
+Also possible: `400` `VALIDATION_ERROR`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`.
+
+**Notes:** Removes the draft and its uploads. A finalized submission cannot be cancelled by the uploader (`TRANSFER_NOT_UPLOADABLE`). Needs the pre-login CSRF token.
 
 ## Administration
 

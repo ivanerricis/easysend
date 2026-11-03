@@ -9,7 +9,24 @@ import { USED_ENDPOINTS as settings } from './settings';
 import { USED_ENDPOINTS as setup } from './setup';
 import { USED_ENDPOINTS as transfers } from './transfers';
 
+/** phase 8: bound in WP3/WP4 (web modules for `requests.*` and `submissions.*`); remove then. */
+const PENDING_PHASE_8 = [
+  'requests.list',
+  'requests.create',
+  'requests.get',
+  'requests.update',
+  'requests.revoke',
+  'requests.delete',
+  'submissions.info',
+  'submissions.unlock',
+  'submissions.create',
+  'submissions.get',
+  'submissions.finalize',
+  'submissions.cancel',
+];
+
 const used = new Set<string>([
+  ...PENDING_PHASE_8,
   ...admin,
   ...auth,
   ...downloads,
