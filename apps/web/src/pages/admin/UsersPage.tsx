@@ -1,11 +1,12 @@
 import { USER_ROLES, type AdminUser, type UserRole } from '@easysend/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pencil, ShieldCheck, ShieldOff, Trash2, UserPlus, KeyRound } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSession } from '@/app/providers/SessionProvider';
 import { queryKeys } from '@/app/query';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { Pager } from '@/components/common/Pager';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/States';
 import { Badge } from '@/components/ui/badge';
@@ -25,9 +26,8 @@ import {
   DataTable,
 } from './components/DataTable';
 import { SelectInput } from '@/components/common/SelectInput';
-import { Pager } from './components/Pager';
 import { UsageMeter } from './components/UsageMeter';
-import { useDebouncedValue, useUrlState } from './components/useUrlState';
+import { useUrlSearch, useUrlState } from '@/hooks/use-url-state';
 import { CreateUserDialog, DeleteUserDialog, EditUserDialog } from './users/UserDialogs';
 
 const PAGE_SIZE = 20;
@@ -45,12 +45,7 @@ export default function UsersPage() {
   const q = params.get('q') ?? '';
   const role = parseRole(params.get('role'));
 
-  const [search, setSearch] = useState(q);
-  const debouncedSearch = useDebouncedValue(search.trim());
-  useEffect(() => {
-    if (debouncedSearch !== q) update({ q: debouncedSearch });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to the typed value
-  }, [debouncedSearch]);
+  const [search, setSearch] = useUrlSearch(q, update);
 
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<AdminUser | null>(null);
