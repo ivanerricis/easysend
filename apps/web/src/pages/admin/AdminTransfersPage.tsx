@@ -180,7 +180,7 @@ export default function AdminTransfersPage() {
                     <div className="min-w-0 text-right lg:text-left">
                       <Link
                         to={`/transfers/${item.id}`}
-                        className="font-medium break-words underline underline-offset-4"
+                        className="inline-block min-h-6 font-medium break-words underline underline-offset-4"
                       >
                         {item.title ?? t('admin.transfers.untitled')}
                       </Link>
