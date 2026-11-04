@@ -235,8 +235,13 @@ function UserMenu() {
           className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
         >
           <UserIcon aria-hidden="true" />
-          <span className="min-w-0 flex-1 truncate">{name}</span>
-          <ChevronsUpDown aria-hidden="true" className="ml-auto" />
+          <span className="min-w-0 flex-1 truncate group-data-[collapsible=icon]:hidden">
+            {name}
+          </span>
+          <ChevronsUpDown
+            aria-hidden="true"
+            className="ml-auto group-data-[collapsible=icon]:hidden"
+          />
         </SidebarMenuButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent side={isMobile ? 'top' : 'right'} align="end" className="min-w-56">
@@ -313,7 +318,11 @@ function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <Link to="/" className="flex min-h-11 items-center px-1" aria-label={instanceName}>
+        <Link
+          to="/"
+          className="flex min-h-11 items-center px-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+          aria-label={instanceName}
+        >
           <img
             src={logoUrl(resolvedTheme)}
             alt={instanceName}
@@ -323,7 +332,7 @@ function AppSidebar() {
             src={faviconUrl ?? '/favicon.svg'}
             alt=""
             aria-hidden="true"
-            className="hidden size-7 object-contain group-data-[collapsible=icon]:block"
+            className="hidden size-6 object-contain group-data-[collapsible=icon]:block"
           />
         </Link>
       </SidebarHeader>

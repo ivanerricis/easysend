@@ -1,7 +1,8 @@
 import { and, eq, gt, isNull, lt, or, sql } from 'drizzle-orm';
 import { Router, type Request, type Response } from 'express';
 import {
-  EXPIRY_OPTIONS,
+  expiresAtFor,
+  publicExpiresAt,
   type CreateSubmissionRequest,
   type RequestInfoResponse,
 } from '@easysend/shared';
@@ -69,7 +70,10 @@ export function submissionsRouter(ctx: AppContext): Router {
     const { token } = validParams<TokenParams>(req);
     const { request, nowSec } = await openRequest(req, res, token, 'requestView');
     if (!isRequestUnlocked(ctx, req, request, nowSec)) {
-      sendJson(res, 'submissions.info', 200, { locked: true, expiresAt: request.expiresAt });
+      sendJson(res, 'submissions.info', 200, {
+        locked: true,
+        expiresAt: publicExpiresAt(request.expiresAt),
+      });
       return;
     }
     const owner = db
@@ -88,7 +92,7 @@ export function submissionsRouter(ctx: AppContext): Router {
         request.maxTotalBytes === null
           ? null
           : Math.max(0, request.maxTotalBytes - request.receivedBytes),
-      expiresAt: request.expiresAt,
+      expiresAt: publicExpiresAt(request.expiresAt),
       chunkSizeBytes: chunkSizeBytes(ctx),
       maxFilesPerTransfer: maxFilesPerTransfer(ctx),
     };
@@ -140,7 +144,7 @@ export function submissionsRouter(ctx: AppContext): Router {
         title: request.title,
         message: body.message?.trim() ? body.message.trim() : null,
         mode: 'link',
-        expiresAt: nowSec + EXPIRY_OPTIONS[request.expiresIn],
+        expiresAt: expiresAtFor(nowSec, request.expiresIn),
         status: 'uploading',
         createdAt: nowSec,
         source: 'received',
@@ -224,7 +228,7 @@ export function submissionsRouter(ctx: AppContext): Router {
         tx.update(transfers)
           .set({
             status: 'active',
-            expiresAt: now + EXPIRY_OPTIONS[request.expiresIn],
+            expiresAt: expiresAtFor(now, request.expiresIn),
             totalBytes: bytes,
           })
           .where(and(eq(transfers.id, row.id), eq(transfers.status, 'uploading')))

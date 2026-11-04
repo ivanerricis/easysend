@@ -114,7 +114,10 @@ export type RecoveryCodesResponse = z.infer<typeof recoveryCodesResponseSchema>;
 export const configResponseSchema = z.object({
   chunkSizeBytes: z.number().int().min(1),
   maxChunkSizeBytes: z.number().int().min(1),
-  expiryOptions: z.array(z.object({ key: z.enum(EXPIRY_KEYS), seconds: z.number().int().min(1) })),
+  /** `seconds` is `null` for "never expires". */
+  expiryOptions: z.array(
+    z.object({ key: z.enum(EXPIRY_KEYS), seconds: z.number().int().min(1).nullable() }),
+  ),
   limits: z.object({
     maxRecipients: z.number().int(),
     maxFilesPerTransfer: z.number().int(),

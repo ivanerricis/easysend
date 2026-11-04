@@ -6,6 +6,7 @@
   "remaining": "Space left",
   "unlimited": "No size limit",
   "expires": "Open until {{date}} ({{relative}})",
+  "expiresNever": "Always open",
   "locked": {
     "title": "This upload link is protected",
     "description": "Enter the password you were given to send files."

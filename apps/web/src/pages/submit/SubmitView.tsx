@@ -317,10 +317,12 @@ export function SubmitView({ token, info }: SubmitViewProps) {
             </dd>
             <dt className="text-muted-foreground">{t('download.availability')}</dt>
             <dd>
-              {t('submit.expires', {
-                date: formatDateTime(info.expiresAt, locale),
-                relative: formatRelative(info.expiresAt, locale),
-              })}
+              {info.expiresAt === null
+                ? t('submit.expiresNever')
+                : t('submit.expires', {
+                    date: formatDateTime(info.expiresAt, locale),
+                    relative: formatRelative(info.expiresAt, locale),
+                  })}
             </dd>
           </dl>
 

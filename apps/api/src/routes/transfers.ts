@@ -1,7 +1,8 @@
 import { and, asc, count, desc, eq, gt, sql } from 'drizzle-orm';
 import { Router, type Request, type Response } from 'express';
 import {
-  EXPIRY_OPTIONS,
+  NEVER_EXPIRES_AT,
+  expiresAtFor,
   type AdminListTransfersQuery,
   type CreateTransferRequest,
   type ListTransfersQuery,
@@ -96,7 +97,7 @@ export function transfersRouter(ctx: AppContext): Router {
           title: body.title ?? null,
           message: body.message ?? null,
           mode: body.mode,
-          expiresAt: now + EXPIRY_OPTIONS[body.expiresIn],
+          expiresAt: expiresAtFor(now, body.expiresIn),
           passwordHash,
           maxDownloads: body.maxDownloads ?? null,
           status: 'uploading',
@@ -122,7 +123,8 @@ export function transfersRouter(ctx: AppContext): Router {
     const fileCount = finalizableFileCount(db, row.id);
 
     const now = nowSeconds(ctx.clock);
-    const expiresAt = now + (row.expiresAt - row.createdAt);
+    const expiresAt =
+      row.expiresAt >= NEVER_EXPIRES_AT ? NEVER_EXPIRES_AT : now + (row.expiresAt - row.createdAt);
     const activated = db.transaction((tx) => {
       tx.delete(uploads)
         .where(and(eq(uploads.transferId, row.id), eq(uploads.status, 'aborted')))
@@ -217,7 +219,7 @@ export function transfersRouter(ctx: AppContext): Router {
     if (body.expiresIn !== undefined) {
       // A draft keeps counting from its creation: `finalize` restarts the clock.
       const start = row.status === 'uploading' ? row.createdAt : now;
-      changes.expiresAt = start + EXPIRY_OPTIONS[body.expiresIn];
+      changes.expiresAt = expiresAtFor(start, body.expiresIn);
       fields.push('expiresIn');
     }
     if (body.maxDownloads !== undefined) {

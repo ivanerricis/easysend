@@ -181,12 +181,7 @@ export function UpdateOutcome({ run }: { run: UpdateRunStatus }) {
         <AlertTitle>
           {t('admin.settings.updates.oneClick.succeededTitle', { version: to })}
         </AlertTitle>
-        <AlertDescription className="space-y-3">
-          <p>{t('admin.settings.updates.oneClick.succeededBody')}</p>
-          <Button type="button" onClick={() => window.location.reload()}>
-            {t('admin.settings.updates.oneClick.reload')}
-          </Button>
-        </AlertDescription>
+        <AlertDescription>{t('admin.settings.updates.oneClick.succeededBody')}</AlertDescription>
       </Alert>
     );
   }

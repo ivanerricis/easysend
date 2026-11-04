@@ -9,7 +9,8 @@
   "expiry": {
     "3d": "3 days",
     "1w": "1 week",
-    "1m": "1 month"
+    "1m": "1 month",
+    "never": "No expiry"
   },
   "new": {
     "description": "Choose the files, set the options and get a link to share. Files are encrypted on the server.",
@@ -42,7 +43,7 @@
     "recipientsHint": "Press Enter or Add after each address. You can paste several, separated by commas or new lines.",
     "recipientsList": "Added recipients",
     "removeRecipient": "Remove {{email}}",
-    "expiry": "Link expires after",
+    "expiry": "Link expiry",
     "title": "Title",
     "message": "Message",
     "messageHintEmail": "Shown in the email and on the download page.",

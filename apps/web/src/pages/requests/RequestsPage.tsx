@@ -32,8 +32,9 @@ import { readRequestParams, receivedText, submissionsText } from './utils';
 
 const STATUS_FILTERS = ['active', 'revoked', 'expired'] as const;
 
-function Expires({ expiresAt }: { expiresAt: number }) {
-  const { i18n } = useTranslation();
+function Expires({ expiresAt }: { expiresAt: number | null }) {
+  const { t, i18n } = useTranslation();
+  if (expiresAt === null) return <span>{t('common.neverExpires')}</span>;
   return (
     <HintText content={formatDateTime(expiresAt, i18n.language)}>
       <time dateTime={new Date(expiresAt * 1000).toISOString()}>

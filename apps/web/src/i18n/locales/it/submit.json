@@ -6,6 +6,7 @@
   "remaining": "Spazio rimasto",
   "unlimited": "Nessun limite di dimensione",
   "expires": "Aperto fino al {{date}} ({{relative}})",
+  "expiresNever": "Sempre aperto",
   "locked": {
     "title": "Questo link di caricamento è protetto",
     "description": "Inserisci la password che ti hanno dato per inviare i file."

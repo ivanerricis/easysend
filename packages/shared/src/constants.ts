@@ -1,14 +1,32 @@
 /** Shared constants. Arrays are `as const` so Zod enums and Drizzle enums use the same source. */
 
 // ---- Expiry ----------------------------------------------------------------
-/** Transfer expiry options, in seconds. */
+/** Transfer expiry options, in seconds (`null`: the link never expires). */
 export const EXPIRY_OPTIONS = {
   '3d': 259_200,
   '1w': 604_800,
   '1m': 2_592_000,
+  never: null,
 } as const;
-export const EXPIRY_KEYS = ['3d', '1w', '1m'] as const;
+export const EXPIRY_KEYS = ['3d', '1w', '1m', 'never'] as const;
 export type ExpiryKey = (typeof EXPIRY_KEYS)[number];
+
+/**
+ * Value stored in `expires_at` for "never" (9999-12-31T23:59:59Z): it keeps every
+ * `expires_at <= now` comparison working. The API reports it as `expiresAt: null`.
+ */
+export const NEVER_EXPIRES_AT = 253_402_300_799;
+
+/** Expiry timestamp for a duration counted from `start` (the stored value for "never"). */
+export function expiresAtFor(start: number, key: ExpiryKey): number {
+  const seconds = EXPIRY_OPTIONS[key];
+  return seconds === null ? NEVER_EXPIRES_AT : start + seconds;
+}
+
+/** Expiry as shown to clients: `null` when the stored value means "never". */
+export function publicExpiresAt(expiresAt: number): number | null {
+  return expiresAt >= NEVER_EXPIRES_AT ? null : expiresAt;
+}
 
 // ---- Upload ----------------------------------------------------------------
 /** tus chunk size in MB (Cloudflare free caps requests at 100 MB). */

@@ -35,7 +35,8 @@ export type DownloadFile = z.infer<typeof downloadFileSchema>;
 export const downloadInfoResponseSchema = z.discriminatedUnion('locked', [
   z.object({
     locked: z.literal(true),
-    expiresAt: unixSecondsSchema,
+    /** `null`: the link never expires. */
+    expiresAt: unixSecondsSchema.nullable(),
   }),
   z.object({
     locked: z.literal(false),
@@ -45,7 +46,7 @@ export const downloadInfoResponseSchema = z.discriminatedUnion('locked', [
     senderName: displayNameSchema.nullable(),
     files: z.array(downloadFileSchema),
     totalBytes: byteSizeSchema,
-    expiresAt: unixSecondsSchema,
+    expiresAt: unixSecondsSchema.nullable(),
     downloadCount: z.number().int().nonnegative(),
     maxDownloads: maxDownloadsSchema.nullable(),
   }),

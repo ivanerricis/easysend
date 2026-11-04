@@ -93,7 +93,7 @@ export function SelectedFiles({ files, onRemove, onRemoveFolder, disabled }: Sel
                     className="size-4 shrink-0 transition-transform group-data-[state=open]/folder:rotate-90 motion-reduce:transition-none"
                   />
                   <Folder aria-hidden="true" className="text-muted-foreground size-4 shrink-0" />
-                  <span className="min-w-0 flex-1 text-sm font-medium [overflow-wrap:anywhere]">
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium" title={folder.name}>
                     {folder.name}
                   </span>
                   <span className="text-muted-foreground shrink-0 text-xs tabular-nums">

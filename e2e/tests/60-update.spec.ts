@@ -163,7 +163,7 @@ test('the progress follows status.json and ends with the success message', async
 
   writeStatus({ id, targetVersion: '0.2.0', state: 'succeeded', step: 'done', finished: true });
   await expect(page.getByText('Aggiornato alla 0.2.0')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole('button', { name: 'Ricarica la pagina' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Ricarica la pagina' })).toHaveCount(0);
   await expect(page.getByTestId('update-progress')).toHaveCount(0);
   await checkA11y(page, 'admin-update-succeeded');
 });

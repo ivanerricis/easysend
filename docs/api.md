@@ -1287,8 +1287,8 @@ Upload limits and options for the transfer form
   chunkSizeBytes: integer (min 1)
   maxChunkSizeBytes: integer (min 1)
   expiryOptions: Array<{
-    key: "3d" | "1w" | "1m"
-    seconds: integer (min 1)
+    key: "3d" | "1w" | "1m" | "never"
+    seconds: integer (min 1) | null
   }>
   limits: {
     maxRecipients: integer
@@ -1577,7 +1577,7 @@ Create a draft transfer
   message?: string (max 2000)
   mode: "link" | "email"
   recipients?: Array<string (email, max 254)> (max 20)
-  expiresIn: "3d" | "1w" | "1m"
+  expiresIn: "3d" | "1w" | "1m" | "never"
   password?: string (min 8, max 128)
   maxDownloads?: integer (min 1, max 100000)
 }
@@ -1594,7 +1594,7 @@ Create a draft transfer
   ownerId: string (min 1, max 64)
   ownerEmail: string (email, max 254)
   createdAt: integer (min 0)
-  expiresAt: integer (min 0)
+  expiresAt: integer (min 0) | null
   totalBytes: integer (min 0)
   fileCount: integer (min 0)
   recipientCount: integer (min 0)
@@ -1661,7 +1661,7 @@ Activate a draft: make the link valid and send the emails
   ownerId: string (min 1, max 64)
   ownerEmail: string (email, max 254)
   createdAt: integer (min 0)
-  expiresAt: integer (min 0)
+  expiresAt: integer (min 0) | null
   totalBytes: integer (min 0)
   fileCount: integer (min 0)
   recipientCount: integer (min 0)
@@ -1741,7 +1741,7 @@ List your transfers
     ownerId: string (min 1, max 64)
     ownerEmail: string (email, max 254)
     createdAt: integer (min 0)
-    expiresAt: integer (min 0)
+    expiresAt: integer (min 0) | null
     totalBytes: integer (min 0)
     fileCount: integer (min 0)
     recipientCount: integer (min 0)
@@ -1789,7 +1789,7 @@ Transfer details with files, recipients and uploads
   ownerId: string (min 1, max 64)
   ownerEmail: string (email, max 254)
   createdAt: integer (min 0)
-  expiresAt: integer (min 0)
+  expiresAt: integer (min 0) | null
   totalBytes: integer (min 0)
   fileCount: integer (min 0)
   recipientCount: integer (min 0)
@@ -1855,7 +1855,7 @@ Edit title, message, expiry, download limit or password
 {
   title?: string (min 1, max 120) | null
   message?: string (max 2000) | null
-  expiresIn?: "3d" | "1w" | "1m"
+  expiresIn?: "3d" | "1w" | "1m" | "never"
   maxDownloads?: integer (min 1, max 100000) | null
   password?: string (min 8, max 128)
   removePassword?: true
@@ -1873,7 +1873,7 @@ Edit title, message, expiry, download limit or password
   ownerId: string (min 1, max 64)
   ownerEmail: string (email, max 254)
   createdAt: integer (min 0)
-  expiresAt: integer (min 0)
+  expiresAt: integer (min 0) | null
   totalBytes: integer (min 0)
   fileCount: integer (min 0)
   recipientCount: integer (min 0)
@@ -1946,7 +1946,7 @@ Revoke the link
   ownerId: string (min 1, max 64)
   ownerEmail: string (email, max 254)
   createdAt: integer (min 0)
-  expiresAt: integer (min 0)
+  expiresAt: integer (min 0) | null
   totalBytes: integer (min 0)
   fileCount: integer (min 0)
   recipientCount: integer (min 0)
@@ -2018,7 +2018,7 @@ Send the notification email again (email mode)
   ownerId: string (min 1, max 64)
   ownerEmail: string (email, max 254)
   createdAt: integer (min 0)
-  expiresAt: integer (min 0)
+  expiresAt: integer (min 0) | null
   totalBytes: integer (min 0)
   fileCount: integer (min 0)
   recipientCount: integer (min 0)
@@ -2203,7 +2203,7 @@ List the transfers of all users
     ownerId: string (min 1, max 64)
     ownerEmail: string (email, max 254)
     createdAt: integer (min 0)
-    expiresAt: integer (min 0)
+    expiresAt: integer (min 0) | null
     totalBytes: integer (min 0)
     fileCount: integer (min 0)
     recipientCount: integer (min 0)
@@ -2445,7 +2445,7 @@ Public information of a transfer
 ```ts
 | {
     locked: true
-    expiresAt: integer (min 0)
+    expiresAt: integer (min 0) | null
   }
 | {
     locked: false
@@ -2459,7 +2459,7 @@ Public information of a transfer
       sizeBytes: integer (min 0)
     }>
     totalBytes: integer (min 0)
-    expiresAt: integer (min 0)
+    expiresAt: integer (min 0) | null
     downloadCount: integer (min 0)
     maxDownloads: integer (min 1, max 100000) | null
   }
@@ -2641,8 +2641,8 @@ List your upload requests
     status: "active" | "revoked" | "expired"
     createdAt: integer (min 0)
     updatedAt: integer (min 0)
-    expiresAt: integer (min 0)
-    expiresIn: "3d" | "1w" | "1m"
+    expiresAt: integer (min 0) | null
+    expiresIn: "3d" | "1w" | "1m" | "never"
     hasPassword: boolean
     maxTotalBytes: integer (min 1) | null
     maxSubmissions: integer (min 1, max 1000) | null
@@ -2674,7 +2674,7 @@ Create an upload request
 {
   title: string (min 1, max 120)
   message?: string (max 2000)
-  expiresIn: "3d" | "1w" | "1m"
+  expiresIn: "3d" | "1w" | "1m" | "never"
   password?: string (min 8, max 128)
   maxTotalBytes?: integer (min 1) | null
   maxSubmissions?: integer (min 1, max 1000) | null
@@ -2692,8 +2692,8 @@ Create an upload request
   status: "active" | "revoked" | "expired"
   createdAt: integer (min 0)
   updatedAt: integer (min 0)
-  expiresAt: integer (min 0)
-  expiresIn: "3d" | "1w" | "1m"
+  expiresAt: integer (min 0) | null
+  expiresIn: "3d" | "1w" | "1m" | "never"
   hasPassword: boolean
   maxTotalBytes: integer (min 1) | null
   maxSubmissions: integer (min 1, max 1000) | null
@@ -2711,7 +2711,7 @@ Create an upload request
     ownerId: string (min 1, max 64)
     ownerEmail: string (email, max 254)
     createdAt: integer (min 0)
-    expiresAt: integer (min 0)
+    expiresAt: integer (min 0) | null
     totalBytes: integer (min 0)
     fileCount: integer (min 0)
     recipientCount: integer (min 0)
@@ -2754,8 +2754,8 @@ Upload request details with the received transfers
   status: "active" | "revoked" | "expired"
   createdAt: integer (min 0)
   updatedAt: integer (min 0)
-  expiresAt: integer (min 0)
-  expiresIn: "3d" | "1w" | "1m"
+  expiresAt: integer (min 0) | null
+  expiresIn: "3d" | "1w" | "1m" | "never"
   hasPassword: boolean
   maxTotalBytes: integer (min 1) | null
   maxSubmissions: integer (min 1, max 1000) | null
@@ -2773,7 +2773,7 @@ Upload request details with the received transfers
     ownerId: string (min 1, max 64)
     ownerEmail: string (email, max 254)
     createdAt: integer (min 0)
-    expiresAt: integer (min 0)
+    expiresAt: integer (min 0) | null
     totalBytes: integer (min 0)
     fileCount: integer (min 0)
     recipientCount: integer (min 0)
@@ -2817,7 +2817,7 @@ Edit title, instructions, expiry, password, limits or required fields
 {
   title?: string (min 1, max 120)
   message?: string (max 2000) | null
-  expiresIn?: "3d" | "1w" | "1m"
+  expiresIn?: "3d" | "1w" | "1m" | "never"
   password?: string (min 8, max 128)
   removePassword?: true
   maxTotalBytes?: integer (min 1) | null
@@ -2836,8 +2836,8 @@ Edit title, instructions, expiry, password, limits or required fields
   status: "active" | "revoked" | "expired"
   createdAt: integer (min 0)
   updatedAt: integer (min 0)
-  expiresAt: integer (min 0)
-  expiresIn: "3d" | "1w" | "1m"
+  expiresAt: integer (min 0) | null
+  expiresIn: "3d" | "1w" | "1m" | "never"
   hasPassword: boolean
   maxTotalBytes: integer (min 1) | null
   maxSubmissions: integer (min 1, max 1000) | null
@@ -2855,7 +2855,7 @@ Edit title, instructions, expiry, password, limits or required fields
     ownerId: string (min 1, max 64)
     ownerEmail: string (email, max 254)
     createdAt: integer (min 0)
-    expiresAt: integer (min 0)
+    expiresAt: integer (min 0) | null
     totalBytes: integer (min 0)
     fileCount: integer (min 0)
     recipientCount: integer (min 0)
@@ -2904,8 +2904,8 @@ Revoke the link
   status: "active" | "revoked" | "expired"
   createdAt: integer (min 0)
   updatedAt: integer (min 0)
-  expiresAt: integer (min 0)
-  expiresIn: "3d" | "1w" | "1m"
+  expiresAt: integer (min 0) | null
+  expiresIn: "3d" | "1w" | "1m" | "never"
   hasPassword: boolean
   maxTotalBytes: integer (min 1) | null
   maxSubmissions: integer (min 1, max 1000) | null
@@ -2923,7 +2923,7 @@ Revoke the link
     ownerId: string (min 1, max 64)
     ownerEmail: string (email, max 254)
     createdAt: integer (min 0)
-    expiresAt: integer (min 0)
+    expiresAt: integer (min 0) | null
     totalBytes: integer (min 0)
     fileCount: integer (min 0)
     recipientCount: integer (min 0)
@@ -2996,7 +2996,7 @@ Public information of an upload request
 ```ts
 | {
     locked: true
-    expiresAt: integer (min 0)
+    expiresAt: integer (min 0) | null
   }
 | {
     locked: false
@@ -3006,7 +3006,7 @@ Public information of an upload request
     requireName: boolean
     requireEmail: boolean
     remainingBytes: integer (min 0) | null
-    expiresAt: integer (min 0)
+    expiresAt: integer (min 0) | null
     chunkSizeBytes: integer (> 0)
     maxFilesPerTransfer: integer (> 0)
   }

@@ -39,7 +39,7 @@
     "title": "Titolo",
     "message": "Istruzioni",
     "messageHint": "Compaiono nella pagina di invio. Spiega cosa vuoi ricevere.",
-    "expiry": "Il link scade dopo",
+    "expiry": "Scadenza del link",
     "expiryFromNow": "Scade tra {{period}}",
     "expiryKeep": "Mantieni la scadenza attuale",
     "expiryHint": "Vale anche per i file ricevuti, dal momento dell'invio. La nuova scadenza si conta da oggi.",

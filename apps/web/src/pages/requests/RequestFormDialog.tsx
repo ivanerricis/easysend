@@ -173,9 +173,10 @@ function RequestForm({
             ...(isEdit ? [{ value: 'keep', label: t('requests.form.expiryKeep') }] : []),
             ...EXPIRY_KEYS.map((period) => ({
               value: period,
-              label: isEdit
-                ? t('requests.form.expiryFromNow', { period: t(`transfers.expiry.${period}`) })
-                : t(`transfers.expiry.${period}`),
+              label:
+                isEdit && period !== 'never'
+                  ? t('requests.form.expiryFromNow', { period: t(`transfers.expiry.${period}`) })
+                  : t(`transfers.expiry.${period}`),
             })),
           ]}
         />

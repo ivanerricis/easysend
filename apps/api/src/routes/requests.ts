@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { Router } from 'express';
 import {
-  EXPIRY_OPTIONS,
+  expiresAtFor,
   type CreateUploadRequest,
   type ListUploadRequestsQuery,
   type UpdateUploadRequest,
@@ -61,7 +61,7 @@ export function requestsRouter(ctx: AppContext): Router {
           maxSubmissions: body.maxSubmissions ?? null,
           requireName: body.requireName ?? false,
           requireEmail: body.requireEmail ?? false,
-          expiresAt: now + EXPIRY_OPTIONS[body.expiresIn],
+          expiresAt: expiresAtFor(now, body.expiresIn),
           expiresIn: body.expiresIn,
           createdAt: now,
           updatedAt: now,
@@ -119,7 +119,7 @@ export function requestsRouter(ctx: AppContext): Router {
       fields.push('requireEmail');
     }
     if (body.expiresIn !== undefined) {
-      changes.expiresAt = now + EXPIRY_OPTIONS[body.expiresIn];
+      changes.expiresAt = expiresAtFor(now, body.expiresIn);
       changes.expiresIn = body.expiresIn;
       fields.push('expiresIn');
     }

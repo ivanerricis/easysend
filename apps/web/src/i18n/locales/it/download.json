@@ -7,6 +7,7 @@
   "availability": "Disponibilità",
   "messageLabel": "Messaggio del mittente",
   "expires": "Disponibile fino al {{date}} ({{relative}})",
+  "expiresNever": "Sempre disponibile",
   "counter": "Download",
   "counterOf": "{{count}} usati su {{max}}",
   "counterOnly": "{{count}} finora",

@@ -1,6 +1,7 @@
 import { and, count, desc, eq, gt, lte, sql, type SQL } from 'drizzle-orm';
 import type { Request, Response } from 'express';
 import {
+  publicExpiresAt,
   type ListUploadRequestsQuery,
   type UploadRequestDetail,
   type UploadRequestEffectiveStatus,
@@ -86,7 +87,7 @@ export function toRequestSummary(
     status: effectiveRequestStatus(row, nowSec),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-    expiresAt: row.expiresAt,
+    expiresAt: publicExpiresAt(row.expiresAt),
     expiresIn: row.expiresIn,
     hasPassword: row.passwordHash !== null,
     maxTotalBytes: row.maxTotalBytes,
