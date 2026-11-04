@@ -18,3 +18,4 @@ paths:
 - Mittente sulla pagina di download: `display_name` (max 80) o il nome dell'istanza; mai l'email.
 - CSP senza `unsafe-inline` per gli stili: `<style>` di sonner e react-remove-scroll disattivati da un plugin Vite (la build fallisce se il codice non si trova) e CSS nel bundle; `style-src` ammette solo l'hash della stringa vuota (input-otp); Zod `jitless` (`lib/zod-jitless.ts`, primo import).
 - Test: `asyncUtilTimeout` di Testing Library a 5 s (rotte lazy sotto carico).
+- Dialog: `AlertDialogContent` largo fino a `sm:max-w-md` e footer di dialog e alert dialog con `sm:flex-wrap`, così due pulsanti lunghi non debordano (prima la conferma di annullamento upload mostrava una scrollbar). La fixture E2E fallisce se una dialog aperta deborda in orizzontale (`DIALOGOVERFLOW`).
