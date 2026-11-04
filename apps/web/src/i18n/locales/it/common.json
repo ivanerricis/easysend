@@ -137,7 +137,6 @@
     "cancel": "Annulla"
   },
   "updateNotice": {
-    "label": "Aggiornamento disponibile",
-    "aria": "Aggiornamento disponibile: {{version}}. Vai alle impostazioni."
+    "label": "Aggiornamento disponibile"
   }
 }

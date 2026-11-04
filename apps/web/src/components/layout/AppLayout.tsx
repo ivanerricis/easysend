@@ -280,12 +280,13 @@ function UpdateNotice() {
     <SidebarMenu>
       <SidebarMenuItem>
         <SidebarMenuButton asChild tooltip={`${text}: ${data.latestVersion}`}>
-          <Link
-            to="/admin/settings/updates"
-            aria-label={t('common.updateNotice.aria', { version: data.latestVersion })}
-          >
+          {/* No aria-label: the name comes from the visible text, so it always contains it (WCAG 2.5.3). */}
+          <Link to="/admin/settings/updates">
             <ArrowUpCircle aria-hidden="true" />
-            <span className="min-w-0 flex-1 truncate">{text}</span>
+            <span className="min-w-0 flex-1 truncate">
+              {text}
+              <span className="sr-only">: </span>
+            </span>
             <Badge variant="secondary" className="font-mono group-data-[collapsible=icon]:hidden">
               {data.latestVersion}
             </Badge>

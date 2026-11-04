@@ -265,7 +265,7 @@
   "actions": {
     "menu": "Azioni per {{title}}",
     "linkCopied": "Link copiato",
-    "copyLinkOf": "Copia il link di {{title}}",
+    "copyLinkOf": "{{label}}: copia il link di {{title}}",
     "open": "Apri i dettagli"
   }
 }

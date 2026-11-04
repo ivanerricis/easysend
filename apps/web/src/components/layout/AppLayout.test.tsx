@@ -22,7 +22,7 @@ describe('update notice in the sidebar', () => {
       session: makeAdmin(),
       routes: { 'GET /api/admin/updates': status() },
     });
-    const link = await screen.findByRole('link', { name: /Update available: 0\.2\.0/ });
+    const link = await screen.findByRole('link', { name: /^Update available:\s*0\.2\.0$/ });
     expect(link).toHaveAttribute('href', '/admin/settings/updates');
     expect(api.callsTo('GET /api/admin/updates')).toHaveLength(1);
     expect(api.callsTo('GET /api/admin/updates')[0]?.query.has('refresh')).toBe(false);

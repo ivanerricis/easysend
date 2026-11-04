@@ -42,7 +42,7 @@ describe('TransfersPage', () => {
       const writeText = mockClipboard();
       await openList();
       const [button] = await screen.findAllByRole('button', {
-        name: 'Copy the link of Holiday photos',
+        name: /^[^:]+: copy the link of Holiday photos$/,
       });
       expect(button).toHaveTextContent('Link');
       fireEvent.click(button!);
@@ -55,7 +55,7 @@ describe('TransfersPage', () => {
       document.execCommand = vi.fn().mockReturnValue(false);
       await openList();
       const [button] = await screen.findAllByRole('button', {
-        name: 'Copy the link of Holiday photos',
+        name: /^[^:]+: copy the link of Holiday photos$/,
       });
       fireEvent.click(button!);
       await waitFor(() => expect(toasts.notifyError).toHaveBeenCalled());
@@ -65,13 +65,13 @@ describe('TransfersPage', () => {
     it('is plain text without a share link', async () => {
       await openList('/transfers', list([makeTransferSummary({ shareUrl: null })]));
       await screen.findAllByRole('link', { name: 'Holiday photos' });
-      expect(screen.queryByRole('button', { name: /Copy the link of/ })).toBeNull();
+      expect(screen.queryByRole('button', { name: /copy the link of/ })).toBeNull();
     });
 
     it('is plain text when the transfer is no longer active', async () => {
       await openList('/transfers', list([makeTransferSummary({ status: 'revoked' })]));
       await screen.findAllByRole('link', { name: 'Holiday photos' });
-      expect(screen.queryByRole('button', { name: /Copy the link of/ })).toBeNull();
+      expect(screen.queryByRole('button', { name: /copy the link of/ })).toBeNull();
     });
   });
 
