@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.0](https://github.com/ivanerricis/easysend/compare/v0.4.0...v0.5.0) (2026-11-04)
+
+
+### Features
+
+* allow transfers and upload requests without expiry ([#62](https://github.com/ivanerricis/easysend/issues/62)) ([72b0eca](https://github.com/ivanerricis/easysend/commit/72b0eca5ced714f20276f984e24080c66cb92d4e))
+
+
+### Bug Fixes
+
+* **web:** align the public pages on one column and quiet the UI chrome ([#27](https://github.com/ivanerricis/easysend/issues/27)) ([f9291f8](https://github.com/ivanerricis/easysend/commit/f9291f889d5f84450e77685a67e64e326b54f54c))
+
 ## [0.4.0](https://github.com/ivanerricis/easysend/compare/v0.3.0...v0.4.0) (2026-11-04)
 
 
