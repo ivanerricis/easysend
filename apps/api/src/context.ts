@@ -4,7 +4,7 @@ import { createAuthLimiters, type AuthLimiters } from './auth/limiters.js';
 import { createSessionService, type SessionService } from './auth/session.js';
 import { systemClock, type Clock } from './clock.js';
 import { deriveKeys, type DerivedKeys } from './crypto/keys.js';
-import type { StorageDriverKind } from '@easysend/shared';
+import type { S3Config, StorageDriverKind } from '@easysend/shared';
 import type { Db, DbHandle } from './db/client.js';
 import { createClientIpResolver, ipHash, type ClientIpResolver } from './http/client-ip.js';
 import { createCsrf, type CsrfService } from './http/csrf.js';
@@ -15,6 +15,7 @@ import { createSettingsRepo, type SettingsRepo } from './settings/repo.js';
 import { createSmtpVerification, type SmtpVerification } from './settings/smtp-verification.js';
 import { statfsDiskSpace, type DiskSpace } from './storage/disk.js';
 import { createStorageRegistry, type StorageRegistry } from './storage/registry.js';
+import { createS3Driver, probeS3 } from './storage/s3/driver.js';
 import type { StorageDriver } from './storage/types.js';
 import { createSetupCodeService, type SetupCodeService } from './setup/code.js';
 import { createSetupLimiters, type SetupLimiters } from './setup/limiters.js';
@@ -43,6 +44,14 @@ export interface AppDeps {
   storageDrivers?: Partial<Record<StorageDriverKind, StorageDriver>>;
   /** `fetch` used for the Cloudflare API. Default: `globalThis.fetch`. Tests inject a fake. */
   cloudflareFetch?: typeof fetch;
+  /** `fetch` used for the S3 storage API. Default: `globalThis.fetch`. Tests inject a fake S3 server. */
+  storageFetch?: typeof fetch;
+  /** S3 multipart part size in bytes. Default `S3_PART_SIZE_BYTES`; tests use small parts. */
+  storagePartSizeBytes?: number;
+  /** Base of the S3 retry backoff in ms. Default 250; tests pass 0. */
+  storageRetryDelayMs?: number;
+  /** S3 connection test. Default `probeS3` on `storageFetch`; tests can replace it. */
+  storageProbe?: (config: S3Config) => Promise<void>;
   /** `fetch` used for the GitHub release check. Default: `globalThis.fetch`. Tests inject a fake. */
   updateFetch?: typeof fetch;
 }
@@ -63,6 +72,11 @@ export interface AppContext {
   smtpVerification: SmtpVerification;
   /** `fetch` for the Cloudflare API (injectable for tests). */
   cloudflareFetch: typeof fetch;
+  /**
+   * Connection test of an S3 configuration (write, ranged read, delete, list). Throws
+   * `STORAGE_UNAVAILABLE` with a safe `details.reason`.
+   */
+  storageProbe: (config: S3Config) => Promise<void>;
   /** Latest-release check behind the admin update notice (cached, on demand only). */
   updates: UpdateService;
   sessions: SessionService;
@@ -97,6 +111,7 @@ export function createContext(deps: AppDeps): AppContext {
   const clientIp = createClientIpResolver(config);
   const settings = createSettingsRepo({ db, keys, clock });
   const diskSpace = deps.diskSpace ?? statfsDiskSpace;
+  const storageFetch = deps.storageFetch ?? globalThis.fetch;
   const publicUrl = (): string | undefined =>
     config.publicUrlEnv ?? settings.get('public_url') ?? config.publicUrl;
   const mailer =
@@ -141,11 +156,25 @@ export function createContext(deps: AppDeps): AppContext {
       logger,
     }),
     diskSpace,
+    storageProbe:
+      deps.storageProbe ?? ((cfg: S3Config) => probeS3(cfg, { fetch: storageFetch, logger })),
     storage: createStorageRegistry({
       config,
       settings,
       logger,
       diskSpace,
+      s3Factory: (cfg) =>
+        createS3Driver(cfg, {
+          fetch: storageFetch,
+          logger,
+          now: () => clock(),
+          ...(deps.storagePartSizeBytes === undefined
+            ? {}
+            : { partSize: deps.storagePartSizeBytes }),
+          ...(deps.storageRetryDelayMs === undefined
+            ? {}
+            : { retryDelayMs: deps.storageRetryDelayMs }),
+        }),
       ...(deps.storageDrivers ? { overrides: deps.storageDrivers } : {}),
     }),
     publicUrl,
