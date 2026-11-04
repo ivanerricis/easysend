@@ -113,6 +113,7 @@ describe('setup wizard: happy path (local mode)', () => {
       chunkSizeMb: 25,
       defaultLocale: 'en',
       updateCheck: true,
+      maxFilesPerTransfer: 1000,
     });
 
     status = bodyAs(await client.get('/api/setup/status'));

@@ -127,4 +127,18 @@ describe('GET /api/config', () => {
     const res = await loginAs(t, await t.createUser()).get('/api/config');
     expect(res.body.chunkSizeBytes).toBe(10 * 1024 * 1024);
   });
+
+  it('returns the files-per-transfer limit: the default, then the general setting', async () => {
+    const t = await createTestApp();
+    const client = loginAs(t, await t.createUser());
+    type Cfg = { limits: { maxFilesPerTransfer: number } };
+    expect(bodyAs<Cfg>(await client.get('/api/config')).limits.maxFilesPerTransfer).toBe(1000);
+    t.ctx.settings.set('general', {
+      diskReserveMb: 0,
+      chunkSizeMb: 10,
+      defaultLocale: 'it',
+      maxFilesPerTransfer: 2500,
+    });
+    expect(bodyAs<Cfg>(await client.get('/api/config')).limits.maxFilesPerTransfer).toBe(2500);
+  });
 });
