@@ -72,6 +72,7 @@ describe('TransferRunner', () => {
             {
               id: 'u1',
               fileName: 'a',
+              path: '',
               totalSize: 1,
               status: 'processing',
               expiresAt: 4_100_000_000,

@@ -14,7 +14,6 @@ import {
   type Response,
 } from 'express';
 import {
-  MAX_FILES_PER_TRANSFER,
   tusUploadMetadataSchema,
   tusUploadParamsSchema,
   type ErrorCode,
@@ -36,7 +35,8 @@ import {
 } from '../requests/service.js';
 import { createByteCounter } from '../storage/byte-counter.js';
 import { uploadFits } from '../storage/disk.js';
-import { sanitizeFileName } from '../storage/filenames.js';
+import { maxFilesPerTransfer } from './limits.js';
+import { sanitizeFileName, sanitizeRelativeDir } from '../storage/filenames.js';
 
 type TusRequest = Parameters<NonNullable<ServerOptions['onIncomingRequest']>>[0];
 type ResponseMapping = { status_code: number; body: string };
@@ -286,9 +286,10 @@ export function uploadsRouter(ctx: AppContext): Router {
           ),
         )
         .get()!.n;
-      if (files + pending >= MAX_FILES_PER_TRANSFER) {
+      const maxFiles = maxFilesPerTransfer(ctx);
+      if (files + pending >= maxFiles) {
         throw new AppError('VALIDATION_ERROR', 'Too many files in this transfer', {
-          limit: MAX_FILES_PER_TRANSFER,
+          limit: maxFiles,
         });
       }
 
@@ -353,6 +354,7 @@ export function uploadsRouter(ctx: AppContext): Router {
           ownerId: userId,
           transferId: metadata.transferId,
           fileName: sanitizeFileName(metadata.filename),
+          path: sanitizeRelativeDir(metadata.relativePath ?? ''),
           totalSize: size,
           status: 'in_progress',
           createdAt: now,

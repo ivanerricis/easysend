@@ -6,6 +6,7 @@ import {
   ALLOWED_IMAGE_TYPES,
   BRANDING_MAX_BYTES,
   DEFAULT_APPEARANCE,
+  MAX_FILES_PER_TRANSFER_DEFAULT,
   type AdminSettingsResponse,
   type AllowedImageType,
   type Appearance,
@@ -47,6 +48,7 @@ export function settingsRouter(ctx: AppContext): Router {
     chunkSizeMb: ctx.config.defaultChunkSizeMb,
     defaultLocale: settings.getDefaultLocale(),
     updateCheck: true,
+    maxFilesPerTransfer: MAX_FILES_PER_TRANSFER_DEFAULT,
     ...settings.get('general'),
   });
 

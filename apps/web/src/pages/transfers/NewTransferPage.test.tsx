@@ -193,6 +193,7 @@ describe('NewTransferPage upload flow', () => {
                 {
                   id: 'u1',
                   fileName: 'photo.jpg',
+                  path: '',
                   totalSize: 11,
                   status: 'processing',
                   expiresAt: 4_100_000_000,
@@ -247,6 +248,7 @@ describe('NewTransferPage interrupted upload', () => {
       {
         id: 'f1',
         name: 'done.txt',
+        path: '',
         sizeBytes: 4,
         mimeType: null,
         sha256: 'b'.repeat(64),

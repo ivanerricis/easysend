@@ -1,7 +1,6 @@
 import {
   EMAIL_MAX_LENGTH,
   FILENAME_MAX_LENGTH,
-  MAX_FILES_PER_TRANSFER,
   MESSAGE_MAX_LENGTH,
   SENDER_NAME_MAX_LENGTH,
   emailSchema,
@@ -189,7 +188,7 @@ export function SubmitView({ token, info }: SubmitViewProps) {
     for (const file of incoming) {
       if (known.has(FILE_KEY(file))) duplicates += 1;
       else if (file.name.length > FILENAME_MAX_LENGTH) tooLong += 1;
-      else if (files.length + accepted.length >= MAX_FILES_PER_TRANSFER) tooMany += 1;
+      else if (files.length + accepted.length >= info.maxFilesPerTransfer) tooMany += 1;
       else {
         known.add(FILE_KEY(file));
         accepted.push(file);
@@ -198,7 +197,7 @@ export function SubmitView({ token, info }: SubmitViewProps) {
     if (accepted.length > 0) setFiles([...files, ...accepted]);
     setFilesError(
       tooMany > 0
-        ? t('submit.form.errors.tooManyFiles', { max: MAX_FILES_PER_TRANSFER, count: tooMany })
+        ? t('submit.form.errors.tooManyFiles', { max: info.maxFilesPerTransfer, count: tooMany })
         : tooLong > 0
           ? t('submit.form.errors.nameTooLong', { max: FILENAME_MAX_LENGTH, count: tooLong })
           : null,
@@ -376,7 +375,7 @@ export function SubmitView({ token, info }: SubmitViewProps) {
                 describedBy="submit-files-limits"
               />
               <p id="submit-files-limits" className="text-muted-foreground text-xs">
-                {t('submit.form.limits', { max: MAX_FILES_PER_TRANSFER })}
+                {t('submit.form.limits', { max: info.maxFilesPerTransfer })}
                 {remaining !== null
                   ? ` ${t('submit.form.spaceLeft', { size: formatBytes(remaining, locale) })}`
                   : ''}
