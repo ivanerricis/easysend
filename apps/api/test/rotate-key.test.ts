@@ -6,13 +6,28 @@ import { describe, expect, it } from 'vitest';
 import { RotateKeyError, runRotateKey } from '../src/cli/rotate-key.js';
 import { decryptSecret, encryptSecret } from '../src/crypto/aead.js';
 import { deriveKey } from '../src/crypto/keys.js';
-import { createDecryptStream, encryptFile } from '../src/crypto/segments.js';
+import { createDecryptStream } from '../src/crypto/segments.js';
 import { openDatabase } from '../src/db/client.js';
 import { resolveMigrationsFolder, runMigrations } from '../src/db/migrate.js';
 import { auditLog, settings, transferFiles, transfers, users } from '../src/db/schema/index.js';
 import { parseKey } from '../src/secrets.js';
 import { createSettingsRepo } from '../src/settings/repo.js';
 import { makeTempDir, silentLogger } from './helpers.js';
+import { encryptContentToDriver, localDriverAt } from './storage-helpers.js';
+
+const STORAGE = {
+  driver: 's3',
+  source: 'panel',
+  s3: {
+    endpoint: 'https://s3.example.com',
+    region: 'auto',
+    bucket: 'easysend',
+    prefix: 'files',
+    forcePathStyle: true,
+    accessKeyId: 'AKIAEXAMPLE',
+    secretAccessKey: 'super-secret-access-key',
+  },
+} as const;
 
 const PLAINTEXT = 'secret file content for rotation';
 const PENDING_ADMIN = {
@@ -77,10 +92,15 @@ async function fixture(
       .get();
     const oldRepo = createSettingsRepo({
       db: handle.db,
-      keys: { smtp: deriveKey(oldKey, 'smtp'), totp: deriveKey(oldKey, 'totp') },
+      keys: {
+        smtp: deriveKey(oldKey, 'smtp'),
+        totp: deriveKey(oldKey, 'totp'),
+        storage: deriveKey(oldKey, 'storage'),
+      },
       clock: () => Date.now(),
     });
     oldRepo.set('smtp', { ...SMTP });
+    oldRepo.set('storage', STORAGE);
     oldRepo.set('setup_admin_pending', PENDING_ADMIN);
 
     const transfer = handle.db
@@ -88,16 +108,14 @@ async function fixture(
       .values({ ownerId: user.id, token: 't', mode: 'link', expiresAt: 9_999_999_999 })
       .returning({ id: transfers.id })
       .get();
-    const src = path.join(dir, 'plain');
-    writeFileSync(src, PLAINTEXT);
     const storageName = randomUUID();
     const storagePath = path.join(dir, storageName);
-    const enc = await encryptFile({
-      srcPath: src,
-      dstPath: storagePath,
-      size: PLAINTEXT.length,
-      fileKey: deriveKey(oldKey, 'file'),
-    });
+    const enc = await encryptContentToDriver(
+      localDriverAt(dir),
+      PLAINTEXT,
+      deriveKey(oldKey, 'file'),
+      storageName,
+    );
     const file = handle.db
       .insert(transferFiles)
       .values({
@@ -130,7 +148,9 @@ async function readBack(f: Fixture, newKey: Buffer) {
     const file = handle.db.select().from(transferFiles).get()!;
     const chunks: Buffer[] = [];
     for await (const chunk of createDecryptStream({
-      path: f.storagePath,
+      reader: await localDriverAt(path.dirname(f.storagePath)).openReader(
+        path.basename(f.storagePath),
+      ),
       size: PLAINTEXT.length,
       noncePrefix: file.encNoncePrefix,
       wrappedKey: file.encKeyWrapped,
@@ -140,10 +160,15 @@ async function readBack(f: Fixture, newKey: Buffer) {
     }
     const repo = createSettingsRepo({
       db: handle.db,
-      keys: { smtp: deriveKey(newKey, 'smtp'), totp: deriveKey(newKey, 'totp') },
+      keys: {
+        smtp: deriveKey(newKey, 'smtp'),
+        totp: deriveKey(newKey, 'totp'),
+        storage: deriveKey(newKey, 'storage'),
+      },
       clock: () => Date.now(),
     });
     return {
+      storage: repo.get('storage'),
       plaintext: Buffer.concat(chunks).toString(),
       totp: decryptSecret(deriveKey(newKey, 'totp'), 'totp', user.totpSecretEnc!),
       smtp: repo.get('smtp'),
@@ -169,7 +194,7 @@ describe('rotate-key CLI', () => {
 
     expect(result?.files).toEqual({ rotated: 1, alreadyRotated: 0 });
     expect(result?.totpSecrets).toEqual({ rotated: 1, alreadyRotated: 0 });
-    expect(result?.settings).toEqual({ rotated: 2, alreadyRotated: 0 });
+    expect(result?.settings).toEqual({ rotated: 3, alreadyRotated: 0 });
 
     const secrets = path.join(f.dir, 'secrets');
     const newKey = keyIn(path.join(secrets, 'app.key'));
@@ -182,7 +207,19 @@ describe('rotate-key CLI', () => {
     expect(back.totp).toBe('JBSWY3DPEHPK3PXP');
     expect(back.smtp?.password).toBe(SMTP.password);
     expect(back.pendingAdmin).toEqual(PENDING_ADMIN);
+    expect(back.storage).toEqual(STORAGE);
     expect(back.audits).toHaveLength(1);
+
+    // The stored value is ciphertext: neither the secret nor the endpoint appear in the row.
+    const raw = openDatabase(f.dbPath);
+    try {
+      const row = raw.db.select().from(settings).where(eq(settings.key, 'storage')).get()!;
+      expect(row.isEncrypted).toBe(true);
+      expect(JSON.stringify(row.value)).not.toContain('super-secret-access-key');
+      expect(JSON.stringify(row.value)).not.toContain('s3.example.com');
+    } finally {
+      raw.sqlite.close();
+    }
 
     expect(result?.backupPath && existsSync(result.backupPath)).toBe(true);
     expect(
@@ -208,7 +245,7 @@ describe('rotate-key CLI', () => {
     });
     expect(again?.files).toEqual({ rotated: 0, alreadyRotated: 1 });
     expect(again?.totpSecrets).toEqual({ rotated: 0, alreadyRotated: 1 });
-    expect(again?.settings).toEqual({ rotated: 0, alreadyRotated: 2 });
+    expect(again?.settings).toEqual({ rotated: 0, alreadyRotated: 3 });
     expect((await readBack(f, newKey)).plaintext).toBe(PLAINTEXT);
   });
 

@@ -23,7 +23,8 @@ import { endpointGuards } from '../http/endpoint-guards.js';
 import { AppError } from '../http/errors.js';
 import { assertNotLimited } from '../http/rate-limit.js';
 import { sendJson, validBody, validParams, validQuery } from '../http/validate.js';
-import { reserveBytes } from '../storage/disk.js';
+import { reserveBytes, spaceProbeDir } from '../storage/disk.js';
+import { storageUsageByDriver } from '../storage/usage.js';
 import {
   deleteTransfer,
   deleteTransferFile,
@@ -299,7 +300,7 @@ export function transfersRouter(ctx: AppContext): Router {
   // ---- Admin storage ---------------------------------------------------------------------
 
   router.get('/admin/storage', ...guards('admin.storage'), async (_req, res) => {
-    const disk = await ctx.diskSpace(ctx.config.storageDir);
+    const disk = await ctx.diskSpace(spaceProbeDir(ctx));
     const reserve = reserveBytes(ctx);
     const now = nowSeconds(ctx.clock);
     const totals = db
@@ -332,6 +333,8 @@ export function transfersRouter(ctx: AppContext): Router {
         usableBytes: Math.max(0, disk.freeBytes - reserve),
       },
       dataLocation: { hostPath: ctx.config.dataHostPath ?? null },
+      driver: ctx.storage.currentKind(),
+      usageByDriver: storageUsageByDriver(db),
       storedBytes: totals.stored,
       activeTransfers: active,
       totalFiles: totals.files,

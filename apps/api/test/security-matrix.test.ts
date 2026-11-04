@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { endpoints, SAFE_METHODS, type EndpointDef } from '@easysend/shared/contract';
+import { endpoints as registry, SAFE_METHODS, type EndpointDef } from '@easysend/shared/contract';
 import { csrfClient } from './auth-flow.js';
 import {
   createTestApp,
@@ -10,6 +10,24 @@ import {
   type TestResponse,
 } from './helpers.js';
 import { loginAs } from './session-helpers.js';
+
+/**
+ * Phase 9 (S3 storage) endpoints that are in the contract but have no route yet (they arrive with
+ * the storage configuration work package). Remove each id from this list when its route is
+ * mounted and add it to the covered lists below.
+ */
+const PENDING_PHASE_9: ReadonlySet<string> = new Set([
+  'settings.storage',
+  'settings.storageTest',
+  'settings.storageUpdate',
+  'setup.storage',
+  'setup.storageTest',
+  'setup.storageSave',
+  'storage.migration',
+  'storage.migrationStart',
+  'storage.migrationCancel',
+]);
+const endpoints = registry.filter((e) => !PENDING_PHASE_9.has(e.id));
 
 /**
  * Cross-cutting authorization and CSRF matrix, driven by the shared endpoint registry.

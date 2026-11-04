@@ -1,20 +1,24 @@
-import { createHash, randomBytes } from 'node:crypto';
-import { readFile, stat, writeFile } from 'node:fs/promises';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { Readable } from 'node:stream';
 import { describe, expect, it } from 'vitest';
 import { DecryptError } from '../src/crypto/aead.js';
 import {
   createDecryptStream,
-  encryptFile,
+  encryptToDriver,
   SEGMENT_SIZE,
   SegmentDecryptError,
   SourceSizeError,
   storedSizeOf,
   unwrapDataKey,
   wrapDataKey,
-  type EncryptFileResult,
+  type EncryptResult,
 } from '../src/crypto/segments.js';
+import type { StorageDriver } from '../src/storage/types.js';
+import { createFakeStorage } from './fake-storage.js';
 import { makeTempDir } from './helpers.js';
+import { encryptContentToDriver, localDriverAt } from './storage-helpers.js';
 
 const S = SEGMENT_SIZE;
 const RECORD = S + 16;
@@ -23,17 +27,18 @@ const FILE_KEY = Buffer.alloc(32, 0x42);
 interface Fixture {
   dir: string;
   plain: Buffer;
+  /** Path of the stored file inside the local driver's directory. */
   enc: string;
-  result: EncryptFileResult;
+  name: string;
+  driver: StorageDriver;
+  result: EncryptResult;
 }
 
 async function encryptBuffer(plain: Buffer, fileKey: Buffer = FILE_KEY): Promise<Fixture> {
   const dir = makeTempDir();
-  const src = path.join(dir, 'plain.bin');
-  const enc = path.join(dir, 'file.enc');
-  await writeFile(src, plain);
-  const result = await encryptFile({ srcPath: src, dstPath: enc, size: plain.length, fileKey });
-  return { dir, plain, enc, result };
+  const driver = localDriverAt(dir);
+  const result = await encryptContentToDriver(driver, plain, fileKey);
+  return { dir, plain, enc: path.join(dir, result.name), name: result.name, driver, result };
 }
 
 async function decryptWith(
@@ -41,7 +46,7 @@ async function decryptWith(
   options: { start?: number; end?: number; noncePrefix?: string; fileKey?: Buffer } = {},
 ): Promise<Buffer> {
   const stream = createDecryptStream({
-    path: fx.enc,
+    reader: await fx.driver.openReader(fx.name),
     size: fx.plain.length,
     wrappedKey: fx.result.wrappedKey,
     fileKey: options.fileKey ?? FILE_KEY,
@@ -128,9 +133,10 @@ describe('segmented encryption', () => {
 
   it('rejects invalid ranges', async () => {
     const fx = await encryptBuffer(randomBytes(100));
+    const reader = await fx.driver.openReader(fx.name);
     const open = (start: number, end: number) => () =>
       createDecryptStream({
-        path: fx.enc,
+        reader,
         size: 100,
         wrappedKey: fx.result.wrappedKey,
         fileKey: FILE_KEY,
@@ -217,7 +223,7 @@ describe('segmented encryption', () => {
   it('fails with a wrong data key', async () => {
     const fx = await encryptBuffer(randomBytes(S + 1));
     const stream = createDecryptStream({
-      path: fx.enc,
+      reader: await fx.driver.openReader(fx.name),
       size: fx.plain.length,
       dataKey: randomBytes(32),
       noncePrefix: fx.result.noncePrefix,
@@ -244,25 +250,80 @@ describe('segmented encryption', () => {
 
   it('refuses a source whose size differs from the declared one and leaves no output', async () => {
     const dir = makeTempDir();
-    const src = path.join(dir, 'plain.bin');
-    await writeFile(src, randomBytes(S + 10));
+    const driver = localDriverAt(dir);
+    const content = randomBytes(S + 10);
     for (const declared of [S + 9, S + 11]) {
-      const dst = path.join(dir, `out-${declared}.enc`);
       await expect(
-        encryptFile({ srcPath: src, dstPath: dst, size: declared, fileKey: FILE_KEY }),
+        encryptToDriver({
+          source: Readable.from([content]),
+          driver,
+          name: randomUUID(),
+          size: declared,
+          fileKey: FILE_KEY,
+        }),
       ).rejects.toBeInstanceOf(SourceSizeError);
-      await expect(stat(dst)).rejects.toMatchObject({ code: 'ENOENT' });
+      expect(await readdir(dir)).toEqual([]);
     }
   });
 
-  it('refuses to overwrite an existing destination', async () => {
+  it('refuses to overwrite an existing object', async () => {
     const dir = makeTempDir();
-    const src = path.join(dir, 'plain.bin');
-    const dst = path.join(dir, 'out.enc');
-    await writeFile(src, randomBytes(10));
-    await writeFile(dst, 'keep me');
+    const driver = localDriverAt(dir);
+    const name = randomUUID();
+    await writeFile(path.join(dir, name), 'keep me');
     await expect(
-      encryptFile({ srcPath: src, dstPath: dst, size: 10, fileKey: FILE_KEY }),
-    ).rejects.toMatchObject({ code: 'EEXIST' });
+      encryptContentToDriver(driver, randomBytes(10), FILE_KEY, name),
+    ).rejects.toMatchObject({
+      code: 'EEXIST',
+    });
+    expect((await readFile(path.join(dir, name))).toString()).toBe('keep me');
+  });
+
+  it('round-trips through an in-memory driver, with a range', async () => {
+    const fake = createFakeStorage();
+    const plain = randomBytes(S * 3 + 17);
+    const stored = await encryptContentToDriver(fake, plain, FILE_KEY);
+    expect(fake.bytesOf(stored.name)?.length).toBe(storedSizeOf(plain.length));
+    const stream = createDecryptStream({
+      reader: await fake.openReader(stored.name),
+      size: plain.length,
+      wrappedKey: stored.wrappedKey,
+      fileKey: FILE_KEY,
+      noncePrefix: stored.noncePrefix,
+      start: S + 5,
+      end: S * 2 + 9,
+    });
+    expect(Buffer.concat(await stream.toArray()).equals(plain.subarray(S + 5, S * 2 + 10))).toBe(
+      true,
+    );
+  });
+
+  it('closes the reader when the stream is destroyed before the first read', async () => {
+    let closed = 0;
+    const stream = createDecryptStream({
+      reader: {
+        size: storedSizeOf(10),
+        read: () => Promise.resolve(Buffer.alloc(0)),
+        close: () => {
+          closed += 1;
+          return Promise.resolve();
+        },
+      },
+      size: 10,
+      dataKey: randomBytes(32),
+      noncePrefix: randomBytes(7).toString('base64url'),
+    });
+    stream.destroy();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(closed).toBeGreaterThan(0);
+  });
+
+  it('closes the reader and leaves nothing stored when the put fails', async () => {
+    const fake = createFakeStorage();
+    fake.failPut = true;
+    await expect(encryptContentToDriver(fake, randomBytes(100), FILE_KEY)).rejects.toMatchObject({
+      code: 'STORAGE_UNAVAILABLE',
+    });
+    expect(fake.objects.size).toBe(0);
   });
 });

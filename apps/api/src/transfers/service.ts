@@ -21,7 +21,8 @@ import {
   users,
 } from '../db/schema/index.js';
 import { AppError } from '../http/errors.js';
-import { isStorageName, storagePath, tusPathList } from '../storage/paths.js';
+import { deleteStoredObjects } from '../storage/deletions.js';
+import { tusPathList } from '../storage/paths.js';
 import { removeFileQuietly } from '../storage/remove.js';
 import { TRANSFER_POLICY } from './policy.js';
 
@@ -32,7 +33,7 @@ export interface Actor {
   user: { id: string; role: UserRole };
 }
 
-type ServiceContext = Pick<AppContext, 'db' | 'config' | 'logger' | 'clock'>;
+type ServiceContext = Pick<AppContext, 'db' | 'config' | 'logger' | 'clock' | 'storage'>;
 
 /** A new unguessable link token (32 random bytes, base64url). */
 export const generateTransferToken = (): string => randomToken(TRANSFER_POLICY.tokenBytes);
@@ -232,7 +233,11 @@ export async function deleteTransfer(
     const row = tx.select().from(transfers).where(eq(transfers.id, transferId)).get();
     if (!row) return null;
     const files = tx
-      .select({ storageName: transferFiles.storageName, sizeBytes: transferFiles.sizeBytes })
+      .select({
+        storageName: transferFiles.storageName,
+        storage: transferFiles.storage,
+        sizeBytes: transferFiles.sizeBytes,
+      })
       .from(transferFiles)
       .where(eq(transferFiles.transferId, transferId))
       .all();
@@ -265,25 +270,23 @@ export async function deleteTransfer(
     return {
       ownerId: row.ownerId,
       freedBytes,
-      storageNames: files.map((f) => f.storageName),
+      stored: files.map((f) => ({ storage: f.storage, name: f.storageName })),
       uploadIds,
     };
   });
   if (!outcome) return null;
 
-  let unlinkFailures = 0;
-  const targets = [
-    ...outcome.storageNames.filter(isStorageName).map((name) => storagePath(ctx.config, name)),
-    ...outcome.uploadIds.flatMap((id) => tusPathList(ctx.config, id)),
-  ];
-  for (const target of targets) {
+  // Stored (encrypted) files go through their driver, failures into the retry queue; the tus
+  // temporary files are always on the local disk.
+  let unlinkFailures = await deleteStoredObjects(ctx, outcome.stored);
+  for (const target of outcome.uploadIds.flatMap((id) => tusPathList(ctx.config, id))) {
     if (!(await removeFileQuietly(target, ctx.logger))) unlinkFailures += 1;
   }
   ctx.logger.info(
     {
       transferId,
       reason: context.reason,
-      files: outcome.storageNames.length,
+      files: outcome.stored.length,
       freedBytes: outcome.freedBytes,
       unlinkFailures,
     },
@@ -291,7 +294,7 @@ export async function deleteTransfer(
   );
   return {
     ownerId: outcome.ownerId,
-    fileCount: outcome.storageNames.length,
+    fileCount: outcome.stored.length,
     freedBytes: outcome.freedBytes,
     unlinkFailures,
   };
@@ -340,10 +343,10 @@ export async function deleteTransferFile(
         now: nowSeconds(ctx.clock),
       });
     }
-    return file.storageName;
+    return { storage: file.storage, name: file.storageName };
   });
   if (outcome === null) return false;
-  if (isStorageName(outcome)) await removeFileQuietly(storagePath(ctx.config, outcome), ctx.logger);
+  await deleteStoredObjects(ctx, [outcome]);
   return true;
 }
 

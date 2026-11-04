@@ -4,6 +4,7 @@ import { createAppWithContext } from './app.js';
 import { ConfigError, loadConfig } from './config.js';
 import { openDatabase } from './db/client.js';
 import { resolveMigrationsFolder, runMigrations } from './db/migrate.js';
+import { importStorageEnv } from './storage/env.js';
 import { scheduleCleanup } from './jobs/cleanup.js';
 import { createLogger } from './logger.js';
 import { resolveSecrets } from './secrets.js';
@@ -35,6 +36,8 @@ async function main(): Promise<void> {
   });
 
   const { app, ctx } = createAppWithContext({ config, db, logger, secrets });
+  // First start only: seeds the file storage setting from the environment (then the DB wins).
+  importStorageEnv({ config, settings: ctx.settings, logger });
   if (!ctx.settings.isSetupCompleted()) {
     // Required by the spec (also in local mode): the code proves the visitor can read the logs.
     logger.warn(

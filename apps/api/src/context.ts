@@ -4,6 +4,7 @@ import { createAuthLimiters, type AuthLimiters } from './auth/limiters.js';
 import { createSessionService, type SessionService } from './auth/session.js';
 import { systemClock, type Clock } from './clock.js';
 import { deriveKeys, type DerivedKeys } from './crypto/keys.js';
+import type { StorageDriverKind } from '@easysend/shared';
 import type { Db, DbHandle } from './db/client.js';
 import { createClientIpResolver, ipHash, type ClientIpResolver } from './http/client-ip.js';
 import { createCsrf, type CsrfService } from './http/csrf.js';
@@ -13,6 +14,8 @@ import type { Secrets } from './secrets.js';
 import { createSettingsRepo, type SettingsRepo } from './settings/repo.js';
 import { createSmtpVerification, type SmtpVerification } from './settings/smtp-verification.js';
 import { statfsDiskSpace, type DiskSpace } from './storage/disk.js';
+import { createStorageRegistry, type StorageRegistry } from './storage/registry.js';
+import type { StorageDriver } from './storage/types.js';
 import { createSetupCodeService, type SetupCodeService } from './setup/code.js';
 import { createSetupLimiters, type SetupLimiters } from './setup/limiters.js';
 import { createUpdateLimiters, type UpdateLimiters } from './updates/policy.js';
@@ -36,6 +39,8 @@ export interface AppDeps {
   mailTransport?: MailTransport;
   /** Free-space probe of the storage disk. Default: `fs.statfs`. Tests fake a full disk with it. */
   diskSpace?: DiskSpace;
+  /** Ready-made storage drivers that win over the built ones (tests inject an in-memory fake). */
+  storageDrivers?: Partial<Record<StorageDriverKind, StorageDriver>>;
   /** `fetch` used for the Cloudflare API. Default: `globalThis.fetch`. Tests inject a fake. */
   cloudflareFetch?: typeof fetch;
   /** `fetch` used for the GitHub release check. Default: `globalThis.fetch`. Tests inject a fake. */
@@ -69,6 +74,8 @@ export interface AppContext {
   /** One-time code that authorises the first-run wizard (in memory, printed in the logs). */
   setupCode: SetupCodeService;
   diskSpace: DiskSpace;
+  /** Driver for new files and driver of an existing file (`current()` / `forFile(kind)`). */
+  storage: StorageRegistry;
   /** Background queue that hashes and encrypts finished uploads (one per app). */
   uploadWorker: UploadWorker;
   /**
@@ -89,6 +96,7 @@ export function createContext(deps: AppDeps): AppContext {
   const db = deps.db.db;
   const clientIp = createClientIpResolver(config);
   const settings = createSettingsRepo({ db, keys, clock });
+  const diskSpace = deps.diskSpace ?? statfsDiskSpace;
   const publicUrl = (): string | undefined =>
     config.publicUrlEnv ?? settings.get('public_url') ?? config.publicUrl;
   const mailer =
@@ -132,7 +140,14 @@ export function createContext(deps: AppDeps): AppContext {
       ttlMinutes: config.setupCodeTtlMinutes,
       logger,
     }),
-    diskSpace: deps.diskSpace ?? statfsDiskSpace,
+    diskSpace,
+    storage: createStorageRegistry({
+      config,
+      settings,
+      logger,
+      diskSpace,
+      ...(deps.storageDrivers ? { overrides: deps.storageDrivers } : {}),
+    }),
     publicUrl,
     clientIp,
     ipHashOf: (req: Parameters<ClientIpResolver>[0]) => ipHash(keys.ipHash, clientIp(req)),
