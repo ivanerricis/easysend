@@ -408,7 +408,7 @@
       "accentColorHelp": "Link, evidenziazioni e anello del focus.",
       "pickColor": "Scegli: {{name}}",
       "radius": "Raggio degli angoli",
-      "radiusHelp": "In rem. L'interfaccia usa angoli netti, quindi l'effetto è limitato; il valore lo usano le email.",
+      "radiusHelp": "In rem. 0 dà angoli netti (predefinito). Vale per pulsanti, campi, finestre e menu, e per le email.",
       "font": "Carattere",
       "defaultTheme": "Tema predefinito",
       "defaultThemeHelp": "Ogni utente può scegliere il proprio dal profilo."
