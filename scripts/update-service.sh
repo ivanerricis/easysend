@@ -36,7 +36,10 @@ systemd_dir() { printf '%s\n' "${EASYSEND_SYSTEMD_DIR:-/etc/systemd/system}"; }
 do_install() {
   need_root install
   if ! skip_systemctl; then command -v systemctl >/dev/null 2>&1 || die "systemctl not found: systemd is required."; fi
-  local user="$1" group sdir updates
+  local user="$1" group sdir updates protected
+  if protected="$(protected_install_prefix "$EASYSEND_DIR")"; then
+    die "The install directory $EASYSEND_DIR is under $protected, which the update service sees as read-only (ProtectHome/ProtectSystem). Move the installation to /opt/easysend first: $INSTALL_DIR_DOCS"
+  fi
   id "$user" >/dev/null 2>&1 || die "User not found: $user"
   if [[ "$user" != root ]] && ! id -nG "$user" | tr ' ' '\n' | grep -qx docker; then
     die "User $user is not in the 'docker' group: add it (usermod -aG docker $user) or pass --user."
@@ -112,8 +115,11 @@ do_uninstall() {
 }
 
 do_status() {
-  local sdir u
+  local sdir u protected
   sdir="$(systemd_dir)"
+  if protected="$(protected_install_prefix "$EASYSEND_DIR")"; then
+    warn "Install directory $EASYSEND_DIR is under $protected: the update service cannot write there. Move it to /opt/easysend: $INSTALL_DIR_DOCS"
+  fi
   for u in "$PATH_UNIT" "$SERVICE_UNIT"; do
     if [[ -f "$sdir/$u" ]]; then
       if ! skip_systemctl && command -v systemctl >/dev/null 2>&1; then
