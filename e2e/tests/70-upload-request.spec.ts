@@ -144,7 +144,7 @@ test('files over the remaining space are refused', async ({ newSession }) => {
 test('a revoked request shows the closed page', async ({ page, newSession }) => {
   await page.goto('/requests');
   await page.getByRole('link', { name: REQUEST_TITLE }).click();
-  await expect(page.getByRole('heading', { name: 'Richiesta' }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: REQUEST_TITLE }).first()).toBeVisible();
   await page.getByRole('button', { name: 'Revoca', exact: true }).click();
   await checkA11y(page, 'request-revoke-dialog');
   await page.getByRole('alertdialog').getByRole('button', { name: 'Revoca' }).click();
