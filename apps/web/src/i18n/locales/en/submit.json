@@ -1,0 +1,73 @@
+{
+  "title": "Send files",
+  "loading": "Loading the upload link…",
+  "askedBy": "{{name}} is asking you for files",
+  "instructionsLabel": "Instructions",
+  "remaining": "Space left",
+  "unlimited": "No size limit",
+  "expires": "Open until {{date}} ({{relative}})",
+  "expiresNever": "Always open",
+  "locked": {
+    "title": "This upload link is protected",
+    "description": "Enter the password you were given to send files."
+  },
+  "form": {
+    "yourDetails": "About you",
+    "name": "Your name",
+    "email": "Your email",
+    "message": "Message",
+    "messageHint": "Optional. It is shown together with your files.",
+    "filesHeading": "Files",
+    "limits": "Up to {{max}} files at a time.",
+    "spaceLeft": "You can send up to {{size}} in total.",
+    "submit": "Send files",
+    "errors": {
+      "nameRequired": "Enter your name.",
+      "nameLength": "The name can be at most {{max}} characters.",
+      "emailRequired": "Enter your email address.",
+      "emailInvalid": "Enter a valid email address.",
+      "messageLength": "The message can be at most {{max}} characters.",
+      "noFiles": "Add at least one file.",
+      "tooManyFiles_one": "{{count}} file was not added: the limit is {{max}} files at a time.",
+      "tooManyFiles_other": "{{count}} files were not added: the limit is {{max}} files at a time.",
+      "nameTooLong_one": "{{count}} file was not added: the name is longer than {{max}} characters.",
+      "nameTooLong_other": "{{count}} files were not added: the name is longer than {{max}} characters.",
+      "overLimit": "These files ({{total}}) are larger than the space left ({{remaining}}). Remove some files to continue."
+    }
+  },
+  "success": {
+    "title": "Files sent",
+    "description": "{{files}} · {{size}} delivered. The owner of the link has been notified.",
+    "more": "Send more files"
+  },
+  "resume": {
+    "title": "An upload was interrupted",
+    "description": "Your files were not sent completely. Files already uploaded are kept; select the missing ones again to continue where it stopped."
+  },
+  "states": {
+    "notFound": {
+      "title": "Link not valid",
+      "description": "This upload link does not exist. Check that you copied the whole address."
+    },
+    "expired": {
+      "title": "Link expired",
+      "description": "This upload link is no longer open. Ask the person who sent it for a new one."
+    },
+    "revoked": {
+      "title": "Link closed",
+      "description": "The owner has closed this upload link. Ask them for a new one if you still need to send files."
+    },
+    "full": {
+      "title": "No more uploads accepted",
+      "description": "This link has reached its maximum number of uploads. Ask the owner for a new link."
+    },
+    "rateLimited": {
+      "title": "Too many requests",
+      "description": "Please wait a moment and try again."
+    },
+    "generic": {
+      "title": "Could not load the upload link",
+      "description": "Something went wrong on our side. Try again in a moment."
+    }
+  }
+}

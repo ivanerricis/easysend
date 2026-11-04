@@ -1,7 +1,7 @@
 // End-to-end run: `pnpm test:e2e [-- --no-build] [--keep] [extra playwright args]`.
 //
-// Starts the PRODUCTION stack (compose project `easysend-e2e`, web on :18090) plus Mailpit and a
-// fake Cloudflare API from docker/docker-compose.test.yml, runs the Playwright projects `setup`
+// Starts the PRODUCTION stack (compose project `easysend-e2e`, web on :18090) plus Mailpit, a
+// fake Cloudflare API and MinIO (S3) from docker/docker-compose.test.yml, runs the Playwright projects `setup`
 // and `e2e` against it, saves the container logs of a failed run to e2e/.output/logs/ and removes
 // the stack (unless --keep). Exit code = Playwright's. Cross-platform, no dependencies.
 //
@@ -11,10 +11,9 @@
 // Every other argument goes to `playwright test` (e.g. `-g "password"`, `--headed`).
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { ensureDocker, root, run, runPnpm } from './lib/node.mjs';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const rawArgs = process.argv.slice(2).filter((arg) => arg !== '--');
 const noBuild = rawArgs.includes('--no-build');
 const keep = rawArgs.includes('--keep');
@@ -46,28 +45,15 @@ const composeArgs = [
   'docker/docker-compose.test.yml',
 ];
 
-function run(command, args, options = {}) {
-  return spawnSync(command, args, { cwd: root, stdio: 'inherit', shell: false, ...options });
-}
-
-/** pnpm is a .cmd shim on Windows, which needs a shell; the command line is a constant string. */
-function runPnpm(commandLine, options = {}) {
-  return spawnSync(`pnpm ${commandLine}`, { cwd: root, stdio: 'inherit', shell: true, ...options });
-}
-
 const compose = (args, options = {}) =>
   run('docker', [...composeArgs, ...args], { env: stackEnv, ...options });
 
-const info = run('docker', ['info'], { stdio: 'ignore' });
-if (info.error || info.status !== 0) {
-  console.error('Docker is not reachable. Start Docker Desktop and retry.');
-  process.exit(1);
-}
+ensureDocker();
 
 function saveLogs() {
   const logDir = join(outputDir, 'logs');
   mkdirSync(logDir, { recursive: true });
-  for (const service of ['api', 'web', 'fake-cloudflare', 'mailpit']) {
+  for (const service of ['api', 'web', 'fake-cloudflare', 'mailpit', 'minio']) {
     const result = spawnSync('docker', [...composeArgs, 'logs', '--no-color', service], {
       cwd: root,
       env: stackEnv,

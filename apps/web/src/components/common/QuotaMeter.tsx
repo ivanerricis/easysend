@@ -1,8 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { queryKeys } from '@/app/query';
 import { Progress } from '@/components/ui/progress';
-import { getMe } from '@/lib/api/me';
+import { useMe } from '@/hooks/use-me';
 import { formatBytes } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -42,7 +40,7 @@ export function QuotaMeter({ usedBytes, quotaBytes, className }: QuotaMeterProps
 
 /** QuotaMeter fed by `GET /api/me` (shared cache with the rest of the app). */
 export function MyQuotaMeter({ className }: { className?: string }) {
-  const { data } = useQuery({ queryKey: queryKeys.me, queryFn: getMe });
+  const { data } = useMe();
   if (!data) return null;
   return (
     <QuotaMeter usedBytes={data.usedBytes} quotaBytes={data.quotaBytes} className={className} />

@@ -22,3 +22,9 @@ What the wizard creates:
 - the tunnel token, written to the shared volume (`/shared/tunnel-token`, mode 600) and read by `cloudflared`.
 
 If a DNS record with that name already exists, the wizard stops without creating anything. TLS ends at Cloudflare, so in the dashboard (SSL/TLS) turn on "Always Use HTTPS" and enable HSTS.
+
+## Changing the domain
+
+You can change the domain later in the admin panel (Settings, Domain and tunnel). The same tunnel is reused, so the tunnel token does not change, and the new CNAME is created. The old CNAME is then removed automatically, but only if it still points to this tunnel and the token can edit the zone of the old domain; otherwise the panel tells you to delete it from the Cloudflare dashboard. Links already shared with the old address stop working.
+
+If you set `PUBLIC_URL` in `.env`, it takes precedence over the new address: links and emails keep using it, and the panel shows a warning. Update `PUBLIC_URL` in `.env` and restart with `docker compose up -d`.

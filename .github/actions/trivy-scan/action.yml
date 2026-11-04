@@ -1,0 +1,44 @@
+name: Trivy scan
+description: Scan a container image for fixable CRITICAL vulnerabilities with the pinned official Trivy image
+
+# The official image is used instead of aquasecurity/trivy-action (its tags were compromised in 2026).
+inputs:
+  image:
+    description: Image reference to scan (a local tag or a registry reference with digest)
+    required: true
+  local:
+    description: "'true' when the image is in the local Docker daemon (mounts the Docker socket)"
+    required: false
+    default: 'false'
+  registry-username:
+    description: Registry username, for images in a private registry
+    required: false
+    default: ''
+  registry-password:
+    description: Registry password or token, for images in a private registry
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Scan image (CRITICAL, fixable)
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        LOCAL: ${{ inputs.local }}
+        TRIVY_USERNAME: ${{ inputs.registry-username }}
+        TRIVY_PASSWORD: ${{ inputs.registry-password }}
+      run: |
+        mkdir -p "$HOME/.cache/trivy"
+        args=(--rm -v "$HOME/.cache/trivy:/root/.cache/")
+        if [ "$LOCAL" = "true" ]; then
+          args+=(-v /var/run/docker.sock:/var/run/docker.sock)
+        fi
+        if [ -n "$TRIVY_USERNAME" ]; then
+          args+=(-e TRIVY_USERNAME -e TRIVY_PASSWORD)
+        fi
+        docker run "${args[@]}" \
+          aquasec/trivy:0.76.0@sha256:2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222 \
+          image --scanners vuln --severity CRITICAL --ignore-unfixed \
+          --exit-code 1 --no-progress "$IMAGE"

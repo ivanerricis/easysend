@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { queryKeys } from '@/app/query';
 import { ErrorState, LoadingState } from '@/components/common/States';
 import { HintText } from '@/components/common/HintTooltip';
-import { Button } from '@/components/ui/button';
+import { Pager } from '@/components/common/Pager';
 import {
   Table,
   TableBody,
@@ -94,30 +94,13 @@ export function DownloadLog({ transferId }: { transferId: string }) {
       </ul>
 
       {pages > 1 ? (
-        <nav
-          aria-label={t('common.pagination.label')}
-          className="flex items-center justify-center gap-2"
-        >
-          <Button
-            type="button"
-            variant="outline"
-            disabled={page <= 1}
-            onClick={() => setPage(page - 1)}
-          >
-            {t('common.pagination.previous')}
-          </Button>
-          <span className="px-2 text-sm" aria-current="page">
-            {t('common.pagination.pageOf', { page, pages })}
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={page >= pages}
-            onClick={() => setPage(page + 1)}
-          >
-            {t('common.pagination.next')}
-          </Button>
-        </nav>
+        <Pager
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          showTotal={false}
+          onPageChange={setPage}
+        />
       ) : null}
     </div>
   );

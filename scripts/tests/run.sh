@@ -198,9 +198,93 @@ if [[ "$(id -u)" == "0" ]]; then
   check "uninstall: runner.json removed" "no" "$([[ -e "$E/updates/runner.json" ]] && echo yes || echo no)"
   check "uninstall: updates kept" "yes" "$([[ -d "$E/updates" ]] && echo yes || echo no)"
   if svc install --user nosuchuser; then fail "install accepts an unknown user"; else pass "install rejects an unknown user"; fi
+  rm -f "$E/updates/runner.json"
+  if EASYSEND_PROTECTED_DIRS="$TMP" svc install --user root; then
+    fail "install accepts a protected install dir"
+  else
+    pass "install rejects a protected install dir"
+  fi
+  check "protected dir: no units written" "no" "$([[ -e "$S/easysend-update.path" ]] && echo yes || echo no)"
+  if grep -q '/opt/easysend' "$TMP/svc.out"; then pass "protected dir: message points to /opt"; else fail "protected dir: message points to /opt"; fi
 else
   skip "update-service install/uninstall (needs root)"
 fi
+
+echo "install directory"
+prefix_of() { EASYSEND_PROTECTED_DIRS="${2:-}" bash -c 'source "$1/lib/common.sh"; protected_install_prefix "$2"' _ "$SRC" "$1"; }
+check "default list: /home is protected" "/home" "$(prefix_of /home/easysend '')"
+check "default list: /root is protected" "/root" "$(prefix_of /root/easysend '')"
+check "default list: /opt is fine" "" "$(prefix_of /opt/easysend '' || true)"
+check "default list: /homework is not /home" "" "$(prefix_of /homework/easysend '' || true)"
+RT="$(cd "$TMP" && pwd -P)"
+mkdir -p "$RT/prot/inst" "$RT/free"
+ln -s "$RT/prot/inst" "$RT/free/link"
+check "custom list: dir inside" "$RT/prot" "$(prefix_of "$RT/prot/inst" "$RT/prot")"
+check "custom list: symlink resolved" "$RT/prot" "$(prefix_of "$RT/free/link" "$RT/prot")"
+
+echo "data location (DATA_PATH)"
+reset
+mkdir -p "$TMP/bin" "$TMP/data ok"
+cat >"$TMP/bin/docker" <<'DOCKER'
+#!/usr/bin/env bash
+case "$*" in
+  *" config"*) echo "name: proj" ;;
+esac
+exit 0
+DOCKER
+printf '#!/usr/bin/env bash\nexit 0\n' >"$TMP/bin/curl"
+chmod +x "$TMP/bin/docker" "$TMP/bin/curl"
+DATA_OK="$TMP/data ok"
+# dp_check VALUE: runs check_data_path with DATA_PATH=VALUE (empty = line absent), as the current user.
+dp_check() {
+  if [[ -n "$1" ]]; then printf 'APP_VERSION=0.1.0\nDATA_PATH=%s\n' "$1" >"$E/.env"; else printf 'APP_VERSION=0.1.0\n' >"$E/.env"; fi
+  (
+    EASYSEND_DIR="$E" EASYSEND_DATA_UID="${DP_UID:-$(id -u)}" EASYSEND_DATA_GID="${DP_GID:-$(id -g)}" bash -c 'source "$1/scripts/lib/common.sh"; check_data_path' _ "$E"
+  ) >"$TMP/dp.out" 2>&1
+}
+dp_expect() { # DESCRIPTION EXPECTED(ok|fail) VALUE [pattern]
+  local rc=0
+  dp_check "$3" || rc=$?
+  if [[ "$2" == ok ]]; then check "$1" 0 "$rc"; else
+    if ((rc != 0)) && grep -qi -- "${4:-.}" "$TMP/dp.out"; then pass "$1"; else fail "$1 (rc=$rc: $(cat "$TMP/dp.out"))"; fi
+  fi
+}
+dp_expect "DATA_PATH unset is fine" ok ""
+dp_expect "valid folder with a space" ok "$DATA_OK"
+dp_expect "relative path rejected" fail "data/easysend" "absolute"
+dp_expect "path with ':' rejected" fail "/mnt/a:b" "':'"
+dp_expect "root rejected" fail "/" "root"
+dp_expect "trailing slash rejected" fail "$DATA_OK/" "slash"
+dp_expect "missing folder rejected, with the fix" fail "$TMP/nope" "install -d"
+: >"$TMP/afile"
+dp_expect "a file is not a directory" fail "$TMP/afile" "not a directory"
+DP_UID=99999 DP_GID=99999 dp_expect "folder not writable by the api user rejected" fail "$DATA_OK" "not writable"
+
+# deploy.sh fails early (exit 22) before anything changes; the stubs stand in for docker and curl.
+printf 'APP_VERSION=0.1.0\nDATA_PATH=%s\n' "$TMP/nope" >"$E/.env"
+cp "$SRC/deploy.sh" "$SRC/rollback.sh" "$SRC/backup.sh" "$SRC/uninstall.sh" "$E/scripts/"
+rc=0
+PATH="$TMP/bin:$PATH" EASYSEND_DIR="$E" EASYSEND_SKIP_DOWNLOADS=1 bash "$E/scripts/deploy.sh" 0.2.0 --yes >"$TMP/deploy.out" 2>&1 || rc=$?
+check "deploy.sh exits 22 on an invalid DATA_PATH" 22 "$rc"
+if grep -q 'does not exist' "$TMP/deploy.out"; then pass "deploy.sh explains the invalid DATA_PATH"; else fail "deploy.sh message: $(cat "$TMP/deploy.out")"; fi
+check "deploy.sh changed nothing (APP_VERSION)" "APP_VERSION=0.1.0" "$(head -n 1 "$E/.env")"
+
+# Backup/mount path selection: bind path when DATA_PATH is set, the Compose volume otherwise.
+src_for() {
+  EASYSEND_DIR="$E" PATH="$TMP/bin:$PATH" bash -c 'source "$1/scripts/lib/common.sh"; data_mount_source' _ "$E" 2>/dev/null
+}
+printf 'APP_VERSION=0.1.0\nDATA_PATH=%s\n' "$DATA_OK" >"$E/.env"
+check "mount source is DATA_PATH when set" "$DATA_OK" "$(src_for)"
+printf 'APP_VERSION=0.1.0\nDATA_PATH="%s"\n' "$DATA_OK" >"$E/.env"
+check "mount source: quotes in .env are stripped" "$DATA_OK" "$(src_for)"
+printf 'APP_VERSION=0.1.0\n' >"$E/.env"
+check "mount source is the named volume otherwise" "proj_easysend-data" "$(src_for)"
+
+# A release compose file that ignores DATA_PATH must be detected (rollback/deploy refuse to use it).
+printf 'volumes:\n  - easysend-data:/data\n' >"$TMP/old-compose.yml"
+printf 'volumes:\n  - ${DATA_PATH:-easysend-data}:/data\n' >"$TMP/new-compose.yml"
+if (source "$E/scripts/lib/common.sh"; compose_supports_data_path "$TMP/old-compose.yml"); then fail "old compose detected as supporting DATA_PATH"; else pass "old compose lacks DATA_PATH support"; fi
+if (source "$E/scripts/lib/common.sh"; compose_supports_data_path "$TMP/new-compose.yml"); then pass "new compose supports DATA_PATH"; else fail "new compose not detected"; fi
 
 echo
 echo "passed: $PASS  failed: $FAIL  skipped: $SKIP"

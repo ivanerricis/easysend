@@ -1,16 +1,15 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 import { createServer, request } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import path from 'node:path';
 import type { Express } from 'express';
-import type { TransferStatus } from '@easysend/shared';
+import yauzl from 'yauzl';
+import type { StorageDriverKind, TransferStatus } from '@easysend/shared';
 import { nowSeconds } from '../src/clock.js';
 import { randomToken } from '../src/crypto/hash.js';
-import { encryptFile } from '../src/crypto/segments.js';
 import { transferFiles, transfers } from '../src/db/schema/index.js';
-import { storagePath } from '../src/storage/paths.js';
-import { makeTempDir, type TestApp, type TestUser } from './helpers.js';
+import type { TestApp, TestUser } from './helpers.js';
+import { encryptContentToDriver } from './storage-helpers.js';
 
 /** Plaintext sizes around the 64 KiB segment boundary, plus empty and tiny files. */
 export const FIXTURE_SIZES = [0, 1, 65_535, 65_536, 65_537, 200_000] as const;
@@ -24,7 +23,7 @@ export interface FixtureFile {
 export interface TransferFixtureOptions {
   owner?: TestUser;
   /** Default: one file per `FIXTURE_SIZES` entry, named `file-<size>.bin`. */
-  files?: { name: string; size: number }[];
+  files?: { name: string; size: number; path?: string }[];
   /** Plain link password (hashed with the app's hasher). */
   password?: string;
   maxDownloads?: number | null;
@@ -33,6 +32,8 @@ export interface TransferFixtureOptions {
   status?: TransferStatus;
   title?: string | null;
   message?: string | null;
+  /** Driver that stores the encrypted files (`ctx.storage.forFile`). Default `local`. */
+  storage?: StorageDriverKind;
 }
 
 export interface TransferFixture {
@@ -51,10 +52,10 @@ export async function createTransferFixture(
   options: TransferFixtureOptions = {},
 ): Promise<TransferFixture> {
   const owner = options.owner ?? (await t.createUser());
-  const specs = options.files ?? FIXTURE_SIZES.map((size) => ({ name: `file-${size}.bin`, size }));
+  const specs: { name: string; size: number; path?: string }[] =
+    options.files ?? FIXTURE_SIZES.map((size) => ({ name: `file-${size}.bin`, size }));
   const { ctx } = t;
   mkdirSync(ctx.config.storageDir, { recursive: true });
-  const scratch = makeTempDir();
   const now = nowSeconds(ctx.clock);
 
   const transfer = ctx.db
@@ -75,23 +76,23 @@ export async function createTransferFixture(
     .get();
 
   const files: FixtureFile[] = [];
-  for (const [index, spec] of specs.entries()) {
+  for (const spec of specs) {
     const content = randomBytes(spec.size);
-    const srcPath = path.join(scratch, `src-${index}`);
-    writeFileSync(srcPath, content);
     const storageName = randomUUID();
-    const enc = await encryptFile({
-      srcPath,
-      dstPath: storagePath(ctx.config, storageName),
-      size: spec.size,
-      fileKey: ctx.keys.file,
-    });
+    const enc = await encryptContentToDriver(
+      ctx.storage.forFile(options.storage ?? 'local'),
+      content,
+      ctx.keys.file,
+      storageName,
+    );
     const row = ctx.db
       .insert(transferFiles)
       .values({
         transferId: transfer.id,
         originalName: spec.name,
+        path: spec.path ?? '',
         storageName,
+        storage: options.storage ?? 'local',
         sizeBytes: spec.size,
         storedSizeBytes: enc.storedSize,
         sha256: enc.sha256,
@@ -105,6 +106,30 @@ export async function createTransferFixture(
     files.push({ id: row.id, name: spec.name, content });
   }
   return { owner, id: transfer.id, token: transfer.token, files };
+}
+
+/** Reads every entry of a zip held in memory: full entry name to content. */
+export function readZip(buffer: Buffer): Promise<Map<string, Buffer>> {
+  return new Promise((resolve, reject) => {
+    yauzl.fromBuffer(buffer, { lazyEntries: true }, (error, zip) => {
+      if (error) return reject(error);
+      const entries = new Map<string, Buffer>();
+      zip.on('error', reject);
+      zip.on('end', () => resolve(entries));
+      zip.on('entry', (entry: yauzl.Entry) => {
+        zip.openReadStream(entry, (streamError, stream) => {
+          if (streamError) return reject(streamError);
+          const chunks: Buffer[] = [];
+          stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+          stream.on('end', () => {
+            entries.set(entry.fileName, Buffer.concat(chunks));
+            zip.readEntry();
+          });
+        });
+      });
+      zip.readEntry();
+    });
+  });
 }
 
 // ---- Binary downloads -------------------------------------------------------------------

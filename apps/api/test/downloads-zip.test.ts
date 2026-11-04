@@ -1,37 +1,17 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { eq } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vitest';
-import yauzl from 'yauzl';
 import { downloadLogs, transferFiles, transfers } from '../src/db/schema/index.js';
 import { storagePath } from '../src/storage/paths.js';
 import { createTestApp, makeTempDir, type TestApp } from './helpers.js';
-import { binaryErrorCode, binaryRequest, createTransferFixture } from './transfer-fixtures.js';
+import {
+  binaryErrorCode,
+  binaryRequest,
+  createTransferFixture,
+  readZip,
+} from './transfer-fixtures.js';
 
 const setup = () => createTestApp({ env: { DATA_DIR: makeTempDir() } });
-
-/** Reads every entry of a zip held in memory: name to content. */
-function readZip(buffer: Buffer): Promise<Map<string, Buffer>> {
-  return new Promise((resolve, reject) => {
-    yauzl.fromBuffer(buffer, { lazyEntries: true }, (error, zip) => {
-      if (error) return reject(error);
-      const entries = new Map<string, Buffer>();
-      zip.on('error', reject);
-      zip.on('end', () => resolve(entries));
-      zip.on('entry', (entry: yauzl.Entry) => {
-        zip.openReadStream(entry, (streamError, stream) => {
-          if (streamError) return reject(streamError);
-          const chunks: Buffer[] = [];
-          stream.on('data', (chunk: Buffer) => chunks.push(chunk));
-          stream.on('end', () => {
-            entries.set(entry.fileName, Buffer.concat(chunks));
-            zip.readEntry();
-          });
-        });
-      });
-      zip.readEntry();
-    });
-  });
-}
 
 const downloadCount = (t: TestApp, id: string) =>
   t.ctx.db.select().from(transfers).where(eq(transfers.id, id)).get()!.downloadCount;

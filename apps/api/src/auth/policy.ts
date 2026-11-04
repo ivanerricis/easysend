@@ -11,7 +11,7 @@ const MINUTE = 60;
 const HOUR = 3600;
 const DAY = 86_400;
 
-/** Every duration and threshold of the authentication layer (phase 2 plan, decision 8). */
+/** Every duration and threshold of the authentication layer. */
 export const AUTH_POLICY = {
   session: {
     /** A full session expires after 7 days without activity... */

@@ -21,8 +21,11 @@ export const ENDPOINT_TAGS = [
   'transfers',
   'uploads',
   'downloads',
+  'requests',
+  'submissions',
   'admin',
   'settings',
+  'storage',
 ] as const;
 export type EndpointTag = (typeof ENDPOINT_TAGS)[number];
 
@@ -38,9 +41,14 @@ export const RATE_LIMITS = [
   'transferCreate',
   'downloadPassword',
   'download',
+  'requestCreate',
+  'requestView',
+  'submissionCreate',
+  'requestPassword',
   'setupCode',
   'updateCheck',
   'updateStart',
+  'storageTest',
 ] as const;
 export type RateLimitName = (typeof RATE_LIMITS)[number];
 

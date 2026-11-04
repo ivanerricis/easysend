@@ -20,6 +20,10 @@ mode 700; the archive is mode 600) containing:
   data/branding/                       logos, favicon, background
   data/secrets/                        master key and session secret
   .env, docker-compose.yml             deployment configuration
+Files stored on an S3-compatible service (Settings > File storage) are NOT included: data/storage only
+holds the files that are on the local disk. Back the bucket up separately (provider versioning,
+replication or `rclone sync`). This archive still has what is needed to decrypt them: the database
+backup (wrapped per-file keys, encrypted S3 settings) and the master key.
 If the api is stopped, a one-off container takes the database backup instead.
 
 WARNING: the archive contains the MASTER KEY (data/secrets and .env). Whoever has it together
@@ -29,13 +33,17 @@ Restore procedure (on a clean or broken installation, same or newer version):
   1. mkdir /opt/easysend && cd /opt/easysend
      tar xzf <archive> .env docker-compose.yml   (plus scripts/ from the release); chmod 600 .env
   2. docker compose create          # creates the empty volumes
+     (with DATA_PATH set in .env: create the folder first, owned by uid/gid 1000)
   3. restore the volume content (<project> = Compose project name, by default the install
-     directory name; see `docker volume ls`):
+     directory name; see `docker volume ls`; with DATA_PATH use that folder instead of
+     <project>_easysend-data):
        docker run --rm -i -v <project>_easysend-data:/data alpine:3.24.2 \
          sh -c 'tar xzf - -C /tmp data && cp -a /tmp/data/. /data/' < <archive>
   4. docker compose run --rm --no-deps api node dist/cli/restore-db.js manual-<ts>.sqlite
      (the file name is shown by: tar tzf <archive> | grep sqlite)
   5. docker compose up -d
+
+With DATA_PATH set in .env the data is read from that host folder instead of the Docker volume.
 
 Environment: EASYSEND_DIR.
 USAGE
@@ -67,14 +75,18 @@ main() {
   ok "Database backup: $db_name"
 
   local volume ts archive partial
-  volume="$(volume_real_name easysend-data)"
-  docker volume inspect "$volume" >/dev/null 2>&1 || die "Data volume '$volume' not found."
+  volume="$(data_mount_source)"
+  if [[ -n "$(data_path)" ]]; then
+    check_data_path || die "Backup aborted."
+  else
+    docker volume inspect "$volume" >/dev/null 2>&1 || die "Data volume '$volume' not found."
+  fi
   ts="$(date -u +%Y%m%dT%H%M%SZ)"
   archive="$dest/easysend-backup-$ts.tar.gz"
   partial="$archive.partial"
   trap 'rm -f "$partial"' EXIT
 
-  log "Archiving from volume $volume (helper image $HELPER_IMAGE)..."
+  log "Archiving from $volume (helper image $HELPER_IMAGE)..."
   # The host config files travel on stdin; the container links the volume content next to them
   # and streams one gzip'd tar to stdout, which lands directly in the archive file.
   (
@@ -100,6 +112,7 @@ main() {
   history_add "backup $archive db=$db_name"
   ok "Backup written: $archive ($(du -h "$archive" | cut -f1))"
   warn "This archive contains the MASTER KEY and .env: store it encrypted/offline and never share it."
+  log "If file storage is set to S3, the files in the bucket are NOT in this archive: back the bucket up separately."
 }
 
 main "$@"

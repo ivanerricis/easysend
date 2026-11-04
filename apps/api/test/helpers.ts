@@ -1,4 +1,5 @@
 import { mkdtempSync, rmSync } from 'node:fs';
+import { Writable } from 'node:stream';
 import os from 'node:os';
 import path from 'node:path';
 import { parseSetCookie } from 'cookie';
@@ -8,6 +9,7 @@ import { pino, type Logger } from 'pino';
 import supertest from 'supertest';
 import type { Locale, UserRole } from '@easysend/shared';
 import { createAppWithContext } from '../src/app.js';
+import { createLogger } from '../src/logger.js';
 import { createPasswordHasher } from '../src/auth/password.js';
 import { generateTotpEnrollment } from '../src/auth/totp.js';
 import type { Clock } from '../src/clock.js';
@@ -21,6 +23,19 @@ import type { MailMessage, MailTransport } from '../src/mail/mailer.js';
 import type { Secrets } from '../src/secrets.js';
 
 export const silentLogger = pino({ level: 'silent' });
+
+/** Logger with the production redaction rules that keeps every line in memory. */
+export function memoryLogger(level: 'trace' | 'debug' | 'info' | 'warn' = 'trace') {
+  const lines: string[] = [];
+  const stream = new Writable({
+    write(chunk: Buffer, _enc, cb) {
+      lines.push(chunk.toString());
+      cb();
+    },
+  });
+  const logger = createLogger({ logLevel: level, nodeEnv: 'test', logPretty: false }, {}, stream);
+  return { lines, logger };
+}
 
 const tempDirs: string[] = [];
 const openDbs: DbHandle[] = [];

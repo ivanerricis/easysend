@@ -16,7 +16,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --filter "@easysend/api..."
 
 # The node binary ships with debug symbols: strip them. binutils stays in this stage.
-FROM base AS node-stripped
+FROM ${NODE_IMAGE} AS node-stripped
 RUN apk add --no-cache binutils \
  && cp /usr/local/bin/node /node \
  && strip --strip-unneeded /node \

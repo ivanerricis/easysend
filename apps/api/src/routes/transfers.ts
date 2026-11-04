@@ -1,13 +1,15 @@
-import { and, asc, count, desc, eq, gt, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, sql } from 'drizzle-orm';
 import { Router, type Request, type Response } from 'express';
 import {
-  EXPIRY_OPTIONS,
+  NEVER_EXPIRES_AT,
+  expiresAtFor,
   type AdminListTransfersQuery,
   type CreateTransferRequest,
   type ListTransfersQuery,
   type UpdateTransferRequest,
 } from '@easysend/shared';
-import { audit, type AuditAction } from '../audit.js';
+import { auditRequest, type AuditAction } from '../audit.js';
+import { normalizeEmail } from '../users/service.js';
 import { nowSeconds } from '../clock.js';
 import type { AppContext } from '../context.js';
 import {
@@ -22,11 +24,13 @@ import { endpointGuards } from '../http/endpoint-guards.js';
 import { AppError } from '../http/errors.js';
 import { assertNotLimited } from '../http/rate-limit.js';
 import { sendJson, validBody, validParams, validQuery } from '../http/validate.js';
-import { reserveBytes } from '../storage/disk.js';
+import { reserveBytes, spaceProbeDir } from '../storage/disk.js';
+import { storageUsageByDriver } from '../storage/usage.js';
 import {
   deleteTransfer,
   deleteTransferFile,
   effectiveStatus,
+  finalizableFileCount,
   generateTransferToken,
   listTransfersPage,
   loadTransferForUser,
@@ -55,16 +59,17 @@ export function transfersRouter(ctx: AppContext): Router {
     metadata: Record<string, unknown> = {},
     writer: Pick<typeof db, 'insert'> = db,
   ): void {
-    const actorId = req.auth!.user.id;
-    audit(writer, {
-      actorId,
+    auditRequest(
+      ctx,
+      req,
       action,
-      targetType: 'transfer',
-      targetId: row.id,
-      metadata: { ...metadata, ...(actorId !== row.ownerId ? { byAdmin: true } : {}) },
-      ipHash: ctx.ipHashOf(req),
-      now: nowSeconds(ctx.clock),
-    });
+      {
+        targetType: 'transfer',
+        targetId: row.id,
+        metadata: { ...metadata, ...(req.auth!.user.id !== row.ownerId ? { byAdmin: true } : {}) },
+      },
+      writer,
+    );
   }
 
   async function limitCreation(res: Response, userId: string): Promise<void> {
@@ -82,7 +87,7 @@ export function transfersRouter(ctx: AppContext): Router {
 
     const now = nowSeconds(ctx.clock);
     const passwordHash = body.password ? await ctx.passwordHasher.hash(body.password) : null;
-    const recipients = [...new Set((body.recipients ?? []).map((r) => r.trim().toLowerCase()))];
+    const recipients = [...new Set((body.recipients ?? []).map((r) => normalizeEmail(r)))];
     const id = db.transaction((tx) => {
       const created = tx
         .insert(transfers)
@@ -92,7 +97,7 @@ export function transfersRouter(ctx: AppContext): Router {
           title: body.title ?? null,
           message: body.message ?? null,
           mode: body.mode,
-          expiresAt: now + EXPIRY_OPTIONS[body.expiresIn],
+          expiresAt: expiresAtFor(now, body.expiresIn),
           passwordHash,
           maxDownloads: body.maxDownloads ?? null,
           status: 'uploading',
@@ -111,26 +116,15 @@ export function transfersRouter(ctx: AppContext): Router {
 
   router.post('/transfers/:id/finalize', ...guards('transfers.finalize'), async (req, res) => {
     const row = loadTransferForUser(ctx, validParams<IdParams>(req).id, req.auth!);
-    if (row.status !== 'uploading') {
+    // A received draft is finalized by the person who uploads, through the submissions API.
+    if (row.status !== 'uploading' || row.source === 'received') {
       throw new AppError('TRANSFER_NOT_UPLOADABLE', 'The transfer is not a draft');
     }
-    const pending = db
-      .select({ n: count() })
-      .from(uploads)
-      .where(
-        and(eq(uploads.transferId, row.id), inArray(uploads.status, ['in_progress', 'processing'])),
-      )
-      .get()!.n;
-    if (pending > 0) throw new AppError('UPLOAD_INCOMPLETE', 'Some uploads are not finished yet');
-    const fileCount = db
-      .select({ n: count() })
-      .from(transferFiles)
-      .where(eq(transferFiles.transferId, row.id))
-      .get()!.n;
-    if (fileCount === 0) throw new AppError('TRANSFER_EMPTY', 'The transfer has no files');
+    const fileCount = finalizableFileCount(db, row.id);
 
     const now = nowSeconds(ctx.clock);
-    const expiresAt = now + (row.expiresAt - row.createdAt);
+    const expiresAt =
+      row.expiresAt >= NEVER_EXPIRES_AT ? NEVER_EXPIRES_AT : now + (row.expiresAt - row.createdAt);
     const activated = db.transaction((tx) => {
       tx.delete(uploads)
         .where(and(eq(uploads.transferId, row.id), eq(uploads.status, 'aborted')))
@@ -225,7 +219,7 @@ export function transfersRouter(ctx: AppContext): Router {
     if (body.expiresIn !== undefined) {
       // A draft keeps counting from its creation: `finalize` restarts the clock.
       const start = row.status === 'uploading' ? row.createdAt : now;
-      changes.expiresAt = start + EXPIRY_OPTIONS[body.expiresIn];
+      changes.expiresAt = expiresAtFor(start, body.expiresIn);
       fields.push('expiresIn');
     }
     if (body.maxDownloads !== undefined) {
@@ -268,7 +262,7 @@ export function transfersRouter(ctx: AppContext): Router {
     const status = effectiveStatus(row, nowSeconds(ctx.clock));
     if (status === 'expired') throw new AppError('TRANSFER_EXPIRED', 'The transfer has expired');
     if (status === 'revoked') throw new AppError('TRANSFER_REVOKED', 'The transfer was revoked');
-    if (row.mode !== 'email' || status === 'uploading') {
+    if (row.source === 'received' || row.mode !== 'email' || status === 'uploading') {
       throw new AppError('CONFLICT', 'Only active email transfers can be sent again');
     }
     const sent = await notifyRecipients(ctx, row, senderNameOf(req));
@@ -308,7 +302,7 @@ export function transfersRouter(ctx: AppContext): Router {
   // ---- Admin storage ---------------------------------------------------------------------
 
   router.get('/admin/storage', ...guards('admin.storage'), async (_req, res) => {
-    const disk = await ctx.diskSpace(ctx.config.storageDir);
+    const disk = await ctx.diskSpace(spaceProbeDir(ctx));
     const reserve = reserveBytes(ctx);
     const now = nowSeconds(ctx.clock);
     const totals = db
@@ -340,6 +334,9 @@ export function transfersRouter(ctx: AppContext): Router {
         reserveBytes: reserve,
         usableBytes: Math.max(0, disk.freeBytes - reserve),
       },
+      dataLocation: { hostPath: ctx.config.dataHostPath ?? null },
+      driver: ctx.storage.currentKind(),
+      usageByDriver: storageUsageByDriver(db),
       storedBytes: totals.stored,
       activeTransfers: active,
       totalFiles: totals.files,

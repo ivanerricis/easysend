@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { BYTES_PER_MB } from '../constants.js';
 import { ERROR_CODE_LIST, ERROR_CODES, type ErrorCode } from '../schemas/errors.js';
 import { CONTRACT_DECISIONS, CONVENTIONS, ERROR_MEANINGS } from './doc-text.js';
 import {
@@ -44,6 +45,16 @@ const TAG_INFO: Record<EndpointTag, { title: string; intro: string }> = {
     intro:
       'Flow: create a draft, upload the files with tus, finalize. Users manage their own transfers; admins manage all of them.',
   },
+  requests: {
+    title: 'Upload requests',
+    intro:
+      'Links that let anyone without an account send files to the owner. Users manage their own requests.',
+  },
+  submissions: {
+    title: 'Submissions (public)',
+    intro:
+      'Token-based endpoints for people who upload through a request link. A submission is authorized by the link token plus, once created, a signed `X-Submission-Token` header (also used on tus).',
+  },
   uploads: {
     title: 'Uploads (tus)',
     intro: 'Resumable upload with the tus protocol, mounted at `/api/uploads`.',
@@ -57,6 +68,11 @@ const TAG_INFO: Record<EndpointTag, { title: string; intro: string }> = {
   settings: {
     title: 'Settings and appearance',
     intro: 'Public settings and branding images, plus the admin settings pages.',
+  },
+  storage: {
+    title: 'File storage migration',
+    intro:
+      'Moves already stored files between the server disk and an S3-compatible bucket, as a background job with progress.',
   },
 };
 
@@ -190,12 +206,13 @@ export const renderSchema = (schema: z.ZodType, io: 'input' | 'output'): string 
 
 // ---- Markdown pieces -------------------------------------------------------------
 const formatBytes = (n: number): string => {
-  if (n >= 1024 * 1024) return `${n / (1024 * 1024)} MB`;
+  if (n >= BYTES_PER_MB) return `${n / BYTES_PER_MB} MB`;
   if (n >= 1024) return `${n / 1024} KB`;
   return `${n} B`;
 };
 
-const escapeCell = (text: string): string => text.replace(/\|/g, '\\|');
+/** Escapes a Markdown table cell: backslashes first, so an input `\|` cannot unescape the pipe. */
+const escapeCell = (text: string): string => text.replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
 
 const errorLine = (code: ErrorCode): string =>
   `- \`${ERROR_CODES[code]}\` \`${code}\`: ${ERROR_MEANINGS[code]}`;

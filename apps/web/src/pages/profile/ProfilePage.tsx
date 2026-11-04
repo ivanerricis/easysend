@@ -1,9 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { queryKeys } from '@/app/query';
 import { PageHeader } from '@/components/common/PageHeader';
 import { QuotaMeter } from '@/components/common/QuotaMeter';
-import { getMe } from '@/lib/api/me';
+import { useMe } from '@/hooks/use-me';
 import { AccountSection } from './AccountSection';
 import { PasswordSection } from './PasswordSection';
 import { PreferencesSection } from './PreferencesSection';
@@ -12,7 +10,7 @@ import { TwoFactorSection } from './TwoFactorSection';
 
 export default function ProfilePage() {
   const { t } = useTranslation();
-  const me = useQuery({ queryKey: queryKeys.me, queryFn: getMe });
+  const me = useMe();
 
   return (
     <div className="mx-auto w-full max-w-3xl">

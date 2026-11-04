@@ -1,7 +1,10 @@
+import type { Request } from 'express';
+import { nowSeconds } from './clock.js';
+import type { AppContext } from './context.js';
 import type { Db } from './db/client.js';
 import { auditLog } from './db/schema/index.js';
 
-/** Stable action names stored in `audit_log.action` (phase 2 plan, decision 14). */
+/** Stable action names stored in `audit_log.action`. */
 export const AUDIT_ACTIONS = [
   'auth.login',
   'auth.login_failed',
@@ -25,6 +28,11 @@ export const AUDIT_ACTIONS = [
   'transfer.deleted',
   'transfer.file_deleted',
   'transfer.resent',
+  'request.created',
+  'request.updated',
+  'request.revoked',
+  'request.deleted',
+  'request.submission_received',
   'system.key_rotated',
   'system.update_requested',
   'setup.admin_created',
@@ -37,6 +45,11 @@ export const AUDIT_ACTIONS = [
   'settings.appearance_reset',
   'settings.asset_updated',
   'settings.asset_deleted',
+  'settings.storage_updated',
+  'setup.storage_saved',
+  'storage.migration_started',
+  'storage.migration_cancelled',
+  'storage.migration_finished',
   'tunnel.configured',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -45,7 +58,14 @@ export interface AuditEntry {
   /** User who performed the action; null for anonymous actions (failed login, reset request). */
   actorId: string | null;
   action: AuditAction;
-  targetType?: 'user' | 'session' | 'transfer' | 'settings' | 'system';
+  targetType?:
+    | 'user'
+    | 'session'
+    | 'transfer'
+    | 'upload_request'
+    | 'settings'
+    | 'system'
+    | 'storage_migration';
   targetId?: string;
   /** JSON-serializable and free of sensitive data: never passwords, codes, tokens or emails of unknown users. */
   metadata?: Record<string, unknown>;
@@ -68,4 +88,34 @@ export function audit(db: Pick<Db, 'insert'>, entry: AuditEntry): void {
       createdAt: entry.now,
     })
     .run();
+}
+
+export interface AuditRequestOptions {
+  /** Defaults to the authenticated user of the request, or null for anonymous requests. */
+  actorId?: string | null;
+  targetType?: AuditEntry['targetType'];
+  targetId?: string;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Writes the audit row of an HTTP request: actor (the session user unless overridden), hashed
+ * client IP and the time of the injected clock. Pass a transaction as `writer` to make it atomic.
+ */
+export function auditRequest(
+  ctx: Pick<AppContext, 'db' | 'clock' | 'ipHashOf'>,
+  req: Request,
+  action: AuditAction,
+  options: AuditRequestOptions = {},
+  writer: Pick<Db, 'insert'> = ctx.db,
+): void {
+  audit(writer, {
+    actorId: options.actorId !== undefined ? options.actorId : (req.auth?.user.id ?? null),
+    action,
+    ...(options.targetType ? { targetType: options.targetType } : {}),
+    ...(options.targetId !== undefined ? { targetId: options.targetId } : {}),
+    ...(options.metadata ? { metadata: options.metadata } : {}),
+    ipHash: ctx.ipHashOf(req),
+    now: nowSeconds(ctx.clock),
+  });
 }

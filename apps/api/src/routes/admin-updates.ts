@@ -49,7 +49,7 @@ export function adminUpdatesRouter(ctx: AppContext): Router {
     // Only a forced check that can reach GitHub counts against the limit, so plain page loads
     // served from the cache never lock the admin out of "Check now".
     if (refresh && enabled) {
-      assertNotLimited(res, await ctx.setupLimiters.updateCheck.consume('refresh'));
+      assertNotLimited(res, await ctx.updateLimiters.updateCheck.consume('refresh'));
     }
     sendJson(res, 'admin.updates', 200, await ctx.updates.status({ enabled, refresh }));
   });
@@ -101,7 +101,7 @@ export function adminUpdatesRouter(ctx: AppContext): Router {
       }
 
       // Counted here, after the cheap refusals: this is the step that may contact GitHub.
-      assertNotLimited(res, await ctx.setupLimiters.updateStart.consume('start'));
+      assertNotLimited(res, await ctx.updateLimiters.updateStart.consume('start'));
       if (!(await ctx.updates.isAvailable(version, { enabled: updateCheckEnabled() }))) {
         throw new AppError(
           'UPDATE_VERSION_NOT_AVAILABLE',

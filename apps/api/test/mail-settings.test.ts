@@ -1,6 +1,4 @@
 import net from 'node:net';
-import { Writable } from 'node:stream';
-import { pino } from 'pino';
 import { describe, expect, it } from 'vitest';
 import { audit } from '../src/audit.js';
 import { deriveKeys } from '../src/crypto/keys.js';
@@ -10,6 +8,7 @@ import {
   RecordingTransport,
   TEST_SECRETS,
   createTestClock,
+  memoryLogger,
   migratedMemoryDb,
   testConfig,
 } from './helpers.js';
@@ -114,22 +113,11 @@ describe('audit', () => {
   });
 });
 
-function captureLogger() {
-  const lines: string[] = [];
-  const stream = new Writable({
-    write(chunk: Buffer, _enc, cb) {
-      lines.push(chunk.toString());
-      cb();
-    },
-  });
-  return { lines, logger: pino({ level: 'info' }, stream) };
-}
-
 describe('mailer', () => {
   it('builds IT and EN reset links from PUBLIC_URL and records them', async () => {
     const { repo } = await makeRepo();
     const transport = new RecordingTransport();
-    const { logger } = captureLogger();
+    const { logger } = memoryLogger('info');
     const mailer = createMailer({
       config: testConfig({ PUBLIC_URL: 'http://localhost:8080' }),
       settingsRepo: repo,
@@ -160,7 +148,7 @@ describe('mailer', () => {
     const mailer = createMailer({
       config: testConfig({ PUBLIC_URL: 'https://files.example.com' }),
       settingsRepo: repo,
-      logger: captureLogger().logger,
+      logger: memoryLogger('info').logger,
       transport,
     });
     await mailer.sendWelcome({ to: 'n@example.com', locale: 'en', token: 'welcome-token' });
@@ -176,7 +164,7 @@ describe('mailer', () => {
       code: 'EAUTH',
       responseCode: 535,
     });
-    const { lines, logger } = captureLogger();
+    const { lines, logger } = memoryLogger('info');
     const mailer = createMailer({ config: testConfig(), settingsRepo: repo, logger, transport });
 
     expect(await mailer.send({ to: 'a@example.com', subject: 's', text: 't' })).toBe(false);
@@ -187,7 +175,7 @@ describe('mailer', () => {
 
   it('fails softly without SMTP in production', async () => {
     const { repo } = await makeRepo();
-    const { lines, logger } = captureLogger();
+    const { lines, logger } = memoryLogger('info');
     const mailer = createMailer({
       config: testConfig({
         APP_MODE: 'production',
@@ -208,7 +196,7 @@ describe('mailer', () => {
     const mailer = createMailer({
       config: testConfig({ APP_MODE: 'production' }),
       settingsRepo: repo,
-      logger: captureLogger().logger,
+      logger: memoryLogger('info').logger,
       transport,
     });
     expect(await mailer.sendPasswordReset({ to: 'a@example.com', locale: 'it', token: 't' })).toBe(
@@ -268,7 +256,7 @@ describe('mailer over real SMTP', () => {
       const mailer = createMailer({
         config: testConfig({ SMTP_DEV_HOST: '127.0.0.1', SMTP_DEV_PORT: String(smtp.port) }),
         settingsRepo: repo,
-        logger: captureLogger().logger,
+        logger: memoryLogger('info').logger,
       });
       expect(
         await mailer.send({ to: 'dev@example.com', subject: 'Hello dev', text: 'plain body' }),
@@ -293,7 +281,7 @@ describe('mailer over real SMTP', () => {
       const mailer = createMailer({
         config: testConfig({ SMTP_DEV_HOST: '127.0.0.1', SMTP_DEV_PORT: '1' }),
         settingsRepo: repo,
-        logger: captureLogger().logger,
+        logger: memoryLogger('info').logger,
       });
       expect(await mailer.send({ to: 'x@example.com', subject: 'Stored', text: 'body' })).toBe(
         true,

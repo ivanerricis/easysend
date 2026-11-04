@@ -25,6 +25,8 @@ interface ConfirmDialogProps {
    * when it throws (report the error yourself, e.g. with `notifyError`).
    */
   onConfirm: () => unknown;
+  /** Where the focus goes when the dialog closes (default: Radix, i.e. nowhere without a trigger). */
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 /** Confirmation dialog (AlertDialog) with an async confirm action. */
@@ -37,6 +39,7 @@ export function ConfirmDialog({
   cancelLabel,
   destructive,
   onConfirm,
+  onCloseAutoFocus,
 }: ConfirmDialogProps) {
   const { t } = useTranslation();
   const [pending, setPending] = useState(false);
@@ -56,7 +59,7 @@ export function ConfirmDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={(next) => (pending ? undefined : onOpenChange(next))}>
-      <AlertDialogContent>
+      <AlertDialogContent onCloseAutoFocus={onCloseAutoFocus}>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           {description ? <AlertDialogDescription>{description}</AlertDialogDescription> : null}

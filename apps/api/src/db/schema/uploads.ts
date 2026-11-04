@@ -15,6 +15,8 @@ export const uploads = sqliteTable(
     /** Null until the upload is attached to a transfer. */
     transferId: text('transfer_id').references(() => transfers.id, { onDelete: 'cascade' }),
     fileName: text('file_name').notNull(),
+    /** Sanitised folder inside the transfer ('' = root), from the tus `relativePath` metadata. */
+    path: text('path').notNull().default(''),
     totalSize: integer('total_size').notNull(),
     status: text('status', { enum: UPLOAD_STATUSES }).notNull().default('in_progress'),
     createdAt: createdAtColumn(),

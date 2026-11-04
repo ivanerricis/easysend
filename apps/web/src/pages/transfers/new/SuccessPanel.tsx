@@ -66,7 +66,11 @@ export function SuccessPanel({ transfer, onNew }: SuccessPanelProps) {
         </div>
         <div>
           <dt className="text-muted-foreground">{t('transfers.success.expires')}</dt>
-          <dd>{formatDateTime(transfer.expiresAt, locale)}</dd>
+          <dd>
+            {transfer.expiresAt === null
+              ? t('common.neverExpires')
+              : formatDateTime(transfer.expiresAt, locale)}
+          </dd>
         </div>
         {transfer.mode === 'email' ? (
           <div className="sm:col-span-2">

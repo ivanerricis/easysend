@@ -16,7 +16,8 @@
     "done": "Completato",
     "current": "Passaggio attuale",
     "todo": "Da fare",
-    "skipped": "Saltato"
+    "skipped": "Saltato",
+    "storage": "Archiviazione"
   },
   "code": {
     "title": "Inserisci il codice di configurazione",
@@ -147,5 +148,65 @@
     "afterwards": "Quando concludi, il codice di configurazione smette di funzionare e la procedura guidata viene bloccata. Tutto si può modificare più avanti dall'area di amministrazione.",
     "finish": "Concludi la configurazione",
     "finishing": "Conclusione in corso…"
+  },
+  "storage": {
+    "title": "Dove salvare i file",
+    "intro": "I file sono sempre cifrati prima di essere salvati. Usa il disco locale oppure un servizio compatibile S3 se il disco del server è piccolo. Puoi cambiare scelta più avanti nelle impostazioni.",
+    "driver": "Archiviazione dei nuovi file",
+    "driverLocal": "Disco locale",
+    "driverLocalHint": "I file restano sul disco del server. Non serve altro.",
+    "driverS3": "Archiviazione compatibile S3",
+    "driverS3Hint": "Cloudflare R2, MinIO, AWS S3, Backblaze B2, Wasabi e simili.",
+    "fields": {
+      "endpoint": "Endpoint",
+      "region": "Regione",
+      "bucket": "Bucket",
+      "prefix": "Prefisso della cartella",
+      "forcePathStyle": "Indirizzamento path-style",
+      "accessKeyId": "Access key ID",
+      "secretAccessKey": "Secret access key"
+    },
+    "endpointHelp": "Indirizzo completo del servizio, che inizia con https:// (o http:// per un server locale).",
+    "regionHelp": "Usa \"auto\" per Cloudflare R2.",
+    "prefixHelp": "Cartella facoltativa dentro il bucket, senza barra iniziale.",
+    "pathStyleHelp": "Attivalo per MinIO e per i server che non supportano i sottodomini del bucket.",
+    "secretKept": "Una secret key è già salvata. Lascia vuoto per tenerla o scrivine una nuova.",
+    "providersTitle": "Esempi di endpoint",
+    "providers": {
+      "r2": "Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com, regione auto",
+      "minio": "MinIO: http://minio:9000, path-style attivo",
+      "aws": "AWS S3: https://s3.eu-west-1.amazonaws.com, regione eu-west-1",
+      "b2": "Backblaze B2: https://s3.eu-central-003.backblazeb2.com, regione eu-central-003",
+      "wasabi": "Wasabi: https://s3.eu-central-1.wasabisys.com, regione eu-central-1"
+    },
+    "lockedTitle": "Alcuni campi sono bloccati",
+    "lockedBody": "Ci sono file su S3, quindi endpoint, bucket e prefisso non si possono cambiare. Sposta prima i file sul disco locale. Regione, path-style e chiavi si possono ancora modificare.",
+    "lockedField": "Bloccato finché ci sono file su S3. Sposta prima i file sul disco locale.",
+    "testRequired": "Prova la connessione con questi valori prima di salvare.",
+    "changedSinceTest": "I valori sono cambiati dopo la prova. Riprova per poter salvare.",
+    "test": "Prova connessione",
+    "testing": "Prova in corso…",
+    "testOk": "La connessione funziona.",
+    "testOkBody": "EasySend ha scritto, letto ed eliminato un oggetto di prova nel bucket.",
+    "testFailed": "La prova di connessione è fallita.",
+    "reasonLabel": "Motivo:",
+    "reasons": {
+      "ACCESS_DENIED": "accesso negato, controlla le chiavi e i permessi sul bucket.",
+      "NO_SUCH_BUCKET": "il bucket non esiste.",
+      "SIGNATURE": "le chiavi o la regione non sono corrette.",
+      "TIMEOUT": "il servizio non ha risposto in tempo.",
+      "NETWORK": "il servizio non è raggiungibile.",
+      "ENDPOINT": "l'endpoint non è un indirizzo S3 valido."
+    },
+    "errors": {
+      "required": "Questo campo è obbligatorio.",
+      "endpoint": "Inserisci un indirizzo valido che inizia con https:// o http://.",
+      "region": "Inserisci una regione.",
+      "bucket": "Usa da 3 a 63 lettere minuscole, cifre, punti o trattini.",
+      "prefix": "Senza barra iniziale e senza parti \"..\".",
+      "accessKeyId": "Inserisci l'access key ID.",
+      "secretAccessKey": "Inserisci la secret access key."
+    },
+    "saveContinue": "Salva e continua"
   }
 }

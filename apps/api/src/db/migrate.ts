@@ -67,7 +67,7 @@ export function backupTimestamp(date: Date = new Date()): string {
 /** Deletes all but the newest `keep` files of `backupDir` whose name matches `pattern`. */
 export function pruneBackups(
   backupDir: string,
-  logger: Logger,
+  logger: Logger | undefined,
   pattern: RegExp = BACKUP_FILE,
   keep: number = BACKUPS_TO_KEEP,
 ): void {
@@ -77,7 +77,7 @@ export function pruneBackups(
     .sort((a, b) => b.mtime - a.mtime || b.name.localeCompare(a.name));
   for (const old of files.slice(keep)) {
     unlinkSync(path.join(backupDir, old.name));
-    logger.info({ file: old.name }, 'removed old database backup');
+    logger?.info({ file: old.name }, 'removed old database backup');
   }
 }
 

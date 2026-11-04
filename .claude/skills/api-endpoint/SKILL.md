@@ -7,7 +7,7 @@ description: Add or change an EasySend API endpoint end to end - shared Zod sche
 
 Every endpoint is declared once in the contract registry and everything else derives from it:
 validation, auth and CSRF guards, response filtering (`sendJson`), the web client and `docs/api.md`.
-Read CLAUDE.md "Decisioni" (error format, 404 for non-owners, auth levels, timestamps in seconds).
+Follow the cross-cutting decisions in CLAUDE.md and the area rules in `.claude/rules/` (error format, 404 for non-owners, auth levels, timestamps in seconds).
 A complete recent example: `admin.updates` (contract entry, `apps/api/src/routes/admin-updates.ts`,
 `apps/web/src/lib/api/admin.ts` `getUpdateStatus`).
 

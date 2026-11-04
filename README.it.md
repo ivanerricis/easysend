@@ -15,9 +15,13 @@ EasySend è un'applicazione web self-hosted per inviare file di grandi dimension
 - Upload ripristinabili di file molto grandi con il protocollo [tus](https://tus.io), a blocchi da 25 MB.
 - File cifrati su disco (AES-256-GCM). Upload, download e zip sono in streaming, quindi la RAM non cresce con la dimensione del file.
 - Condivisione con link o email, con scadenza, password e limite di download facoltativi. Revoca in qualsiasi momento.
+- Ricevi file da chiunque con un link di caricamento (password, limiti di dimensione e di invii facoltativi), senza account per chi invia.
 - Utenti con ruoli e quote, autenticazione a due fattori obbligatoria per gli admin.
 - Interfaccia in italiano e inglese, tema chiaro e scuro, branding configurabile.
 - Wizard di setup per admin, SMTP, tunnel Cloudflare e impostazioni generali.
+- Aggiornamento con un clic dal pannello admin, facoltativo, eseguito da una piccola unità systemd sull'host (niente socket di Docker nei container).
+- Archiviazione S3 facoltativa (Cloudflare R2, MinIO, AWS S3, Backblaze B2, Wasabi) per i file cifrati, con spostamento dei file in entrambe le direzioni.
+- Dati in un volume Docker o in una cartella dell'host a tua scelta, per esempio un secondo disco.
 
 ## Avvio rapido
 
@@ -42,7 +46,7 @@ Documentazione completa: **https://ivanerricis.github.io/easysend/it/** (disponi
 - [Requisiti](https://ivanerricis.github.io/easysend/it/guide/requirements) e [preparazione dell'LXC](https://ivanerricis.github.io/easysend/it/guide/lxc)
 - [Installazione](https://ivanerricis.github.io/easysend/it/guide/install) e [primo setup](https://ivanerricis.github.io/easysend/it/guide/first-setup)
 - [Token API di Cloudflare](https://ivanerricis.github.io/easysend/it/guide/cloudflare)
-- [Backup e ripristino](https://ivanerricis.github.io/easysend/it/guide/backup)
+- [Posizione dei dati](https://ivanerricis.github.io/easysend/it/guide/data-location) e [backup e ripristino](https://ivanerricis.github.io/easysend/it/guide/backup)
 - [Aggiornamento e rollback](https://ivanerricis.github.io/easysend/it/guide/updates)
 - [Note di sicurezza](https://ivanerricis.github.io/easysend/it/guide/security) e [risoluzione dei problemi](https://ivanerricis.github.io/easysend/it/guide/troubleshooting)
 

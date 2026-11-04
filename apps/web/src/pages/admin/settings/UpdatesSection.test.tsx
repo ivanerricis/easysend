@@ -162,12 +162,12 @@ describe('UpdatesSection: one-click update', () => {
     );
   });
 
-  it('offers a reload after a successful update', async () => {
+  it('confirms a successful update without a reload button', async () => {
     renderUpdates(
       runResponse({ run: runStatus({ state: 'succeeded', step: 'done', finishedAt: 1 }) }),
     );
     expect(await screen.findByText('Updated to 0.3.0')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reload page' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reload page' })).toBeNull();
   });
 
   it('says when the instance was already on that version', async () => {

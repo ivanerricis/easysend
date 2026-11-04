@@ -1,8 +1,8 @@
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { Router, type Response } from 'express';
 import { pipeline, type Readable, type Transform } from 'node:stream';
 import { ZipFile } from 'yazl';
-import type { DownloadInfoResponse, ZipQuery } from '@easysend/shared';
+import { publicExpiresAt, type DownloadInfoResponse, type ZipQuery } from '@easysend/shared';
 import type { AppContext } from '../context.js';
 import { sha256Hex } from '../crypto/hash.js';
 import { createDecryptStream } from '../crypto/segments.js';
@@ -19,16 +19,15 @@ import { parseRange } from '../downloads/range.js';
 import { claimDownload, logDownloadOnClose } from '../downloads/record.js';
 import { endpointGuards } from '../http/endpoint-guards.js';
 import { AppError } from '../http/errors.js';
-import { assertNotLimited, limitedError } from '../http/rate-limit.js';
+import { verifyLinkPassword } from '../http/link-password.js';
 import { sendJson, validBody, validParams, validQuery } from '../http/validate.js';
-import { contentDisposition, dedupeNames, sanitizeFileName } from '../storage/filenames.js';
-import { storagePath } from '../storage/paths.js';
+import { contentDisposition, dedupeZipEntries, sanitizeFileName } from '../storage/filenames.js';
 import type { TransferRow } from '../transfers/service.js';
 
 type FileRow = typeof transferFiles.$inferSelect;
 
 /**
- * Public download API (phase 3): `/downloads/:token` (info, unlock, file, zip). These endpoints
+ * Public download API: `/downloads/:token` (info, unlock, file, zip). These endpoints
  * never need a session. Mounted under `/api` by `app.ts`.
  */
 export function downloadsRouter(ctx: AppContext): Router {
@@ -40,12 +39,35 @@ export function downloadsRouter(ctx: AppContext): Router {
       .select()
       .from(transferFiles)
       .where(eq(transferFiles.transferId, transferId))
-      .orderBy(asc(transferFiles.originalName), asc(transferFiles.createdAt))
+      .orderBy(
+        asc(transferFiles.path),
+        asc(transferFiles.originalName),
+        asc(transferFiles.createdAt),
+      )
       .all();
 
-  const decryptStream = (file: FileRow, range?: { start: number; end: number }): Readable =>
-    createDecryptStream({
-      path: storagePath(ctx.config, file.storageName),
+  /**
+   * Opens the stored object of a file and returns the plaintext stream. Anything that stops the
+   * object from opening (a missing object, S3 unreachable) is `STORAGE_UNAVAILABLE` (503); callers
+   * open before counting the download and before sending headers.
+   */
+  async function decryptStream(
+    file: FileRow,
+    range?: { start: number; end: number },
+  ): Promise<Readable> {
+    let reader;
+    try {
+      reader = await ctx.storage.forFile(file.storage).openReader(file.storageName);
+    } catch (error) {
+      ctx.logger.error(
+        { fileId: file.id, storage: file.storage, errorName: (error as Error).name },
+        'unable to open a stored file',
+      );
+      if (error instanceof AppError) throw error;
+      throw new AppError('STORAGE_UNAVAILABLE', 'The file storage is not available');
+    }
+    return createDecryptStream({
+      reader,
       size: file.sizeBytes,
       wrappedKey: file.encKeyWrapped,
       fileKey: ctx.keys.file,
@@ -53,6 +75,7 @@ export function downloadsRouter(ctx: AppContext): Router {
       segmentSize: file.encSegmentSize,
       ...range,
     });
+  }
 
   /** Sends `source` through the byte counter to `res`; a failure after the headers drops the connection. */
   function stream(
@@ -80,7 +103,10 @@ export function downloadsRouter(ctx: AppContext): Router {
       const { token } = validParams<{ token: string }>(req);
       const { transfer, nowSec } = await resolveTransfer(ctx, req, res, token);
       if (!isUnlocked(ctx, req, transfer, nowSec)) {
-        sendJson(res, 'downloads.info', 200, { locked: true, expiresAt: transfer.expiresAt });
+        sendJson(res, 'downloads.info', 200, {
+          locked: true,
+          expiresAt: publicExpiresAt(transfer.expiresAt),
+        });
         return;
       }
       const owner = db
@@ -94,9 +120,14 @@ export function downloadsRouter(ctx: AppContext): Router {
         title: transfer.title,
         message: transfer.message,
         senderName: owner?.displayName ?? null,
-        files: files.map((f) => ({ id: f.id, name: f.originalName, sizeBytes: f.sizeBytes })),
+        files: files.map((f) => ({
+          id: f.id,
+          name: f.originalName,
+          path: f.path,
+          sizeBytes: f.sizeBytes,
+        })),
         totalBytes: files.reduce((sum, f) => sum + f.sizeBytes, 0),
-        expiresAt: transfer.expiresAt,
+        expiresAt: publicExpiresAt(transfer.expiresAt),
         downloadCount: transfer.downloadCount,
         maxDownloads: transfer.maxDownloads,
       };
@@ -114,24 +145,14 @@ export function downloadsRouter(ctx: AppContext): Router {
         res.status(204).end();
         return;
       }
-      const { downloadPasswordToken, downloadPasswordIp } = transferLimiters;
-      const ipKey = `${token}:${ipHash}`;
-      assertNotLimited(res, await downloadPasswordToken.check(token));
-      assertNotLimited(res, await downloadPasswordIp.check(ipKey));
-
-      const { password } = validBody<{ password: string }>(req);
-      if (!(await ctx.passwordHasher.verify(transfer.passwordHash, password))) {
-        const [byToken, byIp] = await Promise.all([
-          downloadPasswordToken.fail(token),
-          downloadPasswordIp.fail(ipKey),
-        ]);
-        const limited = [byToken, byIp].filter((s) => s.limited);
-        if (limited.length > 0) {
-          throw limitedError(res, Math.max(...limited.map((s) => s.retryAfterSeconds)));
-        }
-        throw new AppError('PASSWORD_INCORRECT', 'Incorrect password');
-      }
-      await downloadPasswordIp.reset(ipKey);
+      await verifyLinkPassword(res, ctx.passwordHasher, {
+        passwordHash: transfer.passwordHash,
+        password: validBody<{ password: string }>(req).password,
+        ipKey: `${token}:${ipHash}`,
+        tokenKey: token,
+        byIp: transferLimiters.downloadPasswordIp,
+        byToken: transferLimiters.downloadPasswordToken,
+      });
       setUnlockCookie(ctx, res, transfer, nowSec);
       res.status(204).end();
     },
@@ -144,7 +165,11 @@ export function downloadsRouter(ctx: AppContext): Router {
       const { token, fileId } = validParams<{ token: string; fileId: string }>(req);
       const { transfer, ipHash, nowSec } = await resolveTransfer(ctx, req, res, token);
       assertUnlocked(ctx, req, transfer, nowSec);
-      const file = filesOf(transfer.id).find((f) => f.id === fileId);
+      const file = db
+        .select()
+        .from(transferFiles)
+        .where(and(eq(transferFiles.id, fileId), eq(transferFiles.transferId, transfer.id)))
+        .get();
       if (!file) throw new AppError('FILE_NOT_FOUND', 'File not found');
 
       const etag = `"${(file.sha256 ?? sha256Hex(file.id)).slice(0, 32)}"`;
@@ -159,6 +184,9 @@ export function downloadsRouter(ctx: AppContext): Router {
       }
 
       const partial = parsed.kind === 'range' ? parsed.range : undefined;
+      // Opened before any header is set and before the download is counted: a storage failure
+      // is a clean 503 that does not cost the recipient a download.
+      const source = req.method === 'HEAD' ? undefined : await decryptStream(file, partial);
       const length = partial ? partial.end - partial.start + 1 : file.sizeBytes;
       res.setHeader('Content-Type', 'application/octet-stream');
       res.setHeader('Content-Disposition', contentDisposition(file.originalName));
@@ -171,13 +199,11 @@ export function downloadsRouter(ctx: AppContext): Router {
         res.setHeader('Content-Range', `bytes ${partial.start}-${partial.end}/${file.sizeBytes}`);
         res.status(206);
       }
-      if (req.method === 'HEAD') {
+      if (!source) {
         res.end();
         return;
       }
 
-      // Built before counting (it is lazy, nothing is opened yet) so a failure does not cost a download.
-      const source = decryptStream(file, partial);
       // A request from byte 0 always counts; a later range is a free resume only with the resume
       // cookie of a counted download of this file, otherwise `bytes=1-` would bypass the limit.
       const counted =
@@ -259,20 +285,24 @@ export function downloadsRouter(ctx: AppContext): Router {
       let current: Readable | undefined;
       res.once('close', () => current?.destroy());
 
-      const names = dedupeNames(files.map((f) => sanitizeFileName(f.originalName)));
+      const names = dedupeZipEntries(
+        files.map((f) => ({ path: f.path, name: sanitizeFileName(f.originalName) })),
+      );
       files.forEach((file, index) => {
         // Lazy: a file is opened only when yazl reaches its entry, so one is open at a time.
         zip.addReadStreamLazy(
           names[index]!,
           { compress: false, size: file.sizeBytes, mtime: new Date(file.createdAt * 1000) },
           (callback) => {
-            try {
-              current = decryptStream(file);
-              current.on('error', (error) => zip.emit('error', error));
-              callback(null, current);
-            } catch (error) {
-              zip.emit('error', error);
-            }
+            decryptStream(file).then(
+              (opened) => {
+                current = opened;
+                opened.on('error', (error) => zip.emit('error', error));
+                if (res.destroyed) opened.destroy();
+                callback(null, opened);
+              },
+              (error: unknown) => zip.emit('error', error),
+            );
           },
         );
       });

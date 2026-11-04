@@ -1,12 +1,11 @@
-import { LINK_PASSWORD_MIN_LENGTH, type TransferDetail } from '@easysend/shared';
+import { EXPIRY_KEYS, LINK_PASSWORD_MIN_LENGTH, type TransferDetail } from '@easysend/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { queryKeys } from '@/app/query';
-import { SelectInput } from '@/components/common/SelectInput';
 import { FormErrorSummary } from '@/components/common/FormErrorSummary';
-import { FormField, TextField } from '@/components/common/FormField';
+import { FormField, TextField, SelectField } from '@/components/common/FormField';
 import { PasswordInput } from '@/components/common/PasswordInput';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -31,13 +30,23 @@ interface EditTransferDialogProps {
   transfer: TransferDetail;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Where the focus goes when the dialog closes (see `restoreRowFocus`). */
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 /** Dialog content is unmounted when closed, so the form starts from the current values each time. */
-export function EditTransferDialog({ transfer, open, onOpenChange }: EditTransferDialogProps) {
+export function EditTransferDialog({
+  transfer,
+  open,
+  onOpenChange,
+  onCloseAutoFocus,
+}: EditTransferDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
+      <DialogContent
+        className="max-h-[90dvh] overflow-y-auto sm:max-w-lg"
+        onCloseAutoFocus={onCloseAutoFocus}
+      >
         <EditForm transfer={transfer} onOpenChange={onOpenChange} />
       </DialogContent>
     </Dialog>
@@ -131,32 +140,25 @@ function EditForm({
             <Textarea {...field} {...controlProps} rows={3} maxLength={2000} />
           )}
         </FormField>
-        <FormField
+        <SelectField
           control={form.control}
           name="expiresIn"
           label={t('transfers.edit.expiry')}
           description={t('transfers.edit.expiryHint')}
           idPrefix="edit"
-        >
-          {({ field, controlProps }) => (
-            <SelectInput
-              {...controlProps}
-              name={field.name}
-              value={field.value}
-              onBlur={field.onBlur}
-              onValueChange={field.onChange}
-              options={[
-                { value: 'keep', label: t('transfers.edit.expiryKeep') },
-                ...(['3d', '1w', '1m'] as const).map((period) => ({
-                  value: period,
-                  label: t('transfers.edit.expiryFromNow', {
-                    period: t(`transfers.expiry.${period}`),
-                  }),
-                })),
-              ]}
-            />
-          )}
-        </FormField>
+          options={[
+            { value: 'keep', label: t('transfers.edit.expiryKeep') },
+            ...EXPIRY_KEYS.map((period) => ({
+              value: period,
+              label:
+                period === 'never'
+                  ? t('transfers.expiry.never')
+                  : t('transfers.edit.expiryFromNow', {
+                      period: t(`transfers.expiry.${period}`),
+                    }),
+            })),
+          ]}
+        />
         <FormField
           control={form.control}
           name="maxDownloads"

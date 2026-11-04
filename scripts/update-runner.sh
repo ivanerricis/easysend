@@ -136,7 +136,7 @@ main() {
   case "$rc" in
     0) finish succeeded '' ;;
     "$EXIT_BUSY") finish failed busy ;;
-    "$EXIT_COMPOSE") finish failed compose ;;
+    "$EXIT_COMPOSE" | "$EXIT_DATA_PATH") finish failed compose ;;
     "$EXIT_BACKUP") finish failed backup ;;
     "$EXIT_ROLLED_BACK") finish rolled_back deploy ;;
     "$EXIT_ROLLBACK_FAILED") finish failed rollback_failed ;;

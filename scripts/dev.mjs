@@ -1,51 +1,23 @@
 // Development with hot reload: api and web run on the host, only Mailpit runs in Docker.
 // Usage: `node scripts/dev.mjs`. Cross-platform, no dependencies.
 import { spawn, spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const isWindows = process.platform === 'win32';
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+import {
+  ensureDocker,
+  isWindows,
+  localComposeArgs,
+  readEnvFile,
+  root,
+  run as docker,
+} from './lib/node.mjs';
 const dataRoot = join(root, '.local-data');
 const dataDir = join(dataRoot, 'data');
 const sharedDir = join(dataRoot, 'shared');
 
-/** Minimal KEY=VALUE parser for .env.local (comments and blank lines ignored, quotes stripped). */
-function readEnvFile(file) {
-  const values = {};
-  if (!existsSync(file)) return values;
-  for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
-    if (line.trimStart().startsWith('#')) continue;
-    const match = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/.exec(line);
-    if (match) values[match[1]] = match[2].replace(/^(['"])(.*)\1$/, '$2');
-  }
-  return values;
-}
+const composeArgs = localComposeArgs('.env.local', 'easysend-local');
 
-const composeArgs = [
-  'compose',
-  '-f',
-  'docker-compose.yml',
-  '-f',
-  'docker-compose.override.yml',
-  '-f',
-  'docker-compose.local.yml',
-  '--env-file',
-  '.env.local',
-  '-p',
-  'easysend-local',
-];
-
-function docker(args, options = {}) {
-  return spawnSync('docker', args, { cwd: root, stdio: 'inherit', shell: false, ...options });
-}
-
-const info = docker(['info'], { stdio: 'ignore' });
-if (info.error || info.status !== 0) {
-  console.error('Docker is not reachable. Start Docker Desktop and retry.');
-  process.exit(1);
-}
+ensureDocker();
 
 if (!existsSync(join(root, '.env.local'))) {
   copyFileSync(join(root, '.env.local.example'), join(root, '.env.local'));

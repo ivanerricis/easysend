@@ -1,0 +1,73 @@
+{
+  "title": "Invia i file",
+  "loading": "Caricamento del link…",
+  "askedBy": "{{name}} ti chiede dei file",
+  "instructionsLabel": "Istruzioni",
+  "remaining": "Spazio rimasto",
+  "unlimited": "Nessun limite di dimensione",
+  "expires": "Aperto fino al {{date}} ({{relative}})",
+  "expiresNever": "Sempre aperto",
+  "locked": {
+    "title": "Questo link di caricamento è protetto",
+    "description": "Inserisci la password che ti hanno dato per inviare i file."
+  },
+  "form": {
+    "yourDetails": "I tuoi dati",
+    "name": "Il tuo nome",
+    "email": "La tua email",
+    "message": "Messaggio",
+    "messageHint": "Facoltativo. Viene mostrato insieme ai tuoi file.",
+    "filesHeading": "File",
+    "limits": "Fino a {{max}} file alla volta.",
+    "spaceLeft": "Puoi inviare al massimo {{size}} in totale.",
+    "submit": "Invia i file",
+    "errors": {
+      "nameRequired": "Inserisci il tuo nome.",
+      "nameLength": "Il nome può avere al massimo {{max}} caratteri.",
+      "emailRequired": "Inserisci il tuo indirizzo email.",
+      "emailInvalid": "Inserisci un indirizzo email valido.",
+      "messageLength": "Il messaggio può avere al massimo {{max}} caratteri.",
+      "noFiles": "Aggiungi almeno un file.",
+      "tooManyFiles_one": "{{count}} file non è stato aggiunto: il limite è {{max}} file alla volta.",
+      "tooManyFiles_other": "{{count}} file non sono stati aggiunti: il limite è {{max}} file alla volta.",
+      "nameTooLong_one": "{{count}} file non è stato aggiunto: il nome supera {{max}} caratteri.",
+      "nameTooLong_other": "{{count}} file non sono stati aggiunti: il nome supera {{max}} caratteri.",
+      "overLimit": "Questi file ({{total}}) superano lo spazio rimasto ({{remaining}}). Togline qualcuno per continuare."
+    }
+  },
+  "success": {
+    "title": "File inviati",
+    "description": "{{files}} · {{size}} consegnati. Il proprietario del link è stato avvisato.",
+    "more": "Invia altri file"
+  },
+  "resume": {
+    "title": "Un invio è stato interrotto",
+    "description": "I file non sono stati inviati del tutto. Quelli già caricati restano; seleziona di nuovo quelli mancanti per riprendere da dove eri rimasto."
+  },
+  "states": {
+    "notFound": {
+      "title": "Link non valido",
+      "description": "Questo link di caricamento non esiste. Controlla di aver copiato l'indirizzo per intero."
+    },
+    "expired": {
+      "title": "Link scaduto",
+      "description": "Questo link di caricamento non è più aperto. Chiedi a chi te l'ha mandato di crearne uno nuovo."
+    },
+    "revoked": {
+      "title": "Link chiuso",
+      "description": "Il proprietario ha chiuso questo link di caricamento. Chiedigliene uno nuovo se devi ancora inviare dei file."
+    },
+    "full": {
+      "title": "Non si accettano altri invii",
+      "description": "Questo link ha raggiunto il numero massimo di invii. Chiedi al proprietario un nuovo link."
+    },
+    "rateLimited": {
+      "title": "Troppe richieste",
+      "description": "Aspetta un momento e riprova."
+    },
+    "generic": {
+      "title": "Impossibile caricare il link",
+      "description": "Qualcosa non ha funzionato da parte nostra. Riprova tra poco."
+    }
+  }
+}

@@ -7,13 +7,17 @@ import {
   MESSAGE_MAX_LENGTH,
   PASSWORD_MAX_LENGTH,
   TITLE_MAX_LENGTH,
+  SENDER_NAME_MAX_LENGTH,
   TRANSFER_MODES,
+  TRANSFER_SOURCES,
   TRANSFER_STATUSES,
   UPLOAD_STATUSES,
 } from '../constants.js';
 import {
+  atLeastOneField,
   byteSizeSchema,
   emailSchema,
+  filePathSchema,
   idSchema,
   paginatedSchema,
   paginationQuerySchema,
@@ -26,6 +30,7 @@ export const LINK_PASSWORD_MIN_LENGTH = 8;
 export const expiryKeySchema = z.enum(EXPIRY_KEYS);
 export const transferModeSchema = z.enum(TRANSFER_MODES);
 export const transferStatusSchema = z.enum(TRANSFER_STATUSES);
+export const transferSourceSchema = z.enum(TRANSFER_SOURCES);
 
 export const linkPasswordSchema = z.string().min(LINK_PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH);
 export const maxDownloadsSchema = z.number().int().min(1).max(MAX_DOWNLOADS_LIMIT);
@@ -76,19 +81,18 @@ export type CreateTransferRequest = z.infer<typeof createTransferRequestSchema>;
  * Edits an existing transfer. `expiresIn` is counted from now (not from the creation date).
  * `password` and `removePassword` are mutually exclusive; at least one field is required.
  */
-export const updateTransferRequestSchema = z
-  .object({
+export const updateTransferRequestSchema = atLeastOneField(
+  z.object({
     title: transferTitleSchema.nullable().optional(),
     message: transferMessageSchema.nullable().optional(),
     expiresIn: expiryKeySchema.optional(),
     maxDownloads: maxDownloadsSchema.nullable().optional(),
     password: linkPasswordSchema.optional(),
     removePassword: z.literal(true).optional(),
-  })
-  .refine((v) => Object.keys(v).length > 0, { message: 'At least one field is required' })
-  .refine((v) => !(v.password !== undefined && v.removePassword), {
-    message: 'password and removePassword are mutually exclusive',
-  });
+  }),
+).refine((v) => !(v.password !== undefined && v.removePassword), {
+  message: 'password and removePassword are mutually exclusive',
+});
 export type UpdateTransferRequest = z.infer<typeof updateTransferRequestSchema>;
 
 export const transferFileParamsSchema = z.object({ id: idSchema, fileId: idSchema });
@@ -96,6 +100,8 @@ export const transferFileParamsSchema = z.object({ id: idSchema, fileId: idSchem
 export const listTransfersQuerySchema = paginationQuerySchema.extend({
   status: transferStatusSchema.optional(),
   mode: transferModeSchema.optional(),
+  /** `sent` (created by the user) or `received` (through an upload request). */
+  source: transferSourceSchema.optional(),
   q: z.string().min(1).max(100).optional(),
 });
 export type ListTransfersQuery = z.infer<typeof listTransfersQuerySchema>;
@@ -111,19 +117,19 @@ export const listDownloadLogsQuerySchema = paginationQuerySchema;
 export const transferFileSchema = z.object({
   id: idSchema,
   name: z.string().min(1).max(FILENAME_MAX_LENGTH),
+  /** Folder inside the transfer ("" for the root). */
+  path: filePathSchema,
   sizeBytes: byteSizeSchema,
   mimeType: z.string().max(255).nullable(),
   sha256: z.string().regex(/^[0-9a-f]{64}$/),
   createdAt: unixSecondsSchema,
 });
-export type TransferFile = z.infer<typeof transferFileSchema>;
 
 export const transferRecipientSchema = z.object({
   email: emailSchema,
   /** `null` until the notification email has been sent. */
   notifiedAt: unixSecondsSchema.nullable(),
 });
-export type TransferRecipient = z.infer<typeof transferRecipientSchema>;
 
 /**
  * Upload attached to a draft transfer that is not a file yet: `in_progress` (receiving chunks),
@@ -132,11 +138,11 @@ export type TransferRecipient = z.infer<typeof transferRecipientSchema>;
 export const transferUploadSchema = z.object({
   id: idSchema,
   fileName: z.string().max(FILENAME_MAX_LENGTH),
+  path: filePathSchema,
   totalSize: byteSizeSchema,
   status: z.enum(UPLOAD_STATUSES),
   expiresAt: unixSecondsSchema,
 });
-export type TransferUpload = z.infer<typeof transferUploadSchema>;
 
 export const transferSummarySchema = z.object({
   id: idSchema,
@@ -146,20 +152,29 @@ export const transferSummarySchema = z.object({
   ownerId: idSchema,
   ownerEmail: emailSchema,
   createdAt: unixSecondsSchema,
-  expiresAt: unixSecondsSchema,
+  /** `null`: the transfer never expires. */
+  expiresAt: unixSecondsSchema.nullable(),
   totalBytes: byteSizeSchema,
   fileCount: z.number().int().nonnegative(),
   recipientCount: z.number().int().nonnegative(),
   downloadCount: z.number().int().nonnegative(),
   maxDownloads: maxDownloadsSchema.nullable(),
   hasPassword: z.boolean(),
+  /** `received` when the files were uploaded by someone else through an upload request link. */
+  source: transferSourceSchema,
+  /** Upload request that produced a received transfer; `null` for sent ones or after the request was deleted. */
+  uploadRequestId: idSchema.nullable(),
+  /** Name given by the person who uploaded (received transfers only). */
+  senderName: z.string().max(SENDER_NAME_MAX_LENGTH).nullable(),
+  /** Email given by the person who uploaded, unverified (received transfers only). */
+  senderEmail: emailSchema.nullable(),
+  /** Public download URL `<PUBLIC_URL>/d/<token>`. `null` while the transfer is a draft (`uploading`) or no public URL is known. */
+  shareUrl: z.string().nullable(),
 });
 export type TransferSummary = z.infer<typeof transferSummarySchema>;
 
 export const transferDetailSchema = transferSummarySchema.extend({
   message: z.string().nullable(),
-  /** Public download URL `<PUBLIC_URL>/d/<token>`. `null` while the transfer is still a draft (`uploading`). */
-  shareUrl: z.string().nullable(),
   firstDownloadedAt: unixSecondsSchema.nullable(),
   files: z.array(transferFileSchema),
   recipients: z.array(transferRecipientSchema),
@@ -178,7 +193,6 @@ export const downloadLogEntrySchema = z.object({
   userAgent: z.string().max(512).nullable(),
   createdAt: unixSecondsSchema,
 });
-export type DownloadLogEntry = z.infer<typeof downloadLogEntrySchema>;
 
 export const listDownloadLogsResponseSchema = paginatedSchema(downloadLogEntrySchema);
 export type ListDownloadLogsResponse = z.infer<typeof listDownloadLogsResponseSchema>;

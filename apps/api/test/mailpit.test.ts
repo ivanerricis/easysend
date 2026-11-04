@@ -46,7 +46,7 @@ const SENDER_EMAIL = 'anna.secret@sender.example';
 const FROM_EMAIL = 'noreply@easysend.example';
 
 describe.skipIf(!MAILPIT_URL)('emails through a real SMTP server (Mailpit)', () => {
-  it.each(['it', 'en'] as const)('delivers the five emails in %s', async (locale) => {
+  it.each(['it', 'en'] as const)('delivers the six emails in %s', async (locale) => {
     const app = await createTestApp({ deps: { mailTransport: undefined } });
     app.ctx.settings.set('smtp', {
       host: '127.0.0.1',
@@ -82,6 +82,16 @@ describe.skipIf(!MAILPIT_URL)('emails through a real SMTP server (Mailpit)', () 
         title: 'Holiday',
         downloadedAt: expiresAt,
       }),
+      submission: await mailer.sendSubmissionReceived({
+        to: 'inbox@example.com',
+        locale,
+        transferId: 'tr-2',
+        requestTitle: 'Documents',
+        submitterName: 'Marco',
+        submitterEmail: 'marco@example.com',
+        fileCount: 2,
+        totalBytes: 2_000_000,
+      }),
       test: (
         await mailer.sendTest(
           {
@@ -96,7 +106,14 @@ describe.skipIf(!MAILPIT_URL)('emails through a real SMTP server (Mailpit)', () 
         )
       ).ok,
     };
-    expect(sent).toEqual({ reset: true, welcome: true, transfer: true, first: true, test: true });
+    expect(sent).toEqual({
+      reset: true,
+      welcome: true,
+      transfer: true,
+      first: true,
+      submission: true,
+      test: true,
+    });
 
     const expected: Array<[string, RegExp, string?]> = [
       [
@@ -111,6 +128,7 @@ describe.skipIf(!MAILPIT_URL)('emails through a real SMTP server (Mailpit)', () 
       ],
       ['recipient@example.com', /Anna Rossi/, 'http://localhost:8080/d/dl-token'],
       ['owner@example.com', /Holiday/, 'http://localhost:8080/transfers/tr-1'],
+      ['inbox@example.com', /Documents/, 'http://localhost:8080/transfers/tr-2'],
       ['admin@example.com', locale === 'it' ? /email di prova/ : /test email/],
     ];
     for (const [to, subject, link] of expected) {

@@ -19,6 +19,7 @@ export function adminTunnelRouter(ctx: AppContext): Router {
       publicUrl: tunnel ? (ctx.publicUrl() ?? null) : null,
       tunnelId: tunnel?.tunnelId ?? null,
       configuredAt: tunnel?.configuredAt ?? null,
+      publicUrlEnv: ctx.config.publicUrlEnv ?? null,
     });
   });
 

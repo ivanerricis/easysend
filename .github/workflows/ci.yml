@@ -6,7 +6,6 @@ on:
   push:
     branches: [main]
   pull_request:
-  workflow_dispatch:
 
 permissions: {}
 
@@ -100,7 +99,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
-      - run: pnpm build
       - name: Docs site
         run: pnpm docs:build
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -181,10 +179,32 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The job always runs (e2e is a required check) but skips its work when a pull request only
+      # touches documentation; pushes to main always run the full suite.
+      - name: Detect code changes
+        id: changes
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          code=$(git diff --name-only "$BASE_SHA" HEAD \
+            | grep -Ev '^docs/|\.md$|^LICENSE$|^\.github/ISSUE_TEMPLATE/' || true)
+          if [ -n "$code" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Documentation-only change: end-to-end tests skipped." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - uses: ./.github/actions/setup
+        if: steps.changes.outputs.run == 'true'
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        if: steps.changes.outputs.run == 'true'
       # The build job writes the layer cache; this job only reads it.
       - name: Build API image
+        if: steps.changes.outputs.run == 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -195,6 +215,7 @@ jobs:
           build-args: APP_VERSION=e2e
           cache-from: type=gha,scope=api
       - name: Build web image
+        if: steps.changes.outputs.run == 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -204,29 +225,32 @@ jobs:
           tags: ghcr.io/ivanerricis/easysend-web:e2e
           cache-from: type=gha,scope=web
       - name: Resolve Playwright version
+        if: steps.changes.outputs.run == 'true'
         id: playwright
         run: |
           version=$(pnpm --filter @easysend/e2e exec playwright --version | sed -E 's/^Version //')
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Cache Playwright browsers
+        if: steps.changes.outputs.run == 'true'
         id: playwright-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
       - name: Install Chromium and system libraries
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        if: steps.changes.outputs.run == 'true' && steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm --filter @easysend/e2e exec playwright install --with-deps chromium
       - name: Install system libraries only (browser cached)
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        if: steps.changes.outputs.run == 'true' && steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm --filter @easysend/e2e exec playwright install-deps chromium
       - name: End-to-end tests
+        if: steps.changes.outputs.run == 'true'
         env:
           PW_CHANNEL: chromium
           CI: 'true'
         run: pnpm test:e2e -- --no-build
       - name: Upload report and logs
-        if: failure()
+        if: steps.changes.outputs.run == 'true' && failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: e2e-output

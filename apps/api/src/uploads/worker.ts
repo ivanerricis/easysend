@@ -1,23 +1,18 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readdir, readFile, rename, stat } from 'node:fs/promises';
-import path from 'node:path';
+import { createReadStream } from 'node:fs';
+import { readFile, stat } from 'node:fs/promises';
 import { eq, sql } from 'drizzle-orm';
 import { nowSeconds } from '../clock.js';
 import type { AppContext } from '../context.js';
-import { encryptFile } from '../crypto/segments.js';
+import { SEGMENT_SIZE, encryptToDriver } from '../crypto/segments.js';
 import { transferFiles, transfers, uploads, users } from '../db/schema/index.js';
 import { sanitizeFileName } from '../storage/filenames.js';
-import {
-  PART_SUFFIX,
-  isStorageEntry,
-  storagePartPath,
-  storagePath,
-  tusFilePaths,
-} from '../storage/paths.js';
-import { removeFileQuietly } from '../storage/remove.js';
+import { deleteStoredObjects } from '../storage/deletions.js';
+import { tusFilePaths } from '../storage/paths.js';
+import { removeTusFiles } from '../storage/remove.js';
 
 /**
- * Background queue that hashes and encrypts finished tus uploads (phase 3, WP2). One job at a
+ * Background queue that hashes and encrypts finished tus uploads. One job at a
  * time keeps CPU and disk use predictable on a small machine.
  */
 export interface UploadWorker {
@@ -68,7 +63,7 @@ export function createUploadWorker(ctx: AppContext): UploadWorker {
 
   /** Moves the file to its final name and records it, all or nothing. */
   async function encryptAndRecord(uploadId: string): Promise<JobOutcome> {
-    const { db, config, logger } = ctx;
+    const { db, config } = ctx;
     const row = db.select().from(uploads).where(eq(uploads.id, uploadId)).get();
     if (!row || row.status !== 'processing' || row.transferId === null) return 'stale';
 
@@ -76,23 +71,16 @@ export function createUploadWorker(ctx: AppContext): UploadWorker {
     await stat(tus.data); // ENOENT here aborts the upload (caught by the caller)
     const mimeType = await readMimeType(tus.info);
 
-    await mkdir(config.storageDir, { recursive: true });
+    // New files go to the driver selected now; the row records which one holds this file.
+    const driver = ctx.storage.current();
     const storageName = randomUUID();
-    const finalPath = storagePath(config, storageName);
-    const partPath = storagePartPath(config, storageName);
-    let encrypted: Awaited<ReturnType<typeof encryptFile>>;
-    try {
-      encrypted = await encryptFile({
-        srcPath: tus.data,
-        dstPath: partPath,
-        size: row.totalSize,
-        fileKey: ctx.keys.file,
-      });
-      await rename(partPath, finalPath);
-    } catch (error) {
-      await removeFileQuietly(partPath, logger);
-      throw error;
-    }
+    const encrypted = await encryptToDriver({
+      source: createReadStream(tus.data, { highWaterMark: SEGMENT_SIZE }),
+      driver,
+      name: storageName,
+      size: row.totalSize,
+      fileKey: ctx.keys.file,
+    });
 
     const transferId = row.transferId;
     const outcome = db.transaction((tx): JobOutcome => {
@@ -105,7 +93,9 @@ export function createUploadWorker(ctx: AppContext): UploadWorker {
         .values({
           transferId,
           originalName: sanitizeFileName(row.fileName),
+          path: row.path,
           storageName,
+          storage: driver.kind,
           sizeBytes: row.totalSize,
           storedSizeBytes: encrypted.storedSize,
           mimeType,
@@ -131,7 +121,7 @@ export function createUploadWorker(ctx: AppContext): UploadWorker {
 
     if (outcome === 'stale') {
       // The transfer or the upload disappeared while encrypting: nothing references the file.
-      await removeFileQuietly(finalPath, logger);
+      await deleteStoredObjects(ctx, [{ storage: driver.kind, name: storageName }]);
       const stale = db.select().from(uploads).where(eq(uploads.id, uploadId)).get();
       if (stale?.status === 'processing') {
         db.update(uploads).set({ status: 'aborted' }).where(eq(uploads.id, uploadId)).run();
@@ -142,7 +132,6 @@ export function createUploadWorker(ctx: AppContext): UploadWorker {
 
   async function processUpload(uploadId: string): Promise<void> {
     const { db, config, logger } = ctx;
-    const tus = tusFilePaths(config, uploadId);
     try {
       await encryptAndRecord(uploadId);
     } catch (error) {
@@ -150,8 +139,7 @@ export function createUploadWorker(ctx: AppContext): UploadWorker {
       db.update(uploads).set({ status: 'aborted' }).where(eq(uploads.id, uploadId)).run();
     }
     // Plaintext copy: gone in every case (success, stale, failure).
-    await removeFileQuietly(tus.data, logger);
-    await removeFileQuietly(tus.info, logger);
+    await removeTusFiles(config, uploadId, logger);
   }
 
   async function pump(): Promise<void> {
@@ -189,17 +177,12 @@ export function createUploadWorker(ctx: AppContext): UploadWorker {
     },
 
     async recover() {
-      const { db, config, logger } = ctx;
-      let entries: string[] = [];
+      const { db, logger } = ctx;
+      // Leftovers of writes interrupted by the restart (nothing is writing yet at startup).
       try {
-        entries = await readdir(config.storageDir);
-      } catch {
-        // No storage directory yet: nothing to sweep.
-      }
-      for (const name of entries) {
-        if (name.endsWith(PART_SUFFIX) && isStorageEntry(name)) {
-          await removeFileQuietly(path.join(config.storageDir, name), logger);
-        }
+        await ctx.storage.forFile('local').recover();
+      } catch (error) {
+        logger.warn({ code: errorCode(error) }, 'storage recovery failed');
       }
       const pending = db
         .select({ id: uploads.id })

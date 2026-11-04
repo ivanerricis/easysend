@@ -1,12 +1,8 @@
-import type { ReactElement } from 'react';
-import type { Appearance, Locale } from '@easysend/shared';
+import { createElement } from 'react';
+import { formatBytes, type Appearance, type Locale } from '@easysend/shared';
 import { sentByLine, type EmailBrand } from './components.js';
 import { renderEmail } from './render.js';
-import { FirstDownloadEmail } from './templates/first-download.js';
-import { PasswordResetEmail } from './templates/password-reset.js';
-import { SmtpTestEmail } from './templates/smtp-test.js';
-import { TransferLinkEmail } from './templates/transfer-link.js';
-import { WelcomeEmail } from './templates/welcome.js';
+import { StandardEmail } from './templates/standard.js';
 
 /** A ready-to-send email: header-safe subject, hidden preview text, plain text and HTML. */
 export interface EmailContent {
@@ -38,21 +34,6 @@ export interface EmailCopy {
 /** One line: CR/LF (header injection) and runs of whitespace become single spaces. */
 export const oneLine = (value: string): string => value.replace(/\s+/g, ' ').trim();
 
-/** `1536` becomes `1.5 KB`. Binary units, one decimal at most, formatted for the locale. */
-export function formatBytes(bytes: number, locale: Locale): string {
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  const number = new Intl.NumberFormat(locale, {
-    maximumFractionDigits: unit === 0 ? 0 : 1,
-  }).format(value);
-  return `${number} ${units[unit]}`;
-}
-
 /** Date and time in the language of the email and the configured time zone. */
 export function formatDateTime(unixSeconds: number, locale: Locale, timezone: string): string {
   return new Intl.DateTimeFormat(locale, {
@@ -81,16 +62,12 @@ export function copyToText(copy: EmailCopy, brand: EmailBrand): string {
   ].join('\n');
 }
 
-function build(
-  copy: EmailCopy,
-  brand: EmailBrand,
-  template: (props: { copy: EmailCopy; brand: EmailBrand }) => ReactElement,
-): EmailContent {
+function build(copy: EmailCopy, brand: EmailBrand): EmailContent {
   return {
     subject: copy.subject,
     preheader: copy.preheader,
     text: copyToText(copy, brand),
-    html: renderEmail(template({ copy, brand })),
+    html: renderEmail(createElement(StandardEmail, { copy, brand })),
   };
 }
 
@@ -148,7 +125,7 @@ export function passwordResetEmail(input: BaseInput & { link: string; ttlMinutes
             'Se non l’hai chiesto tu, ignora questa email: la password non cambia.',
           ],
         };
-  return build(copy, brand, PasswordResetEmail);
+  return build(copy, brand);
 }
 
 // ---- Welcome -----------------------------------------------------------------------------
@@ -189,7 +166,7 @@ export function welcomeEmail(input: BaseInput & { link: string; ttlHours: number
           },
           after: [`Il link vale ${ttlHours} ore e si può usare una sola volta.`],
         };
-  return build(copy, brand, WelcomeEmail);
+  return build(copy, brand);
 }
 
 // ---- Transfer link -----------------------------------------------------------------------
@@ -200,8 +177,8 @@ export interface TransferLinkInput extends BaseInput {
   senderName: string | null;
   title: string | null;
   message: string | null;
-  /** Unix seconds. */
-  expiresAt: number;
+  /** Unix seconds; `null` when the link never expires. */
+  expiresAt: number | null;
   fileCount: number;
   totalBytes: number;
   timezone: string;
@@ -218,7 +195,13 @@ export function transferLinkEmail(input: TransferLinkInput) {
   const sender = oneLine(input.senderName ?? '') || name;
   const heading = input.title ? oneLine(input.title) : '';
   const size = formatBytes(input.totalBytes, locale);
-  const expires = formatDateTime(input.expiresAt, locale, input.timezone);
+  const never = input.expiresAt === null;
+  const expires =
+    input.expiresAt === null
+      ? locale === 'en'
+        ? 'Never'
+        : 'Mai'
+      : formatDateTime(input.expiresAt, locale, input.timezone);
   const note = input.message?.trim() ? input.message.trim() : undefined;
 
   const copy: EmailCopy =
@@ -227,7 +210,9 @@ export function transferLinkEmail(input: TransferLinkInput) {
           subject: heading
             ? `${sender} sent you files: ${heading}`
             : `${sender} sent you files via ${name}`,
-          preheader: `Download them before ${expires}.`,
+          preheader: never
+            ? 'Your files are ready to download.'
+            : `Download them before ${expires}.`,
           heading: heading || 'You received some files',
           greeting: 'Hello,',
           lead: [
@@ -247,7 +232,7 @@ export function transferLinkEmail(input: TransferLinkInput) {
             fallback: 'If the button does not work, copy this link into your browser:',
           },
           after: [
-            `The link expires on ${expires}.`,
+            ...(never ? [] : [`The link expires on ${expires}.`]),
             'If the link asks for a password, ask the sender: it is not included in this email.',
           ],
         }
@@ -255,7 +240,9 @@ export function transferLinkEmail(input: TransferLinkInput) {
           subject: heading
             ? `${sender} ti ha inviato dei file: ${heading}`
             : `${sender} ti ha inviato dei file con ${name}`,
-          preheader: `Scaricali prima del ${expires}.`,
+          preheader: never
+            ? 'I file sono pronti per il download.'
+            : `Scaricali prima del ${expires}.`,
           heading: heading || 'Hai ricevuto dei file',
           greeting: 'Ciao,',
           lead: [
@@ -275,11 +262,11 @@ export function transferLinkEmail(input: TransferLinkInput) {
             fallback: 'Se il pulsante non funziona, copia questo link nel browser:',
           },
           after: [
-            `Il link scade il ${expires}.`,
+            ...(never ? [] : [`Il link scade il ${expires}.`]),
             'Se il link chiede una password, chiedila al mittente: non è inclusa in questa email.',
           ],
         };
-  return build(copy, brand, TransferLinkEmail);
+  return build(copy, brand);
 }
 
 // ---- First download ----------------------------------------------------------------------
@@ -347,7 +334,84 @@ export function firstDownloadEmail(input: FirstDownloadInput) {
           },
           after: [],
         };
-  return build(copy, brand, FirstDownloadEmail);
+  return build(copy, brand);
+}
+
+// ---- Submission received -----------------------------------------------------------------
+
+export interface SubmissionReceivedInput extends BaseInput {
+  /** Title of the upload request. */
+  requestTitle: string;
+  /** Free text typed by the person who uploaded (optional): one line, never trusted. */
+  submitterName: string | null;
+  submitterEmail: string | null;
+  fileCount: number;
+  totalBytes: number;
+  /** Link to the owner's page of the received transfer: `PUBLIC_URL/transfers/<id>`. */
+  link: string;
+}
+
+/** Notice to the owner that someone sent files through an upload request. */
+export function submissionReceivedEmail(input: SubmissionReceivedInput) {
+  const brand = brandOf(input);
+  const { locale, link } = input;
+  const name = nameOf(input.appearance);
+  const title = oneLine(input.requestTitle);
+  const submitterName = oneLine(input.submitterName ?? '');
+  const submitterEmail = oneLine(input.submitterEmail ?? '');
+  const who =
+    submitterName && submitterEmail
+      ? `${submitterName} <${submitterEmail}>`
+      : submitterName || submitterEmail;
+  const size = formatBytes(input.totalBytes, locale);
+
+  const copy: EmailCopy =
+    locale === 'en'
+      ? {
+          subject: `${name}: new files received for "${title}"`,
+          preheader: `${input.fileCount === 1 ? '1 file' : `${input.fileCount} files`} (${size}) received.`,
+          heading: 'You received new files',
+          greeting: 'Hello,',
+          lead: [
+            `${who || 'Someone'} sent you ${input.fileCount === 1 ? '1 file' : `${input.fileCount} files`} (${size}) through your request "${title}".`,
+          ],
+          details: [
+            { label: 'Request', value: title },
+            ...(who ? [{ label: 'From', value: who }] : []),
+            { label: 'Files', value: String(input.fileCount) },
+            { label: 'Total size', value: size },
+          ],
+          cta: {
+            intro: 'See the files here:',
+            label: 'View transfer',
+            url: link,
+            fallback: 'If the button does not work, copy this link into your browser:',
+          },
+          after: [],
+        }
+      : {
+          subject: `${name}: nuovi file ricevuti per "${title}"`,
+          preheader: `${input.fileCount === 1 ? '1 file ricevuto' : `${input.fileCount} file ricevuti`} (${size}).`,
+          heading: 'Hai ricevuto dei nuovi file',
+          greeting: 'Ciao,',
+          lead: [
+            `${who || 'Qualcuno'} ti ha inviato ${input.fileCount === 1 ? '1 file' : `${input.fileCount} file`} (${size}) tramite la tua richiesta "${title}".`,
+          ],
+          details: [
+            { label: 'Richiesta', value: title },
+            ...(who ? [{ label: 'Da', value: who }] : []),
+            { label: 'File', value: String(input.fileCount) },
+            { label: 'Dimensione totale', value: size },
+          ],
+          cta: {
+            intro: 'Vedi i file qui:',
+            label: 'Apri il trasferimento',
+            url: link,
+            fallback: 'Se il pulsante non funziona, copia questo link nel browser:',
+          },
+          after: [],
+        };
+  return build(copy, brand);
 }
 
 // ---- SMTP test ---------------------------------------------------------------------------
@@ -380,5 +444,5 @@ export function smtpTestEmail(input: BaseInput) {
           details: [],
           after: [],
         };
-  return build(copy, brand, SmtpTestEmail);
+  return build(copy, brand);
 }

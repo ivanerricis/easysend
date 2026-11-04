@@ -8,7 +8,7 @@ description: Change the EasySend database schema (Drizzle + SQLite) and ship the
 The database is SQLite in WAL mode with Drizzle ORM 0.45 and better-sqlite3. Migrations run at API
 startup; before any pending migration on a non-empty database the API takes an online backup with
 `sqlite.backup()` (last 5 kept, `app-pre-*.sqlite` in `/data/db/backups`). Read CLAUDE.md
-"Decisioni" first.
+and `.claude/rules/files-transfers.md` first.
 
 ## Steps
 
@@ -39,4 +39,4 @@ startup; before any pending migration on a non-empty database the API takes an o
 
 - No `node:sqlite`, no raw `ALTER TABLE` outside generated migrations.
 - No destructive change (drop column/table) without a backup note and an explicit user decision.
-- Keep `used_bytes` and quota rules intact (see "Decisioni").
+- Keep `used_bytes` and quota rules intact (see `.claude/rules/files-transfers.md`).
