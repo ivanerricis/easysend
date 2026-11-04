@@ -408,7 +408,7 @@
       "accentColorHelp": "Links, highlights and focus rings.",
       "pickColor": "Pick: {{name}}",
       "radius": "Corner radius",
-      "radiusHelp": "In rem. The interface uses square corners, so the effect is limited; the value is used by the emails.",
+      "radiusHelp": "In rem. 0 gives square corners (the default). It applies to buttons, fields, dialogs and menus, and to the emails.",
       "font": "Font",
       "defaultTheme": "Default theme",
       "defaultThemeHelp": "Each user can choose their own in their profile."
