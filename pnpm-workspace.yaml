@@ -109,7 +109,7 @@ catalog:
   vitepress: 1.6.4
   # e2e (screenshots and axe, phase 5; full E2E in phase 6)
   '@playwright/test': 1.64.1
-  '@axe-core/playwright': 4.13.0
+  '@axe-core/playwright': 4.14.0
 
 # Redis lockers of @tus/server and @tus/file-store: optional, never used (file store only).
 ignoredOptionalDependencies:

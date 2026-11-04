@@ -137,7 +137,6 @@
     "cancel": "Cancel"
   },
   "updateNotice": {
-    "label": "Update available",
-    "aria": "Update available: {{version}}. Go to settings."
+    "label": "Update available"
   }
 }

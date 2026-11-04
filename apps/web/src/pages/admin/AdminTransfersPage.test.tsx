@@ -94,7 +94,9 @@ describe('AdminTransfersPage', () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     renderPage('http://localhost:8080/d/abc123');
-    fireEvent.click(await screen.findByRole('button', { name: 'Copy the link of Holiday photos' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /^[^:]+: copy the link of Holiday photos$/ }),
+    );
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('http://localhost:8080/d/abc123'));
     await waitFor(() => expect(toasts.notifySuccess).toHaveBeenCalledWith('Link copied'));
     const trigger = screen.getByRole('button', { name: 'Actions for Holiday photos' });
@@ -107,7 +109,7 @@ describe('AdminTransfersPage', () => {
   it('has no copy button without a share link', async () => {
     renderPage(null);
     await screen.findByRole('link', { name: 'Holiday photos' });
-    expect(screen.queryByRole('button', { name: /Copy the link of/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /copy the link of/ })).toBeNull();
   });
 
   it('opens a row actions menu with the admin actions, delete last', async () => {
