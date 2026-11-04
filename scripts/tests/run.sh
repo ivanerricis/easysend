@@ -198,9 +198,29 @@ if [[ "$(id -u)" == "0" ]]; then
   check "uninstall: runner.json removed" "no" "$([[ -e "$E/updates/runner.json" ]] && echo yes || echo no)"
   check "uninstall: updates kept" "yes" "$([[ -d "$E/updates" ]] && echo yes || echo no)"
   if svc install --user nosuchuser; then fail "install accepts an unknown user"; else pass "install rejects an unknown user"; fi
+  rm -f "$E/updates/runner.json"
+  if EASYSEND_PROTECTED_DIRS="$TMP" svc install --user root; then
+    fail "install accepts a protected install dir"
+  else
+    pass "install rejects a protected install dir"
+  fi
+  check "protected dir: no units written" "no" "$([[ -e "$S/easysend-update.path" ]] && echo yes || echo no)"
+  if grep -q '/opt/easysend' "$TMP/svc.out"; then pass "protected dir: message points to /opt"; else fail "protected dir: message points to /opt"; fi
 else
   skip "update-service install/uninstall (needs root)"
 fi
+
+echo "install directory"
+prefix_of() { EASYSEND_PROTECTED_DIRS="${2:-}" bash -c 'source "$1/lib/common.sh"; protected_install_prefix "$2"' _ "$SRC" "$1"; }
+check "default list: /home is protected" "/home" "$(prefix_of /home/easysend '')"
+check "default list: /root is protected" "/root" "$(prefix_of /root/easysend '')"
+check "default list: /opt is fine" "" "$(prefix_of /opt/easysend '' || true)"
+check "default list: /homework is not /home" "" "$(prefix_of /homework/easysend '' || true)"
+RT="$(cd "$TMP" && pwd -P)"
+mkdir -p "$RT/prot/inst" "$RT/free"
+ln -s "$RT/prot/inst" "$RT/free/link"
+check "custom list: dir inside" "$RT/prot" "$(prefix_of "$RT/prot/inst" "$RT/prot")"
+check "custom list: symlink resolved" "$RT/prot" "$(prefix_of "$RT/free/link" "$RT/prot")"
 
 echo "data location (DATA_PATH)"
 reset

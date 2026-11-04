@@ -45,7 +45,7 @@ What it does and does not do:
 
 ### Install the runner
 
-Once, as root, on the LXC (the install directory must be under `/opt`, not under `/home`):
+Once, as root, on the LXC. The install directory must be under `/opt` (or `/srv`): the service runs with `ProtectHome=read-only` and `ProtectSystem=full`, so `/home`, `/root`, `/usr` and `/etc` are read-only for it. `install` refuses such a directory and `deploy.sh` warns about it; see [Move the installation to /opt](#move-the-installation-to-opt).
 
 ```sh
 cd /opt/easysend
@@ -93,7 +93,30 @@ A request that the runner does not pick up within 2 minutes is shown as "not res
 - **"Not responding"**, or the request never starts: `systemctl status easysend-update.path` must be `active (waiting)`. If it is not, run `sudo ./scripts/update-service.sh status` and `install` again.
 - **"User is not in the docker group"**: `sudo usermod -aG docker <user>`, or pass `--user`.
 - **The panel says the runner is not installed**: `updates/runner.json` is missing; run `install`.
-- **The update fails with permission errors on the status file**: the install directory is probably under `/home`. The service runs with `ProtectHome=read-only`; move the installation to `/opt/easysend`.
+- **"The install directory … is under /home"** (from `install`, or as a warning from `deploy.sh`): see below.
+
+### Move the installation to /opt
+
+Manual deploys work from any directory, but the one-click update needs the installation under `/opt`. Moving it keeps all the data: the database and the files live in the Docker volumes `easysend_easysend-data` and `easysend_easysend-shared`, named after the Compose project, and the project name stays `easysend` as long as the new directory is also called `easysend`. If `.env` sets `DATA_PATH` to a folder inside the old directory, move that folder too and update the path.
+
+As root (example from `/home/easysend`):
+
+```sh
+cd /home/easysend
+./scripts/backup.sh /root            # contains the master key: copy it off the server
+docker compose down                  # never -v: that would delete the volumes
+mkdir -p /opt/easysend
+for f in docker-compose.yml docker-compose.override.yml .env .env.example scripts .deploy secrets updates backups; do
+  [ -e "$f" ] && mv "$f" /opt/easysend/
+done
+chown -R <user>:<user> /opt/easysend   # the account that will run the updates
+chmod 600 /opt/easysend/.env
+cd /opt/easysend
+docker compose up -d --wait
+docker compose exec web wget -qO- http://127.0.0.1:8080/health; echo
+```
+
+Only the project files are moved, so this also works when the old directory is a user's home. Check that the instance still shows your transfers, then [install the runner](#install-the-runner).
 
 ### Remove it
 

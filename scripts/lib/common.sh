@@ -54,6 +54,25 @@ init_env() {
   chmod 700 "$DEPLOY_DIR"
 }
 
+# protected_install_prefix [DIR]: the one-click update service runs with ProtectHome=read-only and
+# ProtectSystem=full, so an install dir under one of these trees is read-only for the runner.
+# Prints the protected tree DIR (default: EASYSEND_DIR, symlinks resolved) is under and succeeds,
+# or fails when DIR is usable. EASYSEND_PROTECTED_DIRS overrides the list (tests only).
+protected_install_prefix() {
+  local dir p
+  dir="$(cd "${1:-$EASYSEND_DIR}" 2>/dev/null && pwd -P)" || dir="${1:-$EASYSEND_DIR}"
+  for p in ${EASYSEND_PROTECTED_DIRS:-/home /root /run/user /usr /boot /efi /etc}; do
+    if [[ "$dir" == "$p" || "$dir" == "$p"/* ]]; then
+      printf '%s\n' "$p"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# shellcheck disable=SC2034 # used by the scripts that source this file
+INSTALL_DIR_DOCS="https://ivanerricis.github.io/easysend/guide/updates#move-the-installation-to-opt"
+
 check_docker() {
   command -v docker >/dev/null 2>&1 || die "docker is not installed or not in PATH."
   docker compose version >/dev/null 2>&1 || die "The Docker Compose v2 plugin is missing (docker compose version failed)."

@@ -1,5 +1,6 @@
 // Playwright `test` with a guard: every page of the test is watched and the test fails when the
-// app logs a console error, throws an uncaught exception or triggers a CSP violation.
+// app logs a console error, throws an uncaught exception, triggers a CSP violation or opens a dialog
+// whose content overflows horizontally (it would show a scrollbar).
 import {
   expect,
   test as base,
@@ -12,6 +13,7 @@ import { axeActive } from './a11y.ts';
 
 export interface Problems {
   csp: string[];
+  layout: string[];
   errors: string[];
   allowed: RegExp[];
   /** Tolerates console errors that match, for tests that cause them on purpose. */
@@ -30,6 +32,10 @@ function guard(page: Page, problems: Problems): void {
     if (axeActive.has(page) && AXE_EVAL.test(text)) return;
     if (EXPECTED_HTTP_ERROR.test(text) || problems.allowed.some((pattern) => pattern.test(text)))
       return;
+    if (text.startsWith('DIALOGOVERFLOW ')) {
+      problems.layout.push(`${page.url()} ${text}`);
+      return;
+    }
     if (text.startsWith('CSPVIOLATION ') || /Content Security Policy/i.test(text)) {
       problems.csp.push(`${page.url()} ${text}`);
     } else {
@@ -48,6 +54,25 @@ async function instrument(context: BrowserContext, problems: Problems): Promise<
         `CSPVIOLATION ${event.violatedDirective} blocked=${event.blockedURI} sample=${event.sample}`,
       );
     });
+    // Every dialog/sheet that opens is measured once its open animation is over.
+    const checked = new WeakSet<Element>();
+    const measure = (dialog: Element) => {
+      if (checked.has(dialog)) return;
+      checked.add(dialog);
+      setTimeout(() => {
+        if (!dialog.isConnected) return;
+        const overflow = dialog.scrollWidth - dialog.clientWidth;
+        if (overflow > 1) {
+          const title = dialog.querySelector('h2')?.textContent?.trim() ?? '';
+          console.error(
+            `DIALOGOVERFLOW "${title}" overflows by ${overflow}px at ${window.innerWidth}px`,
+          );
+        }
+      }, 400);
+    };
+    new MutationObserver(() => {
+      document.querySelectorAll('[role="dialog"], [role="alertdialog"]').forEach(measure);
+    }).observe(document, { childList: true, subtree: true });
   });
   context.on('page', (page) => guard(page, problems));
   for (const page of context.pages()) guard(page, problems);
@@ -65,6 +90,7 @@ export const test = base.extend<Fixtures>({
     async ({}, use, testInfo) => {
       const problems: Problems = {
         csp: [],
+        layout: [],
         errors: [],
         allowed: [],
         allow(pattern) {
@@ -74,6 +100,7 @@ export const test = base.extend<Fixtures>({
       await use(problems);
       if (testInfo.status === 'passed' || testInfo.status === undefined) {
         expect(problems.csp, 'CSP violations').toEqual([]);
+        expect(problems.layout, 'dialogs overflowing horizontally').toEqual([]);
         expect(problems.errors, 'console errors and uncaught exceptions').toEqual([]);
       }
     },
