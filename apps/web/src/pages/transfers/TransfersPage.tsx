@@ -57,7 +57,7 @@ function ModeLabel({
 
 function Expires({ transfer }: { transfer: TransferSummary }) {
   const { t, i18n } = useTranslation();
-  if (transfer.status === 'uploading') return <span aria-hidden="true">â€”</span>;
+  if (transfer.status === 'uploading') return <span aria-hidden="true">—</span>;
   if (transfer.expiresAt === null) return <span>{t('common.neverExpires')}</span>;
   const iso = new Date(transfer.expiresAt * 1000).toISOString();
   return (
@@ -293,7 +293,7 @@ export default function TransfersPage() {
                       title={transferTitle(transfer, untitled)}
                     />
                     <span className="font-mono text-xs">
-                      {formatBytes(transfer.totalBytes, locale)} Â·{' '}
+                      {formatBytes(transfer.totalBytes, locale)} ·{' '}
                       {t('common.units.files', { count: transfer.fileCount })}
                     </span>
                   </span>
