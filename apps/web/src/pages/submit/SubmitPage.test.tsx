@@ -35,6 +35,7 @@ function openInfo(overrides: Record<string, unknown> = {}) {
     requireEmail: false,
     remainingBytes: null,
     chunkSizeBytes: 26_214_400,
+    maxFilesPerTransfer: 1000,
     expiresAt: future,
     ...overrides,
   };
@@ -43,6 +44,7 @@ function openInfo(overrides: Record<string, unknown> = {}) {
 const busyUpload = {
   id: 'u1',
   fileName: 'photo.jpg',
+  path: '',
   totalSize: 11,
   status: 'processing',
   expiresAt: future,

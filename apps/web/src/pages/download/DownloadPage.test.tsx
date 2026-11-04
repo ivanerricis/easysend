@@ -16,8 +16,8 @@ function unlockedInfo(overrides: Record<string, unknown> = {}) {
     message: 'Line one\nLine two',
     senderName: 'Ada Lovelace',
     files: [
-      { id: 'f1', name: 'one.jpg', sizeBytes: 2048 },
-      { id: 'f2', name: 'two.pdf', sizeBytes: 1_048_576 },
+      { id: 'f1', name: 'one.jpg', path: '', sizeBytes: 2048 },
+      { id: 'f2', name: 'two.pdf', path: '', sizeBytes: 1_048_576 },
     ],
     totalBytes: 1_050_624,
     expiresAt: future,
