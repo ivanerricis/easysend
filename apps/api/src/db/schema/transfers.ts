@@ -95,6 +95,8 @@ export const transferFiles = sqliteTable(
       .notNull()
       .references(() => transfers.id, { onDelete: 'cascade' }),
     originalName: text('original_name').notNull(),
+    /** Sanitised folder inside the transfer ('' = root), segments joined by '/'. */
+    path: text('path').notNull().default(''),
     storageName: text('storage_name').notNull(),
     /** Where the encrypted file lives; the object name is storage_name on every driver. */
     storage: text('storage', { enum: STORAGE_DRIVERS }).notNull().default('local'),
