@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.1](https://github.com/ivanerricis/easysend/compare/v0.5.0...v0.5.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **web:** equal-height filled and outline buttons, faster button hover; fix local:up ([#66](https://github.com/ivanerricis/easysend/issues/66)) ([e74727e](https://github.com/ivanerricis/easysend/commit/e74727efadc8e40ed099a3f214e2ab7af443ceff))
+* **web:** list theme and language inline in the user menu on mobile and repair corrupted separators ([#67](https://github.com/ivanerricis/easysend/issues/67)) ([bf79378](https://github.com/ivanerricis/easysend/commit/bf793788d363245d8ea8206284c7f7357da66266))
+* **web:** make the corner radius setting work and even out sidebar and dialog controls ([#64](https://github.com/ivanerricis/easysend/issues/64)) ([635726d](https://github.com/ivanerricis/easysend/commit/635726d827f8dd17aee4f0a9011c8ea053c71ce8))
+
 ## [0.5.0](https://github.com/ivanerricis/easysend/compare/v0.4.0...v0.5.0) (2026-11-04)
 
 
