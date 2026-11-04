@@ -16,7 +16,7 @@ function ensureEnvFile() {
 }
 
 function compose(args) {
-  const result = docker([...composeArgs, ...args]);
+  const result = docker('docker', [...composeArgs, ...args]);
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
