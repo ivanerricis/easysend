@@ -93,6 +93,7 @@ export function createUploadWorker(ctx: AppContext): UploadWorker {
         .values({
           transferId,
           originalName: sanitizeFileName(row.fileName),
+          path: row.path,
           storageName,
           storage: driver.kind,
           sizeBytes: row.totalSize,

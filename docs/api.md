@@ -685,6 +685,7 @@ Save the general settings
   chunkSizeMb: integer (min 1, max 50)
   defaultLocale: "it" | "en"
   updateCheck?: boolean  // default true
+  maxFilesPerTransfer?: integer (min 1, max 5000)  // default 1000
   instanceName: string (min 1, max 60)
   defaultTheme: "light" | "dark" | "system"
 }
@@ -1610,6 +1611,7 @@ Create a draft transfer
   files: Array<{
     id: string (min 1, max 64)
     name: string (min 1, max 255)
+    path: string (max 1024)
     sizeBytes: integer (min 0)
     mimeType: string (max 255) | null
     sha256: string (pattern /^[0-9a-f]{64}$/)
@@ -1622,6 +1624,7 @@ Create a draft transfer
   uploads: Array<{
     id: string (min 1, max 64)
     fileName: string (max 255)
+    path: string (max 1024)
     totalSize: integer (min 0)
     status: "in_progress" | "processing" | "completed" | "aborted"
     expiresAt: integer (min 0)
@@ -1675,6 +1678,7 @@ Activate a draft: make the link valid and send the emails
   files: Array<{
     id: string (min 1, max 64)
     name: string (min 1, max 255)
+    path: string (max 1024)
     sizeBytes: integer (min 0)
     mimeType: string (max 255) | null
     sha256: string (pattern /^[0-9a-f]{64}$/)
@@ -1687,6 +1691,7 @@ Activate a draft: make the link valid and send the emails
   uploads: Array<{
     id: string (min 1, max 64)
     fileName: string (max 255)
+    path: string (max 1024)
     totalSize: integer (min 0)
     status: "in_progress" | "processing" | "completed" | "aborted"
     expiresAt: integer (min 0)
@@ -1801,6 +1806,7 @@ Transfer details with files, recipients and uploads
   files: Array<{
     id: string (min 1, max 64)
     name: string (min 1, max 255)
+    path: string (max 1024)
     sizeBytes: integer (min 0)
     mimeType: string (max 255) | null
     sha256: string (pattern /^[0-9a-f]{64}$/)
@@ -1813,6 +1819,7 @@ Transfer details with files, recipients and uploads
   uploads: Array<{
     id: string (min 1, max 64)
     fileName: string (max 255)
+    path: string (max 1024)
     totalSize: integer (min 0)
     status: "in_progress" | "processing" | "completed" | "aborted"
     expiresAt: integer (min 0)
@@ -1883,6 +1890,7 @@ Edit title, message, expiry, download limit or password
   files: Array<{
     id: string (min 1, max 64)
     name: string (min 1, max 255)
+    path: string (max 1024)
     sizeBytes: integer (min 0)
     mimeType: string (max 255) | null
     sha256: string (pattern /^[0-9a-f]{64}$/)
@@ -1895,6 +1903,7 @@ Edit title, message, expiry, download limit or password
   uploads: Array<{
     id: string (min 1, max 64)
     fileName: string (max 255)
+    path: string (max 1024)
     totalSize: integer (min 0)
     status: "in_progress" | "processing" | "completed" | "aborted"
     expiresAt: integer (min 0)
@@ -1954,6 +1963,7 @@ Revoke the link
   files: Array<{
     id: string (min 1, max 64)
     name: string (min 1, max 255)
+    path: string (max 1024)
     sizeBytes: integer (min 0)
     mimeType: string (max 255) | null
     sha256: string (pattern /^[0-9a-f]{64}$/)
@@ -1966,6 +1976,7 @@ Revoke the link
   uploads: Array<{
     id: string (min 1, max 64)
     fileName: string (max 255)
+    path: string (max 1024)
     totalSize: integer (min 0)
     status: "in_progress" | "processing" | "completed" | "aborted"
     expiresAt: integer (min 0)
@@ -2024,6 +2035,7 @@ Send the notification email again (email mode)
   files: Array<{
     id: string (min 1, max 64)
     name: string (min 1, max 255)
+    path: string (max 1024)
     sizeBytes: integer (min 0)
     mimeType: string (max 255) | null
     sha256: string (pattern /^[0-9a-f]{64}$/)
@@ -2036,6 +2048,7 @@ Send the notification email again (email mode)
   uploads: Array<{
     id: string (min 1, max 64)
     fileName: string (max 255)
+    path: string (max 1024)
     totalSize: integer (min 0)
     status: "in_progress" | "processing" | "completed" | "aborted"
     expiresAt: integer (min 0)
@@ -2392,6 +2405,7 @@ Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_IN
 {
   transferId: string (min 1, max 64)
   filename: string (min 1, max 255)
+  relativePath?: string (max 1024)
   filetype?: string (max 255)
 }
 ```
@@ -2441,6 +2455,7 @@ Public information of a transfer
     files: Array<{
       id: string (min 1, max 64)
       name: string (min 1, max 255)
+      path: string (max 1024)
       sizeBytes: integer (min 0)
     }>
     totalBytes: integer (min 0)
@@ -2993,6 +3008,7 @@ Public information of an upload request
     remainingBytes: integer (min 0) | null
     expiresAt: integer (min 0)
     chunkSizeBytes: integer (> 0)
+    maxFilesPerTransfer: integer (> 0)
   }
 ```
 
@@ -3124,11 +3140,13 @@ State of a submission (polled while files are processed)
   files: Array<{
     id: string (min 1, max 64)
     name: string (min 1, max 255)
+    path: string (max 1024)
     sizeBytes: integer (min 0)
   }>
   uploads: Array<{
     id: string (min 1, max 64)
     fileName: string (max 255)
+    path: string (max 1024)
     totalSize: integer (min 0)
     status: "in_progress" | "processing" | "completed" | "aborted"
     expiresAt: integer (min 0)
@@ -3550,6 +3568,7 @@ General and SMTP settings
     chunkSizeMb: integer (min 1, max 50)
     defaultLocale: "it" | "en"
     updateCheck: boolean  // default true
+    maxFilesPerTransfer: integer (min 1, max 5000)  // default 1000
   }
   smtp:
   | {
@@ -3583,6 +3602,7 @@ Update general settings (disk reserve, chunk size, default language, update chec
   chunkSizeMb?: integer (min 1, max 50)
   defaultLocale?: "it" | "en"
   updateCheck?: boolean
+  maxFilesPerTransfer?: integer (min 1, max 5000)
 }
 ```
 
@@ -3595,6 +3615,7 @@ Update general settings (disk reserve, chunk size, default language, update chec
     chunkSizeMb: integer (min 1, max 50)
     defaultLocale: "it" | "en"
     updateCheck: boolean  // default true
+    maxFilesPerTransfer: integer (min 1, max 5000)  // default 1000
   }
   smtp:
   | {

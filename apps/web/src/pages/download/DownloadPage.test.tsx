@@ -16,8 +16,8 @@ function unlockedInfo(overrides: Record<string, unknown> = {}) {
     message: 'Line one\nLine two',
     senderName: 'Ada Lovelace',
     files: [
-      { id: 'f1', name: 'one.jpg', sizeBytes: 2048 },
-      { id: 'f2', name: 'two.pdf', sizeBytes: 1_048_576 },
+      { id: 'f1', name: 'one.jpg', path: '', sizeBytes: 2048 },
+      { id: 'f2', name: 'two.pdf', path: '', sizeBytes: 1_048_576 },
     ],
     totalBytes: 1_050_624,
     expiresAt: future,
@@ -103,6 +103,41 @@ describe('DownloadPage', () => {
     const message = screen.getByText(/<b>hi<\/b>/);
     expect(message.className).toContain('whitespace-pre-wrap');
     expect(message.querySelector('b')).toBeNull();
+  });
+
+  it('groups files by folder with count and size, expanded for small transfers', async () => {
+    renderPage({
+      [INFO_KEY]: unlockedInfo({
+        files: [
+          { id: 'f1', name: 'top.txt', path: '', sizeBytes: 1024 },
+          { id: 'f2', name: 'a.jpg', path: 'photos', sizeBytes: 1024 },
+          { id: 'f3', name: 'b.jpg', path: 'photos/2030', sizeBytes: 1024 },
+        ],
+      }),
+    });
+    await screen.findByRole('heading', { level: 1, name: 'Holiday photos' });
+    const folders = screen.getAllByTestId('folder-row');
+    expect(folders[0]).toHaveTextContent('photos');
+    expect(folders[0]).toHaveTextContent('2 files');
+    expect(folders[0]).toHaveAttribute('aria-expanded', 'true');
+    expect(folders[1]).toHaveTextContent('2030');
+    const nested = screen.getByRole('link', { name: /Download photos\/2030\/b\.jpg/ });
+    expect(nested).toHaveAttribute('href', `/api/downloads/${TOKEN}/files/f3`);
+    fireEvent.click(folders[0]!);
+    expect(screen.queryByRole('link', { name: /Download photos\/2030\/b\.jpg/ })).toBeNull();
+  });
+
+  it('collapses folders by default when the transfer has more than 50 files', async () => {
+    const files = Array.from({ length: 51 }, (_, i) => ({
+      id: `f${i}`,
+      name: `n${i}.txt`,
+      path: 'big',
+      sizeBytes: 1,
+    }));
+    renderPage({ [INFO_KEY]: unlockedInfo({ files }) });
+    await screen.findByRole('heading', { level: 1, name: 'Holiday photos' });
+    expect(screen.getByTestId('folder-row')).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('link', { name: /Download big\/n0\.txt/ })).toBeNull();
   });
 
   it('links each file and the zip, including the selection', async () => {

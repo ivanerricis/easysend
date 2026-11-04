@@ -7,6 +7,8 @@ export const RETRY_DELAYS = [0, 1000, 3000, 5000, 10000, 20000];
 
 export interface FileUploadOptions {
   file: File;
+  /** Folder of the file inside the transfer ("" for the root). */
+  path?: string | undefined;
   transferId: string;
   chunkSize: number;
   /** Extra headers on every tus request (e.g. `X-Submission-Token` for public uploads). */
@@ -25,13 +27,15 @@ export interface FileUploadHandle {
 }
 
 /** Fingerprint bound to the draft: a file resumes only into the transfer it was started for. */
-export function uploadFingerprint(file: File, transferId: string): string {
-  return ['easysend', transferId, file.name, file.type, file.size, file.lastModified].join('-');
+export function uploadFingerprint(file: File, transferId: string, path = ''): string {
+  return ['easysend', transferId, path, file.name, file.type, file.size, file.lastModified].join(
+    '-',
+  );
 }
 
 /** Starts a resumable tus upload of `file` into the draft transfer `transferId`. */
 export function createFileUpload(options: FileUploadOptions): FileUploadHandle {
-  const { file, transferId, chunkSize, headers, onProgress } = options;
+  const { file, path = '', transferId, chunkSize, headers, onProgress } = options;
   let cancelled = false;
   let settled = false;
   let resolvePromise!: () => void;
@@ -46,10 +50,15 @@ export function createFileUpload(options: FileUploadOptions): FileUploadHandle {
     chunkSize,
     retryDelays: RETRY_DELAYS,
     // Browsers report an empty type for unknown extensions (e.g. .iso on Windows): omit it.
-    metadata: { transferId, filename: file.name, ...(file.type ? { filetype: file.type } : {}) },
+    metadata: {
+      transferId,
+      filename: file.name,
+      ...(path ? { relativePath: path } : {}),
+      ...(file.type ? { filetype: file.type } : {}),
+    },
     storeFingerprintForResuming: true,
     removeFingerprintOnSuccess: true,
-    fingerprint: (f) => Promise.resolve(uploadFingerprint(f, transferId)),
+    fingerprint: (f) => Promise.resolve(uploadFingerprint(f, transferId, path)),
     onBeforeRequest: async (request) => {
       request.setHeader('X-CSRF-Token', await ensureCsrfToken());
       for (const [name, value] of Object.entries(headers ?? {})) request.setHeader(name, value);

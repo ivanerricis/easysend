@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { createServer, request } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { Express } from 'express';
+import yauzl from 'yauzl';
 import type { StorageDriverKind, TransferStatus } from '@easysend/shared';
 import { nowSeconds } from '../src/clock.js';
 import { randomToken } from '../src/crypto/hash.js';
@@ -22,7 +23,7 @@ export interface FixtureFile {
 export interface TransferFixtureOptions {
   owner?: TestUser;
   /** Default: one file per `FIXTURE_SIZES` entry, named `file-<size>.bin`. */
-  files?: { name: string; size: number }[];
+  files?: { name: string; size: number; path?: string }[];
   /** Plain link password (hashed with the app's hasher). */
   password?: string;
   maxDownloads?: number | null;
@@ -51,7 +52,8 @@ export async function createTransferFixture(
   options: TransferFixtureOptions = {},
 ): Promise<TransferFixture> {
   const owner = options.owner ?? (await t.createUser());
-  const specs = options.files ?? FIXTURE_SIZES.map((size) => ({ name: `file-${size}.bin`, size }));
+  const specs: { name: string; size: number; path?: string }[] =
+    options.files ?? FIXTURE_SIZES.map((size) => ({ name: `file-${size}.bin`, size }));
   const { ctx } = t;
   mkdirSync(ctx.config.storageDir, { recursive: true });
   const now = nowSeconds(ctx.clock);
@@ -88,6 +90,7 @@ export async function createTransferFixture(
       .values({
         transferId: transfer.id,
         originalName: spec.name,
+        path: spec.path ?? '',
         storageName,
         storage: options.storage ?? 'local',
         sizeBytes: spec.size,
@@ -103,6 +106,30 @@ export async function createTransferFixture(
     files.push({ id: row.id, name: spec.name, content });
   }
   return { owner, id: transfer.id, token: transfer.token, files };
+}
+
+/** Reads every entry of a zip held in memory: full entry name to content. */
+export function readZip(buffer: Buffer): Promise<Map<string, Buffer>> {
+  return new Promise((resolve, reject) => {
+    yauzl.fromBuffer(buffer, { lazyEntries: true }, (error, zip) => {
+      if (error) return reject(error);
+      const entries = new Map<string, Buffer>();
+      zip.on('error', reject);
+      zip.on('end', () => resolve(entries));
+      zip.on('entry', (entry: yauzl.Entry) => {
+        zip.openReadStream(entry, (streamError, stream) => {
+          if (streamError) return reject(streamError);
+          const chunks: Buffer[] = [];
+          stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+          stream.on('end', () => {
+            entries.set(entry.fileName, Buffer.concat(chunks));
+            zip.readEntry();
+          });
+        });
+      });
+      zip.readEntry();
+    });
+  });
 }
 
 // ---- Binary downloads -------------------------------------------------------------------

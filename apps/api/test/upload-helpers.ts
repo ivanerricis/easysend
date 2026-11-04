@@ -97,6 +97,8 @@ export interface TusCreateInput {
   transferId: string;
   filename?: string;
   filetype?: string;
+  /** Folder of the file inside the transfer, sent as the tus `relativePath` metadata. */
+  relativePath?: string;
   size: number;
 }
 
@@ -114,6 +116,7 @@ export function tusCreate(
         transferId: input.transferId,
         filename: input.filename ?? 'file.bin',
         ...(input.filetype ? { filetype: input.filetype } : {}),
+        ...(input.relativePath === undefined ? {} : { relativePath: input.relativePath }),
       }),
       ...options.headers,
     },

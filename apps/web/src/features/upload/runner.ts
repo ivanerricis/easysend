@@ -30,6 +30,8 @@ export interface RunnerDeps<C = CreateTransferInput> {
 export interface UploadItem {
   name: string;
   size: number;
+  /** Folder inside the transfer ("" for the root). */
+  path: string;
   file: File | null;
 }
 
@@ -139,7 +141,7 @@ export class TransferRunner<C = CreateTransferInput> {
     const { files, chunkSize } = params;
     this.emit({
       type: 'files',
-      files: files.map((item) => ({ name: item.name, size: item.size })),
+      files: files.map((item) => ({ name: item.name, size: item.size, path: item.path })),
     });
     for (const [index, item] of files.entries()) {
       if (!item.file) this.emit({ type: 'fileStatus', index, status: 'uploaded' });
@@ -172,6 +174,7 @@ export class TransferRunner<C = CreateTransferInput> {
       this.emit({ type: 'fileStatus', index, status: 'uploading' });
       const handle = this.deps.createUpload({
         file,
+        path: item.path,
         transferId,
         chunkSize,
         onProgress: (sent) => {

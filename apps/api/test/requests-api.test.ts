@@ -187,6 +187,7 @@ describe('upload requests: public API', () => {
       ownerName: null,
       remainingBytes: 1000,
       chunkSizeBytes: 25 * 1024 * 1024,
+      maxFilesPerTransfer: 1000,
     });
     expect(JSON.stringify(info.body)).not.toContain('owner@example.com');
 

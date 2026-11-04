@@ -11,6 +11,7 @@ import { AppError } from '../http/errors.js';
 import { assertNotLimited, limitedError } from '../http/rate-limit.js';
 import { sendJson, validBody } from '../http/validate.js';
 import { chunkSizeBytes } from '../uploads/chunk-size.js';
+import { maxFilesPerTransfer } from '../uploads/limits.js';
 import { clearTwoFactor, replaceRecoveryCodes, toMe } from '../users/service.js';
 
 export function meRouter(ctx: AppContext): Router {
@@ -196,7 +197,11 @@ export function meRouter(ctx: AppContext): Router {
   );
 
   router.get('/config', ...endpointGuards(ctx.csrf, 'me.config'), (_req, res) => {
-    sendJson(res, 'me.config', 200, { chunkSizeBytes: chunkSizeBytes(ctx), ...staticConfig });
+    sendJson(res, 'me.config', 200, {
+      chunkSizeBytes: chunkSizeBytes(ctx),
+      ...staticConfig,
+      limits: { ...staticConfig.limits, maxFilesPerTransfer: maxFilesPerTransfer(ctx) },
+    });
   });
 
   return router;

@@ -21,7 +21,7 @@ import { endpointGuards } from '../http/endpoint-guards.js';
 import { AppError } from '../http/errors.js';
 import { verifyLinkPassword } from '../http/link-password.js';
 import { sendJson, validBody, validParams, validQuery } from '../http/validate.js';
-import { contentDisposition, dedupeNames, sanitizeFileName } from '../storage/filenames.js';
+import { contentDisposition, dedupeZipEntries, sanitizeFileName } from '../storage/filenames.js';
 import type { TransferRow } from '../transfers/service.js';
 
 type FileRow = typeof transferFiles.$inferSelect;
@@ -39,7 +39,11 @@ export function downloadsRouter(ctx: AppContext): Router {
       .select()
       .from(transferFiles)
       .where(eq(transferFiles.transferId, transferId))
-      .orderBy(asc(transferFiles.originalName), asc(transferFiles.createdAt))
+      .orderBy(
+        asc(transferFiles.path),
+        asc(transferFiles.originalName),
+        asc(transferFiles.createdAt),
+      )
       .all();
 
   /**
@@ -113,7 +117,12 @@ export function downloadsRouter(ctx: AppContext): Router {
         title: transfer.title,
         message: transfer.message,
         senderName: owner?.displayName ?? null,
-        files: files.map((f) => ({ id: f.id, name: f.originalName, sizeBytes: f.sizeBytes })),
+        files: files.map((f) => ({
+          id: f.id,
+          name: f.originalName,
+          path: f.path,
+          sizeBytes: f.sizeBytes,
+        })),
         totalBytes: files.reduce((sum, f) => sum + f.sizeBytes, 0),
         expiresAt: transfer.expiresAt,
         downloadCount: transfer.downloadCount,
@@ -273,7 +282,9 @@ export function downloadsRouter(ctx: AppContext): Router {
       let current: Readable | undefined;
       res.once('close', () => current?.destroy());
 
-      const names = dedupeNames(files.map((f) => sanitizeFileName(f.originalName)));
+      const names = dedupeZipEntries(
+        files.map((f) => ({ path: f.path, name: sanitizeFileName(f.originalName) })),
+      );
       files.forEach((file, index) => {
         // Lazy: a file is opened only when yazl reaches its entry, so one is open at a time.
         zip.addReadStreamLazy(
