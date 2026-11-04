@@ -252,18 +252,32 @@ function UserMenu() {
             {t('common.userMenu.profile')}
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>{t('common.userMenu.theme')}</DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
+        {isMobile ? (
+          // A submenu opens to the side and falls off a narrow screen: list the choices inline.
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>{t('common.userMenu.theme')}</DropdownMenuLabel>
             <ThemeRadioGroup />
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>{t('common.userMenu.language')}</DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>{t('common.userMenu.language')}</DropdownMenuLabel>
             <LocaleRadioGroup />
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
+          </>
+        ) : (
+          <>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>{t('common.userMenu.theme')}</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <ThemeRadioGroup />
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>{t('common.userMenu.language')}</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <LocaleRadioGroup />
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => void onLogout()}>
           <LogOut aria-hidden="true" />

@@ -230,7 +230,7 @@ export default function AdminTransfersPage() {
                           t(`admin.transfers.modes.${item.mode}`)
                         )}
                         {item.mode === 'email'
-                          ? ` Ã‚Â· ${t('common.units.recipients', { count: item.recipientCount })}`
+                          ? ` · ${t('common.units.recipients', { count: item.recipientCount })}`
                           : ''}
                         {item.hasPassword ? (
                           <>
@@ -249,7 +249,7 @@ export default function AdminTransfersPage() {
                   </DataCell>
                   <DataCell label={t('admin.transfers.columns.content')}>
                     <span className="font-mono text-xs">
-                      {t('common.units.files', { count: item.fileCount })} Ã‚Â·{' '}
+                      {t('common.units.files', { count: item.fileCount })} ·{' '}
                       {formatBytes(item.totalBytes, i18n.language)}
                     </span>
                   </DataCell>
