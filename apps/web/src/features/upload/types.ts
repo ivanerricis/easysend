@@ -3,6 +3,12 @@ import type { FinalizeSubmissionResponse, TransferDetail } from '@easysend/share
 /** What finalize returns: the transfer, or the summary of a submission to an upload request. */
 export type RunResult = TransferDetail | FinalizeSubmissionResponse;
 
+/** A file chosen by the user; `path` is its folder relative to what was picked ("" for loose files). */
+export interface PickedFile {
+  file: File;
+  path: string;
+}
+
 export type UploadPhase =
   'idle' | 'creating' | 'uploading' | 'paused' | 'processing' | 'finalizing' | 'done' | 'error';
 
@@ -12,6 +18,8 @@ export interface UploadFileState {
   /** Stable key within the session (index + name + size). */
   key: string;
   name: string;
+  /** Folder inside the transfer ("" for the root). */
+  path: string;
   size: number;
   sent: number;
   status: FileStatus;
@@ -32,7 +40,7 @@ export interface UploadSessionState {
 export type RunnerEvent =
   | { type: 'phase'; phase: UploadPhase }
   | { type: 'transfer'; transferId: string }
-  | { type: 'files'; files: { name: string; size: number }[] }
+  | { type: 'files'; files: { name: string; size: number; path: string }[] }
   | { type: 'fileStatus'; index: number; status: FileStatus }
   | { type: 'progress'; index: number; sent: number; speed: number }
   | { type: 'done'; result: RunResult }
@@ -78,8 +86,9 @@ export function sessionReducer(state: UploadSessionState, event: RunnerEvent): U
       return {
         ...state,
         files: event.files.map((file, index) => ({
-          key: `${index}-${file.name}-${file.size}`,
+          key: `${index}-${file.path}-${file.name}-${file.size}`,
           name: file.name,
+          path: file.path,
           size: file.size,
           sent: 0,
           status: 'queued',

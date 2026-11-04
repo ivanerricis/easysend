@@ -93,6 +93,7 @@ describe('migrations', () => {
       '0001_auth_sessions',
       '0002_upload_requests',
       '0003_storage',
+      '0004_folders',
     ]);
     expect(first.backupPath).toBeUndefined();
 
@@ -207,7 +208,12 @@ describe('migrations', () => {
       logger: silentLogger,
     });
 
-    expect(result.applied).toEqual(['0001_auth_sessions', '0002_upload_requests', '0003_storage']);
+    expect(result.applied).toEqual([
+      '0001_auth_sessions',
+      '0002_upload_requests',
+      '0003_storage',
+      '0004_folders',
+    ]);
     expect(sqlite.prepare('SELECT last_seen_at, absolute_expires_at FROM sessions').get()).toEqual({
       last_seen_at: 0,
       absolute_expires_at: 0,
@@ -272,7 +278,7 @@ describe('migrations', () => {
       backupDir,
       logger: silentLogger,
     });
-    expect(result.applied).toEqual(['0002_upload_requests', '0003_storage']);
+    expect(result.applied).toEqual(['0002_upload_requests', '0003_storage', '0004_folders']);
     expect(
       sqlite
         .prepare('SELECT source, upload_request_id, sender_name, sender_email FROM transfers')
@@ -291,6 +297,59 @@ describe('migrations', () => {
     sqlite.prepare("DELETE FROM upload_requests WHERE id = 'r1'").run();
     expect(sqlite.prepare('SELECT upload_request_id FROM transfers').get()).toEqual({
       upload_request_id: null,
+    });
+  });
+
+  it('applies 0004 giving existing files and uploads the root folder', async () => {
+    const dir = makeTempDir();
+    const backupDir = path.join(dir, 'backups');
+    const { sqlite } = trackDb(openDatabase(path.join(dir, 'app.sqlite')));
+    const full = resolveMigrationsFolder();
+
+    // A folder holding 0000 to 0003: the state of a database before phase 10.
+    const before = path.join(dir, 'drizzle-0003');
+    cpSync(full, before, { recursive: true });
+    const journalFile = path.join(before, 'meta', '_journal.json');
+    const journal = JSON.parse(readFileSync(journalFile, 'utf8')) as { entries: unknown[] };
+    journal.entries = journal.entries.slice(0, 4);
+    writeFileSync(journalFile, JSON.stringify(journal));
+    await runMigrations(sqlite, { migrationsFolder: before, backupDir, logger: silentLogger });
+
+    sqlite
+      .prepare(
+        "INSERT INTO users (id, email, password_hash, role, created_at) VALUES ('u1', 'a@b.c', 'h', 'admin', 1)",
+      )
+      .run();
+    sqlite
+      .prepare(
+        "INSERT INTO transfers (id, owner_id, token, mode, expires_at, status, created_at) VALUES ('t1', 'u1', 'tok', 'link', 100, 'active', 1)",
+      )
+      .run();
+    sqlite
+      .prepare(
+        "INSERT INTO transfer_files (id, transfer_id, original_name, storage_name, size_bytes, stored_size_bytes, enc_key_wrapped, enc_nonce_prefix, enc_segment_size, enc_version, created_at) VALUES ('f1', 't1', 'a.txt', 's', 1, 2, 'k', 'n', 65536, 1, 1)",
+      )
+      .run();
+    sqlite
+      .prepare(
+        "INSERT INTO uploads (id, owner_id, transfer_id, file_name, total_size, status, created_at, last_activity_at, expires_at) VALUES ('up1', 'u1', 't1', 'b.txt', 5, 'in_progress', 1, 1, 100)",
+      )
+      .run();
+
+    const result = await runMigrations(sqlite, {
+      migrationsFolder: full,
+      backupDir,
+      logger: silentLogger,
+    });
+    expect(result.applied).toEqual(['0004_folders']);
+    expect(result.backupPath).toBeDefined();
+    expect(sqlite.prepare('SELECT original_name, path FROM transfer_files').get()).toEqual({
+      original_name: 'a.txt',
+      path: '',
+    });
+    expect(sqlite.prepare('SELECT file_name, path FROM uploads').get()).toEqual({
+      file_name: 'b.txt',
+      path: '',
     });
   });
 
@@ -330,7 +389,7 @@ describe('migrations', () => {
       backupDir,
       logger: silentLogger,
     });
-    expect(result.applied).toEqual(['0003_storage']);
+    expect(result.applied).toEqual(['0003_storage', '0004_folders']);
     expect(result.backupPath).toBeDefined();
     expect(sqlite.prepare('SELECT id, storage, storage_name FROM transfer_files').get()).toEqual({
       id: 'f1',

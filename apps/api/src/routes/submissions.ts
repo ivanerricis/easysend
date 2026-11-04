@@ -26,6 +26,7 @@ import {
 } from '../requests/service.js';
 import { normalizeEmail } from '../users/service.js';
 import { chunkSizeBytes } from '../uploads/chunk-size.js';
+import { maxFilesPerTransfer } from '../uploads/limits.js';
 import {
   deleteTransfer,
   finalizableFileCount,
@@ -89,6 +90,7 @@ export function submissionsRouter(ctx: AppContext): Router {
           : Math.max(0, request.maxTotalBytes - request.receivedBytes),
       expiresAt: request.expiresAt,
       chunkSizeBytes: chunkSizeBytes(ctx),
+      maxFilesPerTransfer: maxFilesPerTransfer(ctx),
     };
     sendJson(res, 'submissions.info', 200, info);
   });

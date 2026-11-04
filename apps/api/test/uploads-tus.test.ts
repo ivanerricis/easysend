@@ -406,11 +406,17 @@ describe('tus limits', () => {
     expect((await tusCreate(t, client, { transferId: draft.id, size: MB })).status).toBe(201);
   });
 
-  it('limits the number of files per transfer', async () => {
+  it('limits the number of files per transfer with the general setting', async () => {
     const t = await createUploadApp();
+    t.ctx.settings.set('general', {
+      diskReserveMb: 0,
+      chunkSizeMb: 25,
+      defaultLocale: 'it',
+      maxFilesPerTransfer: 2,
+    });
     const { client } = await userWithClient(t);
     const draft = await createDraft(client);
-    for (let i = 0; i < 100; i += 1) {
+    for (let i = 0; i < 2; i += 1) {
       t.db.db
         .insert(transferFiles)
         .values({
@@ -428,6 +434,6 @@ describe('tus limits', () => {
     const res = await tusCreate(t, client, { transferId: draft.id, size: 10 });
     expect(res.status).toBe(400);
     expect(errorCode(res)).toBe('VALIDATION_ERROR');
-    expect(bodyAs<{ error: { details: { limit: number } } }>(res).error.details.limit).toBe(100);
+    expect(bodyAs<{ error: { details: { limit: number } } }>(res).error.details.limit).toBe(2);
   });
 });

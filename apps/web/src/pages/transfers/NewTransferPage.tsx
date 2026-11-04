@@ -1,3 +1,4 @@
+import { MAX_FILES_PER_TRANSFER_DEFAULT } from '@easysend/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -9,8 +10,9 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { ErrorState, LoadingState } from '@/components/common/States';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { clearDraft, loadDraft, saveDraft, type DraftRecord } from '@/features/upload/draft';
+import { pickedKey, topFolder } from '@/features/upload/folders';
 import type { UploadItem } from '@/features/upload/runner';
-import type { RunnerEvent } from '@/features/upload/types';
+import type { PickedFile, RunnerEvent } from '@/features/upload/types';
 import { useUploadSession } from '@/features/upload/useUploadSession';
 import { isApiError } from '@/lib/api/client';
 import { getConfig } from '@/lib/api/me';
@@ -33,7 +35,6 @@ import { SuccessPanel } from './new/SuccessPanel';
 import { UploadProgressPanel } from './new/UploadProgressPanel';
 
 const CHOOSE_BUTTON_ID = 'choose-files';
-const FILE_KEY = (file: File) => `${file.name}\u0000${file.size}\u0000${file.lastModified}`;
 
 export default function NewTransferPage() {
   const { t, i18n } = useTranslation();
@@ -41,11 +42,11 @@ export default function NewTransferPage() {
   const config = useQuery({ queryKey: queryKeys.config, queryFn: getConfig, staleTime: 60_000 });
   const me = useMe();
 
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<PickedFile[]>([]);
   const [filesError, setFilesError] = useState<string | null>(null);
   const [fileNotice, setFileNotice] = useState('');
   const [draft, setDraft] = useState<DraftRecord | null>(() => loadDraft());
-  const filesRef = useRef<File[]>(files);
+  const filesRef = useRef<PickedFile[]>(files);
   useEffect(() => {
     filesRef.current = files;
   }, [files]);
@@ -71,10 +72,11 @@ export default function NewTransferPage() {
             expiresIn: current.expiresIn,
             maxDownloads: current.maxDownloads,
           },
-          files: filesRef.current.map((file) => ({
+          files: filesRef.current.map(({ file, path }) => ({
             name: file.name,
             size: file.size,
             lastModified: file.lastModified,
+            path,
           })),
           createdAt: Date.now(),
         });
@@ -102,31 +104,32 @@ export default function NewTransferPage() {
   const session = useUploadSession({ onEvent: handleEvent });
   const { state } = session;
 
-  const maxFiles = config.data?.limits.maxFilesPerTransfer ?? 100;
+  const maxFiles = config.data?.limits.maxFilesPerTransfer ?? MAX_FILES_PER_TRANSFER_DEFAULT;
   const maxNameLength = config.data?.limits.maxFilenameLength ?? 255;
-  const total = files.reduce((sum, file) => sum + file.size, 0);
+  const total = files.reduce((sum, picked) => sum + picked.file.size, 0);
   const remaining =
     me.data && me.data.quotaBytes !== null
       ? Math.max(0, me.data.quotaBytes - me.data.usedBytes)
       : null;
   const overQuota = remaining !== null && total > remaining;
 
-  const addFiles = (incoming: File[]) => {
-    const known = new Set(files.map(FILE_KEY));
-    const accepted: File[] = [];
+  const addFiles = (incoming: PickedFile[]) => {
+    const known = new Set(files.map(pickedKey));
+    const accepted: PickedFile[] = [];
     let duplicates = 0;
     let tooLong = 0;
     let overLimit = 0;
-    for (const file of incoming) {
-      if (known.has(FILE_KEY(file))) {
+    for (const picked of incoming) {
+      const { file } = picked;
+      if (known.has(pickedKey(picked))) {
         duplicates += 1;
       } else if (file.name.length > maxNameLength) {
         tooLong += 1;
       } else if (files.length + accepted.length >= maxFiles) {
         overLimit += 1;
       } else {
-        known.add(FILE_KEY(file));
-        accepted.push(file);
+        known.add(pickedKey(picked));
+        accepted.push(picked);
       }
     }
     if (accepted.length > 0) setFiles([...files, ...accepted]);
@@ -143,9 +146,15 @@ export default function NewTransferPage() {
   };
 
   const removeFile = (index: number) => {
-    const name = files[index]?.name ?? '';
+    const name = files[index]?.file.name ?? '';
     setFiles(files.filter((_, i) => i !== index));
     setFileNotice(t('transfers.new.fileRemoved', { name }));
+    setFilesError(null);
+  };
+
+  const removeFolder = (folder: string) => {
+    setFiles(files.filter((picked) => topFolder(picked.path) !== folder));
+    setFileNotice(t('transfers.new.folderRemoved', { name: folder }));
     setFilesError(null);
   };
 
@@ -174,7 +183,12 @@ export default function NewTransferPage() {
     setFilesError(null);
     session.start({
       create: toCreateRequest(values),
-      files: files.map<UploadItem>((file) => ({ name: file.name, size: file.size, file })),
+      files: files.map<UploadItem>(({ file, path }) => ({
+        name: file.name,
+        size: file.size,
+        path,
+        file,
+      })),
       chunkSize: config.data.chunkSizeBytes,
     });
   });
@@ -288,7 +302,7 @@ export default function NewTransferPage() {
                 <p role="status" aria-live="polite" className="sr-only">
                   {fileNotice}
                 </p>
-                <SelectedFiles files={files} onRemove={removeFile} />
+                <SelectedFiles files={files} onRemove={removeFile} onRemoveFolder={removeFolder} />
                 {me.data ? (
                   <QuotaMeter
                     quotaBytes={me.data.quotaBytes}

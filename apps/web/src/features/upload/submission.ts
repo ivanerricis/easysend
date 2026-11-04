@@ -8,6 +8,7 @@ import {
   getSubmission,
 } from '@/lib/api/submissions';
 import { readStorage, removeStorage, writeStorage } from '@/lib/storage';
+import { draftFileSchema } from './draft';
 import type { RunnerDeps } from './runner';
 import { createFileUpload } from './tus-file';
 
@@ -51,7 +52,7 @@ const submissionDraftSchema = z.object({
   submissionToken: z.string().min(1),
   /** Unix seconds; an expired token can no longer be used. */
   submissionTokenExpiresAt: z.number(),
-  files: z.array(z.object({ name: z.string(), size: z.number(), lastModified: z.number() })),
+  files: z.array(draftFileSchema),
   createdAt: z.number(),
 });
 

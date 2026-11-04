@@ -3,6 +3,7 @@ import {
   CHUNK_SIZE_MB,
   DISK_RESERVE_MAX_MB,
   LOCALES,
+  MAX_FILES_PER_TRANSFER_CAP,
   type GeneralSettings,
 } from '@easysend/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -32,6 +33,11 @@ const wholeNumber = (min: number, max: number, error: string) =>
 const formSchema = z.object({
   diskReserveMb: wholeNumber(0, DISK_RESERVE_MAX_MB, 'admin.settings.general.errors.reserve'),
   chunkSizeMb: wholeNumber(1, CHUNK_SIZE_MB.max, 'admin.settings.general.errors.chunk'),
+  maxFilesPerTransfer: wholeNumber(
+    1,
+    MAX_FILES_PER_TRANSFER_CAP,
+    'admin.settings.general.errors.maxFiles',
+  ),
   defaultLocale: z.enum(LOCALES),
   updateCheck: z.boolean(),
 });
@@ -41,6 +47,7 @@ function toFormValues(settings: GeneralSettings): FormValues {
   return {
     diskReserveMb: String(settings.diskReserveMb),
     chunkSizeMb: String(settings.chunkSizeMb),
+    maxFilesPerTransfer: String(settings.maxFilesPerTransfer),
     defaultLocale: settings.defaultLocale,
     updateCheck: settings.updateCheck,
   };
@@ -62,6 +69,7 @@ export function GeneralSection({ settings }: { settings: GeneralSettings }) {
       updateGeneralSettings({
         diskReserveMb: Number(values.diskReserveMb),
         chunkSizeMb: Number(values.chunkSizeMb),
+        maxFilesPerTransfer: Number(values.maxFilesPerTransfer),
         defaultLocale: values.defaultLocale,
         updateCheck: values.updateCheck,
       }),
@@ -114,6 +122,15 @@ export function GeneralSection({ settings }: { settings: GeneralSettings }) {
         autoComplete="off"
         label={t('admin.settings.general.chunkSize')}
         description={t('admin.settings.general.chunkSizeHelp', { max: CHUNK_SIZE_MB.max })}
+      />
+      <TextField
+        control={control}
+        name="maxFilesPerTransfer"
+        idPrefix="general"
+        inputMode="numeric"
+        autoComplete="off"
+        label={t('admin.settings.general.maxFiles')}
+        description={t('admin.settings.general.maxFilesHelp', { max: MAX_FILES_PER_TRANSFER_CAP })}
       />
       <LocaleSelectField
         control={control}

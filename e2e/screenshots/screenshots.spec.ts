@@ -2,8 +2,8 @@
 // app on a fresh stack: setup wizard, admin, transfer, public download. Every page is captured in
 // light and dark and checked with axe-core; serious/critical violations and CSP violations fail it.
 import { type BrowserContextOptions, type Page } from '@playwright/test';
-import { mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { analyzeA11y, type A11yFinding } from '../support/a11y.ts';
 import { readSetupCode } from '../support/compose.ts';
 import { expect, test } from '../support/fixtures.ts';
@@ -18,6 +18,27 @@ const ADMIN_PASSWORD = 'Correct-Horse-Battery-42';
 const USER_EMAIL = 'marco@example.com';
 const USER_PASSWORD = 'Another-Strong-Passphrase-7';
 const LINK_PASSWORD = 'segreta-12345';
+
+const FOLDER_NAME = 'Vacanza 2026';
+
+/** Writes the sample folder picked in the screenshots (5 files in 3 levels) and returns its path. */
+function makeFolder(): string {
+  const root = join(repoRoot, 'e2e', '.output', 'shot-folder');
+  rmSync(root, { recursive: true, force: true });
+  const files: [string, number][] = [
+    ['mappa-del-percorso.pdf', 90_000],
+    ['foto/agosto/tramonto-sulla-spiaggia-di-cala-goloritze-con-nome-molto-lungo.jpg', 210_000],
+    ['foto/agosto/colazione.jpg', 120_000],
+    ['foto/settembre/rientro.jpg', 80_000],
+    ['note.txt', 600],
+  ];
+  for (const [rel, size] of files) {
+    const path = join(root, FOLDER_NAME, rel);
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, Buffer.alloc(size, 5));
+  }
+  return join(root, FOLDER_NAME);
+}
 
 type Theme = 'light' | 'dark';
 const DESKTOP = { width: 1280, height: 800 };
@@ -182,6 +203,12 @@ test('screenshots and accessibility', async ({ newSession }) => {
     { name: 'note.txt', mimeType: 'text/plain', buffer: Buffer.from('Ciao, ecco i file.\n') },
   ]);
   await expect(a.getByText('relazione-annuale.pdf').first()).toBeVisible();
+  // A folder with subfolders and a long name, to show the grouped selection and the tree.
+  await a.getByTestId('folder-input').setInputFiles(makeFolder());
+  await expect(
+    a.getByRole('button', { name: new RegExp(`^${FOLDER_NAME} .*5 file`) }),
+  ).toBeVisible();
+  await a.getByRole('button', { name: new RegExp(`^${FOLDER_NAME} `) }).click();
   await a.getByLabel('Titolo').fill('Documenti della vacanza');
   await a
     .getByLabel('Messaggio')
@@ -301,6 +328,8 @@ test('screenshots and accessibility', async ({ newSession }) => {
       { name: 'relazione-annuale.pdf', mimeType: 'application/pdf', buffer: Buffer.alloc(1000, 7) },
     ]);
   await expect(phone.page.getByText('relazione-annuale.pdf').first()).toBeVisible();
+  await phone.page.getByTestId('folder-input').setInputFiles(makeFolder());
+  await phone.page.getByRole('button', { name: new RegExp(`^${FOLDER_NAME} `) }).click();
   await settle(phone.page);
   await capture(phone.page, '18-new-transfer-mobile', { full: true });
   await phone.context.close();

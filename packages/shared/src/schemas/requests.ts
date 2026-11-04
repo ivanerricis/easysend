@@ -11,6 +11,7 @@ import {
   atLeastOneField,
   byteSizeSchema,
   emailSchema,
+  filePathSchema,
   idSchema,
   paginatedSchema,
   paginationQuerySchema,
@@ -145,6 +146,8 @@ export const requestInfoResponseSchema = z.discriminatedUnion('locked', [
     expiresAt: unixSecondsSchema,
     /** tus chunk size of this instance (the public page cannot read `GET /api/config`). */
     chunkSizeBytes: z.number().int().positive(),
+    /** Files per submission (general setting of the instance). */
+    maxFilesPerTransfer: z.number().int().positive(),
   }),
 ]);
 export type RequestInfoResponse = z.infer<typeof requestInfoResponseSchema>;
@@ -170,6 +173,7 @@ export type CreateSubmissionResponse = z.infer<typeof createSubmissionResponseSc
 export const submissionFileSchema = z.object({
   id: idSchema,
   name: z.string().min(1).max(FILENAME_MAX_LENGTH),
+  path: filePathSchema,
   sizeBytes: byteSizeSchema,
 });
 

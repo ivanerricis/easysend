@@ -140,7 +140,7 @@ export function toTransferDetail(
     .select()
     .from(transferFiles)
     .where(eq(transferFiles.transferId, row.id))
-    .orderBy(asc(transferFiles.originalName), asc(transferFiles.createdAt))
+    .orderBy(asc(transferFiles.path), asc(transferFiles.originalName), asc(transferFiles.createdAt))
     .all();
   const recipients = db
     .select()
@@ -181,6 +181,7 @@ export function toTransferDetail(
     files: files.map((file) => ({
       id: file.id,
       name: file.originalName,
+      path: file.path,
       sizeBytes: file.sizeBytes,
       mimeType: file.mimeType,
       sha256: file.sha256 ?? '',
@@ -190,6 +191,7 @@ export function toTransferDetail(
     uploads: pending.map((u) => ({
       id: u.id,
       fileName: u.fileName,
+      path: u.path,
       totalSize: u.totalSize,
       status: u.status,
       expiresAt: u.expiresAt,
