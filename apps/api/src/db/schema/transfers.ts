@@ -1,6 +1,7 @@
 import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import {
   EXPIRY_KEYS,
+  STORAGE_DRIVERS,
   TRANSFER_MODES,
   TRANSFER_SOURCES,
   TRANSFER_STATUSES,
@@ -95,6 +96,8 @@ export const transferFiles = sqliteTable(
       .references(() => transfers.id, { onDelete: 'cascade' }),
     originalName: text('original_name').notNull(),
     storageName: text('storage_name').notNull(),
+    /** Where the encrypted file lives; the object name is storage_name on every driver. */
+    storage: text('storage', { enum: STORAGE_DRIVERS }).notNull().default('local'),
     /** Plaintext size in bytes. */
     sizeBytes: integer('size_bytes').notNull(),
     /** Size on disk after encryption. */
