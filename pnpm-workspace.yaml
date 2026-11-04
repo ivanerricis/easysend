@@ -9,18 +9,27 @@ allowBuilds:
 
 # Advisories without a fixed version that never reach the images:
 # GHSA-vfj7-8cjw-p6xm (braces) comes in through the shadcn CLI, used only at build time.
+# GHSA-gcqx-w48m-w2h4 (deepmerge, no fix yet): shadcn CLI only (build time), never bundled.
+# GHSA-g3hv-75wg-m249 (minimatch, fixed only in 11.x): eslint and eslint-plugin-jsx-a11y only,
+# matching our own config globs; jsx-a11y does not support minimatch 11.
 auditConfig:
   ignoreGhsas:
     - GHSA-vfj7-8cjw-p6xm
+    - GHSA-gcqx-w48m-w2h4
+    - GHSA-g3hv-75wg-m249
 
 # VitePress 1.x (docs site) still asks for vite 5, which no longer gets security fixes: run it on
 # vite 6 instead. The app itself uses vite 8. Drop this with VitePress 2.
 overrides:
-  'vitepress>vite': 6.4.4
+  'vitepress>vite': 6.4.5
   # GHSA-27r3-jxmh-p828 (DoS): express still allows body-parser below 2.4.0.
   'body-parser@<2.4.0': ^2.4.0
   # GHSA-3f7j-7jwc-fxfj: comes in through the shadcn CLI (build time only).
   'systeminformation@<5.33.16': ^5.33.16
+  # GHSA-w74x-v6f9-j3xg and siblings: ajv (hookform resolvers, shadcn CLI) still allows fast-uri < 3.1.9.
+  'fast-uri@<3.1.9': ^3.1.9
+  # GHSA-67mh-4wv8-2f99 (dev server only): drizzle-kit's @esbuild-kit/esm-loader pins esbuild 0.18.
+  'esbuild@<0.25.0': ^0.25.0
 
 catalog:
   # tooling
@@ -48,6 +57,7 @@ catalog:
   tsdown: 0.23.1
   supertest: 7.3.1
   '@types/express': 5.0.6
+  aws4fetch: 1.0.20
   '@types/supertest': 7.2.1
   '@types/better-sqlite3': 9.6.0
   '@node-rs/argon2': 2.2.2

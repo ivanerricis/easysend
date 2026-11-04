@@ -56,6 +56,17 @@ const envSchema = z.object({
     .min(1)
     .max(CHUNK_SIZE_MB.max)
     .default(CHUNK_SIZE_MB.default),
+  // File storage seed, read only at the first start (see `storage/env.ts`). Validated there, not
+  // here, so a stale value can never stop a started instance. The secret key itself is read from
+  // the environment by the importer and never kept in the config.
+  STORAGE_DRIVER: z.string().optional(),
+  S3_ENDPOINT: z.string().optional(),
+  S3_REGION: z.string().optional(),
+  S3_BUCKET: z.string().optional(),
+  S3_PREFIX: z.string().optional(),
+  S3_FORCE_PATH_STYLE: z.string().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY_FILE: z.string().optional(),
   SMTP_DEV_HOST: z.string().min(1).optional(),
   SMTP_DEV_PORT: z.coerce.number().int().min(1).max(65535).optional(),
   APP_VERSION: z.string().min(1).optional(),
@@ -64,6 +75,19 @@ const envSchema = z.object({
   // Where the admin update notice lists releases (GitHub "list releases" API format). Tests only.
   UPDATE_CHECK_URL: z.url().default(DEFAULT_UPDATE_CHECK_URL),
 });
+
+/** Trimmed, unvalidated storage variables; undefined when unset or empty. */
+export interface StorageEnv {
+  driver: string | undefined;
+  endpoint: string | undefined;
+  region: string | undefined;
+  bucket: string | undefined;
+  prefix: string | undefined;
+  forcePathStyle: string | undefined;
+  accessKeyId: string | undefined;
+  /** Path of the secret key file (absolute, or relative to `secretsDir`). */
+  secretAccessKeyFile: string | undefined;
+}
 
 export interface AppConfig {
   mode: AppMode;
@@ -96,6 +120,8 @@ export interface AppConfig {
   cleanupCron: string;
   defaultDiskReserveMb: number;
   defaultChunkSizeMb: number;
+  /** Raw `STORAGE_DRIVER` / `S3_*` variables (first-start seed only). Never holds the secret key value. */
+  storageEnv: StorageEnv;
   /** Local-mode SMTP fallback (Mailpit), used only when no SMTP settings are stored. */
   smtpDevHost: string | undefined;
   smtpDevPort: number | undefined;
@@ -158,6 +184,16 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     cleanupCron: e.CLEANUP_CRON,
     defaultDiskReserveMb: e.DEFAULT_DISK_RESERVE_MB,
     defaultChunkSizeMb: e.DEFAULT_CHUNK_SIZE_MB,
+    storageEnv: {
+      driver: e.STORAGE_DRIVER,
+      endpoint: e.S3_ENDPOINT,
+      region: e.S3_REGION,
+      bucket: e.S3_BUCKET,
+      prefix: e.S3_PREFIX,
+      forcePathStyle: e.S3_FORCE_PATH_STYLE,
+      accessKeyId: e.S3_ACCESS_KEY_ID,
+      secretAccessKeyFile: e.S3_SECRET_ACCESS_KEY_FILE,
+    },
     smtpDevHost: e.SMTP_DEV_HOST,
     smtpDevPort: e.SMTP_DEV_PORT,
     version: e.APP_VERSION ?? DEV_VERSION,

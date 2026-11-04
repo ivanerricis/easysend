@@ -8,6 +8,7 @@ import { readEmailLogo } from '../branding/store.js';
 import { LOGO_CID } from './components.js';
 import {
   firstDownloadEmail,
+  submissionReceivedEmail,
   passwordResetEmail,
   smtpTestEmail,
   transferLinkEmail,
@@ -80,6 +81,17 @@ export interface Mailer {
     title: string | null;
     /** Unix seconds. */
     downloadedAt: number;
+  }): Promise<boolean>;
+  /** Tells the owner (in their language, null = instance default) that an upload request received files. */
+  sendSubmissionReceived(input: {
+    to: string;
+    locale: Locale | null;
+    transferId: string;
+    requestTitle: string;
+    submitterName: string | null;
+    submitterEmail: string | null;
+    fileCount: number;
+    totalBytes: number;
   }): Promise<boolean>;
   /**
    * Sends a test message through the GIVEN settings (never the stored ones) and reports the outcome.
@@ -335,6 +347,20 @@ export function createMailer(deps: {
             link,
             downloadedAt,
             timezone: config.timezone,
+          }),
+        );
+      },
+
+      async sendSubmissionReceived({ to, locale, transferId, ...rest }) {
+        const link = buildUrl(`/transfers/${transferId}`);
+        if (!link) return false;
+        return sendContent(
+          to,
+          submissionReceivedEmail({
+            locale: localeOf(locale),
+            appearance: settingsRepo.getAppearance(),
+            link,
+            ...rest,
           }),
         );
       },

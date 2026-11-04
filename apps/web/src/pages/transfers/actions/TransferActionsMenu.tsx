@@ -1,6 +1,6 @@
-import type { TransferMode, TransferStatus } from '@easysend/shared';
+import type { TransferMode, TransferSource, TransferStatus } from '@easysend/shared';
 import { useQuery } from '@tanstack/react-query';
-import { Ban, Eye, Mail, Pencil, Trash2 } from 'lucide-react';
+import { Ban, Copy, Eye, Mail, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { queryKeys } from '@/app/query';
@@ -11,14 +11,21 @@ import { EditTransferDialog } from '../detail/EditTransferDialog';
 import { useTransferActions } from './useTransferActions';
 
 interface TransferActionsMenuProps {
-  transfer: { id: string; title: string | null; status: TransferStatus; mode: TransferMode };
+  transfer: {
+    id: string;
+    title: string | null;
+    status: TransferStatus;
+    mode: TransferMode;
+    shareUrl: string | null;
+    source?: TransferSource;
+  };
   /** Title shown in the accessible name when the transfer has none. */
   fallbackTitle: string;
 }
 
 /**
  * Per-row actions menu of the transfer lists: open details, edit, resend, revoke and delete,
- * limited to what the row's status allows. It owns the dialogs it opens.
+ * copy the share link, limited to what the row's status allows. It owns the dialogs it opens.
  */
 export function TransferActionsMenu({ transfer, fallbackTitle }: TransferActionsMenuProps) {
   const { t } = useTranslation();
@@ -47,6 +54,13 @@ export function TransferActionsMenu({ transfer, fallbackTitle }: TransferActions
             to: `/transfers/${transfer.id}`,
           },
           {
+            key: 'copy-link',
+            label: t('transfers.success.copyLink'),
+            icon: Copy,
+            hidden: transfer.status !== 'active' || !transfer.shareUrl,
+            onSelect: () => transfer.shareUrl && void actions.copyLink(transfer.shareUrl),
+          },
+          {
             key: 'edit',
             label: t('common.actions.edit'),
             icon: Pencil,
@@ -57,7 +71,7 @@ export function TransferActionsMenu({ transfer, fallbackTitle }: TransferActions
             key: 'resend',
             label: t('transfers.detail.resend'),
             icon: Mail,
-            hidden: !(isActive && transfer.mode === 'email'),
+            hidden: !(isActive && transfer.mode === 'email') || transfer.source === 'received',
             disabled: actions.resending,
             onSelect: () => void actions.resend(),
           },

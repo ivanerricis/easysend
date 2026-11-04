@@ -1,25 +1,22 @@
-import { PASSWORD_MAX_LENGTH, type DownloadFile } from '@easysend/shared';
-import { zodResolver } from '@hookform/resolvers/zod';
+import type { DownloadFile } from '@easysend/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Download, FileArchive, Lock } from 'lucide-react';
+import { AlertTriangle, Download, FileArchive } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
-import { z } from 'zod';
 import { useAppearance } from '@/app/providers/AppearanceProvider';
 import { queryKeys } from '@/app/query';
-import { FormErrorSummary } from '@/components/common/FormErrorSummary';
-import { FormField } from '@/components/common/FormField';
 import { RequestId } from '@/components/common/RequestId';
 import { PageHeader } from '@/components/common/PageHeader';
-import { PasswordInput } from '@/components/common/PasswordInput';
 import { LoadingState } from '@/components/common/States';
+import { UnlockCard } from '@/components/common/UnlockCard';
 import { PublicCard } from '@/components/layout/PublicLayout';
+import { FileTree } from '@/components/files/FileTree';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { displayPath } from '@/features/upload/folders';
 import { isApiError } from '@/lib/api/client';
 import {
   downloadFileUrl,
@@ -27,18 +24,12 @@ import {
   getDownloadInfo,
   unlockDownload,
 } from '@/lib/api/downloads';
-import { formatBytes, formatDateTime, formatDuration, formatRelative } from '@/lib/format';
-import { hasErrorCode } from '@/lib/errors';
+import { formatBytes, formatDateTime, formatRelative } from '@/lib/format';
 
 /** Delay before the counter is refetched after a download link was clicked. */
 export const REFETCH_DELAY_MS = 2000;
 /** Warn the recipient when this many downloads (or fewer) are left. */
 const LOW_DOWNLOADS_THRESHOLD = 3;
-
-const unlockFormSchema = z.object({
-  password: z.string().min(1, 'download.locked.required').max(PASSWORD_MAX_LENGTH),
-});
-type UnlockForm = z.infer<typeof unlockFormSchema>;
 
 function errorStateKey(error: unknown): string {
   if (!isApiError(error)) return 'generic';
@@ -88,81 +79,17 @@ function UnlockView({
   onUnlocked: () => Promise<unknown>;
 }) {
   const { t, i18n } = useTranslation();
-  const [serverError, setServerError] = useState<string | null>(null);
-  const {
-    control,
-    handleSubmit,
-    setFocus,
-    formState: { errors, submitCount, isSubmitting },
-  } = useForm<UnlockForm>({
-    resolver: zodResolver(unlockFormSchema),
-    defaultValues: { password: '' },
-  });
-
-  const onSubmit = handleSubmit(async (values) => {
-    setServerError(null);
-    try {
-      await unlockDownload(token, values);
-      await onUnlocked();
-    } catch (error) {
-      if (hasErrorCode(error, 'PASSWORD_INCORRECT')) {
-        setServerError(t('errors.PASSWORD_INCORRECT'));
-        setFocus('password');
-      } else if (hasErrorCode(error, 'RATE_LIMITED') && isApiError(error)) {
-        setServerError(
-          error.retryAfter
-            ? t('download.locked.retryIn', {
-                time: formatDuration(error.retryAfter, i18n.language),
-              })
-            : t('errors.RATE_LIMITED'),
-        );
-      } else {
-        // Expired, revoked, deleted...: reload the info to show the matching state.
-        await onUnlocked();
-      }
-    }
-  });
-
   return (
-    <PublicCard width="narrow">
-      <PageHeader
-        title={t('download.locked.title')}
-        description={t('download.locked.description')}
-      />
-      <form onSubmit={(event) => void onSubmit(event)} noValidate className="space-y-4">
-        <FormErrorSummary errors={errors} submitCount={submitCount} />
-        <FormField control={control} name="password" label={t('download.locked.password')}>
-          {({ field, controlProps }) => (
-            <PasswordInput
-              autoComplete="off"
-              {...field}
-              {...controlProps}
-              aria-invalid={controlProps['aria-invalid'] || serverError !== null}
-              aria-describedby={
-                [controlProps['aria-describedby'], serverError ? 'unlock-error' : undefined]
-                  .filter(Boolean)
-                  .join(' ') || undefined
-              }
-            />
-          )}
-        </FormField>
-        {serverError ? (
-          <p id="unlock-error" role="alert" className="text-destructive text-sm">
-            {serverError}
-          </p>
-        ) : null}
-        <p className="text-muted-foreground text-sm">
-          {t('download.expires', {
-            date: formatDateTime(expiresAt, i18n.language),
-            relative: formatRelative(expiresAt, i18n.language),
-          })}
-        </p>
-        <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
-          <Lock aria-hidden="true" />
-          {isSubmitting ? t('download.locked.submitting') : t('download.locked.submit')}
-        </Button>
-      </form>
-    </PublicCard>
+    <UnlockCard
+      title={t('download.locked.title')}
+      description={t('download.locked.description')}
+      expiresLabel={t('download.expires', {
+        date: formatDateTime(expiresAt, i18n.language),
+        relative: formatRelative(expiresAt, i18n.language),
+      })}
+      unlock={(password) => unlockDownload(token, { password })}
+      onUnlocked={onUnlocked}
+    />
   );
 }
 
@@ -270,43 +197,47 @@ function TransferView({ token, info, onDownloadStarted }: TransferViewProps) {
           </div>
         </div>
 
-        <ul className="divide-border border-border divide-y border">
-          {files.map((file) => {
+        <FileTree
+          files={files}
+          fileRowClassName="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 sm:flex-nowrap"
+          renderFile={(file) => {
             const checkId = `download-file-${file.id}`;
             const size = formatBytes(file.sizeBytes, locale);
             return (
-              <li
-                key={file.id}
-                className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 sm:flex-nowrap"
-              >
+              <>
                 <Checkbox
                   id={checkId}
                   checked={selected.has(file.id)}
                   onCheckedChange={(checked) => toggle(file.id, checked === true)}
-                  aria-label={t('download.files.selectFile', { name: file.name })}
+                  aria-label={t('download.files.selectFile', {
+                    name: displayPath(file.path, file.name),
+                  })}
                 />
                 <Label
                   htmlFor={checkId}
                   className="block min-h-11 min-w-0 flex-1 basis-40 py-2 text-sm leading-snug font-normal"
                   aria-hidden="true"
                 >
-                  <span className="block break-all">{file.name}</span>
+                  <span className="block [overflow-wrap:anywhere]">{file.name}</span>
                   <span className="text-muted-foreground block font-mono text-xs">{size}</span>
                 </Label>
                 <Button asChild variant="outline" onClick={started}>
                   <a
                     href={downloadFileUrl(token, file.id)}
                     download
-                    aria-label={t('download.files.downloadNamed', { name: file.name, size })}
+                    aria-label={t('download.files.downloadNamed', {
+                      name: displayPath(file.path, file.name),
+                      size,
+                    })}
                   >
                     <Download aria-hidden="true" />
                     {t('download.files.download')}
                   </a>
                 </Button>
-              </li>
+              </>
             );
-          })}
-        </ul>
+          }}
+        />
 
         <p className="text-muted-foreground text-sm" aria-live="polite">
           {selectedIds.length > 0

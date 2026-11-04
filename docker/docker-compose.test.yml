@@ -6,7 +6,7 @@
 #
 # Relative paths resolve against the project directory (the folder of the FIRST -f file, i.e. the
 # repository root), not against this file. Own ports, so it never clashes with the local stack:
-# web 18090, Mailpit 11025/18025, fake Cloudflare 18787.
+# web 18090, Mailpit 11025/18025, fake Cloudflare 18787; MinIO (S3) is only on the compose network.
 
 services:
   api:
@@ -28,6 +28,8 @@ services:
       - easysend-updates:/updates
     depends_on:
       fake-cloudflare:
+        condition: service_healthy
+      minio:
         condition: service_healthy
 
   web:
@@ -81,5 +83,36 @@ services:
       timeout: 3s
       retries: 15
 
+  # S3-compatible storage for the storage spec. The upstream minio/minio images are no longer
+  # published (Docker Hub and Quay), so this is the frozen Bitnami legacy build of MinIO, pinned
+  # by tag. MINIO_DEFAULT_BUCKETS creates the bucket at start (no separate mc init container).
+  # Throwaway test credentials, reachable by the API as http://minio:9000 (path-style); the tests
+  # inspect the bucket with the `mc` client inside this container. Not published on the host and
+  # never part of the production compose.
+  minio:
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5
+    restart: unless-stopped
+    mem_limit: 256m
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      MINIO_ROOT_USER: easysend-e2e-key
+      MINIO_ROOT_PASSWORD: easysend-e2e-secret-0123456789
+      MINIO_DEFAULT_BUCKETS: easysend
+      MINIO_SCHEME: http
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+    volumes:
+      - easysend-minio:/bitnami/minio/data
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:9000/minio/health/ready']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
 volumes:
   easysend-updates:
+  easysend-minio:

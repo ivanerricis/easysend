@@ -1,7 +1,7 @@
 // End-to-end run: `pnpm test:e2e [-- --no-build] [--keep] [extra playwright args]`.
 //
-// Starts the PRODUCTION stack (compose project `easysend-e2e`, web on :18090) plus Mailpit and a
-// fake Cloudflare API from docker/docker-compose.test.yml, runs the Playwright projects `setup`
+// Starts the PRODUCTION stack (compose project `easysend-e2e`, web on :18090) plus Mailpit, a
+// fake Cloudflare API and MinIO (S3) from docker/docker-compose.test.yml, runs the Playwright projects `setup`
 // and `e2e` against it, saves the container logs of a failed run to e2e/.output/logs/ and removes
 // the stack (unless --keep). Exit code = Playwright's. Cross-platform, no dependencies.
 //
@@ -53,7 +53,7 @@ ensureDocker();
 function saveLogs() {
   const logDir = join(outputDir, 'logs');
   mkdirSync(logDir, { recursive: true });
-  for (const service of ['api', 'web', 'fake-cloudflare', 'mailpit']) {
+  for (const service of ['api', 'web', 'fake-cloudflare', 'mailpit', 'minio']) {
     const result = spawnSync('docker', [...composeArgs, 'logs', '--no-color', service], {
       cwd: root,
       env: stackEnv,

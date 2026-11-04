@@ -15,13 +15,15 @@ import {
   passwordResetTokens,
   transferFiles,
   transfers,
+  uploadRequests,
   uploads,
   users,
 } from '../db/schema/index.js';
 import { escapeLike } from '../db/like.js';
 import { endpointGuards } from '../http/endpoint-guards.js';
 import { AppError } from '../http/errors.js';
-import { isStorageName, storagePath, tusPathList } from '../storage/paths.js';
+import { deleteStoredObjects, type StoredObjectRef } from '../storage/deletions.js';
+import { tusPathList } from '../storage/paths.js';
 import { removeFileQuietly } from '../storage/remove.js';
 import { sendJson, validBody, validParams, validQuery } from '../http/validate.js';
 import {
@@ -233,6 +235,7 @@ export function adminUsersRouter(ctx: AppContext): Router {
       // and removed after the commit: a crash in between leaves orphan files (the cleanup job's
       // orphan sweep removes them) but never rows that point at missing files.
       const filesToRemove: string[] = [];
+      const storedToRemove: StoredObjectRef[] = [];
       db.transaction((tx) => {
         const target = findUser(id);
         if (target.role === 'admin' && !target.disabled && countActiveAdmins(tx) <= 1) {
@@ -259,6 +262,10 @@ export function adminUsersRouter(ctx: AppContext): Router {
           }
           findUser(newOwnerId); // USER_NOT_FOUND when it does not exist
           tx.update(transfers).set({ ownerId: newOwnerId }).where(eq(transfers.ownerId, id)).run();
+          tx.update(uploadRequests)
+            .set({ ownerId: newOwnerId })
+            .where(eq(uploadRequests.ownerId, id))
+            .run();
           tx.update(uploads).set({ ownerId: newOwnerId }).where(eq(uploads.ownerId, id)).run();
           tx.update(users)
             .set({ usedBytes: sql`${users.usedBytes} + ${target.usedBytes}` })
@@ -269,14 +276,12 @@ export function adminUsersRouter(ctx: AppContext): Router {
           // upload whose row vanished). Encrypted files and their tus leftovers are unlinked after
           // the commit.
           for (const row of tx
-            .select({ storageName: transferFiles.storageName })
+            .select({ storageName: transferFiles.storageName, storage: transferFiles.storage })
             .from(transferFiles)
             .innerJoin(transfers, eq(transfers.id, transferFiles.transferId))
             .where(eq(transfers.ownerId, id))
             .all()) {
-            if (isStorageName(row.storageName)) {
-              filesToRemove.push(storagePath(ctx.config, row.storageName));
-            }
+            storedToRemove.push({ storage: row.storage, name: row.storageName });
           }
           for (const row of tx
             .select({ id: uploads.id })
@@ -287,6 +292,7 @@ export function adminUsersRouter(ctx: AppContext): Router {
           }
           tx.delete(uploads).where(eq(uploads.ownerId, id)).run();
           tx.delete(transfers).where(eq(transfers.ownerId, id)).run();
+          tx.delete(uploadRequests).where(eq(uploadRequests.ownerId, id)).run();
         }
 
         // Sessions, recovery codes and reset tokens go with the user (ON DELETE CASCADE).
@@ -306,6 +312,7 @@ export function adminUsersRouter(ctx: AppContext): Router {
           tx,
         );
       });
+      await deleteStoredObjects(ctx, storedToRemove);
       for (const file of filesToRemove) await removeFileQuietly(file, ctx.logger);
       res.status(204).end();
     },

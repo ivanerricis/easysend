@@ -121,6 +121,8 @@
       "allStatuses": "All statuses",
       "mode": "Type",
       "allModes": "All types",
+      "origin": "Origin",
+      "allOrigins": "Sent and received",
       "owner": "Owner",
       "allOwners": "All users",
       "clear": "Clear filters"
@@ -176,6 +178,17 @@
     "columns": {
       "user": "User",
       "usage": "Storage used"
+    },
+    "driver": {
+      "title": "Storage in use",
+      "active": "New files go to",
+      "local": "Local disk",
+      "s3": "S3-compatible storage",
+      "usage": "Files by storage",
+      "files_one": "{{count}} file",
+      "files_other": "{{count}} files",
+      "s3Note": "With S3 the disk figures below describe the temporary upload folder on the server, not the files stored on S3.",
+      "manage": "Change storage"
     }
   },
   "settings": {
@@ -188,11 +201,14 @@
       "diskReserveHelp": "Free space that uploads never use. 0 disables the reserve.",
       "chunkSize": "Upload chunk size (MB)",
       "chunkSizeHelp": "From 1 to {{max}} MB. Behind Cloudflare no request may exceed 100 MB, so the default of 25 MB is a safe choice.",
+      "maxFiles": "Max files per transfer",
+      "maxFilesHelp": "From 1 to {{max}}. A folder counts every file inside it, so raise this limit to allow large folders.",
       "defaultLocale": "Default language",
       "defaultLocaleHelp": "Used for emails to recipients and for visitors without a preference.",
       "errors": {
         "reserve": "Enter a whole number of MB, from 0 to 10485760.",
-        "chunk": "Enter a whole number of MB, from 1 to 50."
+        "chunk": "Enter a whole number of MB, from 1 to 50.",
+        "maxFiles": "Enter a whole number from 1 to 5000."
       },
       "updateCheck": "Check for updates",
       "updateCheckHelp": "Once a day the server asks GitHub for the latest published version. No data about the instance is sent."
@@ -225,7 +241,11 @@
       "reconfigureWarning": "Changing the domain changes the public address: links already shared with the old address will stop working.",
       "configure": "Configure tunnel",
       "reconfigure": "Change domain",
-      "savedToast": "Tunnel configured: {{url}}"
+      "savedToast": "Tunnel configured: {{url}}",
+      "envMismatchTitle": "PUBLIC_URL in the .env file differs from the new address",
+      "envMismatchBody": "Links and emails use the PUBLIC_URL from the .env file ({{env}}) instead of the new address ({{url}}). Update PUBLIC_URL in the .env file and restart the stack with docker compose up -d.",
+      "oldRecordRemoved": "The old DNS record for {{hostname}} was removed.",
+      "oldRecordFailed": "Could not remove the old DNS record for {{hostname}}: delete it from the Cloudflare dashboard."
     },
     "updates": {
       "title": "Updates",
@@ -315,7 +335,53 @@
       "general": "General",
       "email": "Email",
       "cloudflare": "Cloudflare",
-      "updates": "Updates"
+      "updates": "Updates",
+      "storage": "File storage"
+    },
+    "storage": {
+      "title": "File storage",
+      "description": "Where the encrypted files are saved. The change applies to new files at once; existing files stay where they are until you move them.",
+      "envDiffers": {
+        "title": "The .env storage settings are different",
+        "body": "The S3 variables in .env are only read at the first start. The settings shown here are the ones in use: change them on this page."
+      },
+      "usage": {
+        "title": "Files by storage",
+        "active": "In use for new files",
+        "local": "Local disk",
+        "s3": "S3",
+        "files_one": "{{count}} file",
+        "files_other": "{{count}} files"
+      },
+      "migration": {
+        "title": "Move files between storages",
+        "intro_local": "{{files}} ({{size}}) are still on S3, while new files go to the local disk.",
+        "intro_s3": "{{files}} ({{size}}) are still on the local disk, while new files go to S3.",
+        "none": "All files are already on the storage in use.",
+        "start_local": "Move {{files}} ({{size}}) to the local disk",
+        "start_s3": "Move {{files}} ({{size}}) to S3",
+        "targetMissing": "Save the S3 configuration first.",
+        "running": "A move is in progress.",
+        "confirmTitle_local": "Move the files to the local disk?",
+        "confirmTitle_s3": "Move the files to S3?",
+        "confirmBody": "The encrypted files are copied one at a time and downloads keep working. The original of each file is removed after about an hour. You can stop at any time.",
+        "confirm": "Start moving",
+        "started": "The move has started.",
+        "progressTitle": "Moving files to {{target}}",
+        "progressLabel": "Move progress",
+        "progressText": "{{done}} of {{total}} files, {{doneSize}} of {{totalSize}}",
+        "cancel": "Stop",
+        "cancelling": "Stopping after the current file…",
+        "outcomeDone": "The move is complete: {{files}} moved to {{target}}.",
+        "outcomeCancelled": "The move was stopped: {{done}} of {{total}} files moved. The others stay where they are.",
+        "outcomeFailed": "The move failed.",
+        "failedFiles_one": "{{count}} file could not be moved.",
+        "failedFiles_other": "{{count}} files could not be moved.",
+        "targets": {
+          "local": "the local disk",
+          "s3": "S3"
+        }
+      }
     }
   },
   "appearance": {

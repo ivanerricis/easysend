@@ -23,6 +23,11 @@ export const setupStatusResponseSchema = z.object({
     /** Always `true` in local mode, where the step is skipped. */
     cloudflare: z.boolean(),
     general: z.boolean(),
+    /**
+     * Optional step "Where to save the files": never blocks `setup.complete`. `true` with the
+     * local disk (the default) or once an S3 configuration is saved. Always sent by the API.
+     */
+    storage: z.boolean().optional(),
   }),
 });
 export type SetupStatusResponse = z.infer<typeof setupStatusResponseSchema>;
@@ -79,6 +84,10 @@ export const cloudflareResponseSchema = z.object({
   hostname: z.string(),
   publicUrl: z.string(),
   tunnelId: z.string(),
+  /** Only when the hostname changed: the one that was configured before. */
+  previousHostname: z.string().optional(),
+  /** Outcome of removing the old CNAME (best effort); only with `previousHostname`. */
+  previousRecord: z.enum(['removed', 'not_found', 'failed']).optional(),
 });
 export type CloudflareResponse = z.infer<typeof cloudflareResponseSchema>;
 

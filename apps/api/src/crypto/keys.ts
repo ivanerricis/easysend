@@ -2,7 +2,7 @@ import { hkdfSync } from 'node:crypto';
 import type { Secrets } from '../secrets.js';
 
 /** Purposes of the keys derived from `APP_SECRET_KEY`: encryption keys re-wrapped by the master key rotation CLI. */
-export const APP_KEY_PURPOSES = ['totp', 'smtp', 'file'] as const;
+export const APP_KEY_PURPOSES = ['totp', 'smtp', 'file', 'storage'] as const;
 /**
  * Purposes of the keys derived from `SESSION_SECRET`: signatures and keyed hashes. Recovery codes
  * live here because their HMACs cannot be re-keyed when the master key is rotated (SPEC 4).
@@ -32,6 +32,8 @@ export function deriveKey(master: Uint8Array, purpose: KeyPurpose): Buffer {
 export interface DerivedKeys {
   totp: Buffer;
   smtp: Buffer;
+  /** Encrypts the storage setting (S3 credentials). */
+  storage: Buffer;
   /** Master key that wraps the per-file data keys. */
   file: Buffer;
   /** HMAC key for the stored hashes of recovery codes. */
@@ -48,6 +50,7 @@ export function deriveKeys(secrets: Secrets): DerivedKeys {
   return {
     totp: app('totp'),
     smtp: app('smtp'),
+    storage: app('storage'),
     file: app('file'),
     recoveryCode: session('recovery-code'),
     csrf: session('csrf'),

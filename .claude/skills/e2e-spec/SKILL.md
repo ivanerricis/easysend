@@ -7,7 +7,10 @@ description: Write or update an EasySend Playwright end-to-end test using the e2
 
 The suite runs against a **production-mode** stack: `docker-compose.yml` + `docker/docker-compose.test.yml`
 overlay (project `easysend-e2e`), web on http://localhost:18090, Mailpit API on :18025, fake
-Cloudflare on :18787. `pnpm test:e2e` builds the images, runs project `setup` (wizard) then `e2e`
+Cloudflare on :18787, MinIO (S3, only on the compose network as `http://minio:9000`, bucket
+`easysend`, throwaway keys in the test compose; inspect it with `composeExec('minio', ['sh', '-c',
+'MC_HOST_e2e=http://<key>:<secret>@127.0.0.1:9000 mc --config-dir /tmp/mc ls --recursive e2e/easysend/'])`,
+see `80-storage-s3.spec.ts`). `pnpm test:e2e` builds the images, runs project `setup` (wizard) then `e2e`
 (files in order: `10-auth`, `20-transfer`, ... ), one worker, and tears the stack down.
 Also apply the personal `webapp-testing` skill's method (reconnaissance, explicit waits, console
 capture) with the Node Playwright of `e2e/` - no Python.

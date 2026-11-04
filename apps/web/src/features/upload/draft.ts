@@ -1,9 +1,18 @@
 import { expiryKeySchema, transferModeSchema } from '@easysend/shared';
 import { z } from 'zod';
+import type { PickedFile } from './types';
 import { readStorage, removeStorage, writeStorage } from '@/lib/storage';
 
 /** Browser storage key of the interrupted-upload draft. */
 export const DRAFT_STORAGE_KEY = 'easysend-draft';
+
+/** Drafts stored before folders existed have no path: they mean the root. */
+export const draftFileSchema = z.object({
+  name: z.string(),
+  size: z.number(),
+  lastModified: z.number(),
+  path: z.string().default(''),
+});
 
 const draftSchema = z.object({
   transferId: z.string().min(1),
@@ -16,7 +25,7 @@ const draftSchema = z.object({
     expiresIn: expiryKeySchema,
     maxDownloads: z.string(),
   }),
-  files: z.array(z.object({ name: z.string(), size: z.number(), lastModified: z.number() })),
+  files: z.array(draftFileSchema),
   createdAt: z.number(),
 });
 
@@ -45,11 +54,16 @@ export function clearDraft(): void {
 export interface FileRef {
   name: string;
   size: number;
+  /** Folder inside the transfer (missing means the root). */
+  path?: string | undefined;
 }
 
+const sameFile = (a: FileRef, b: FileRef) =>
+  a.name === b.name && a.size === b.size && (a.path ?? '') === (b.path ?? '');
+
 /**
- * Splits the files of a draft into the ones the server already holds (matched by name and size,
- * each server file used once) and the ones still to send.
+ * Splits the files of a draft into the ones the server already holds (matched by path, name and
+ * size, each server file used once) and the ones still to send.
  */
 export function splitDraftFiles<T extends FileRef>(
   draftFiles: T[],
@@ -57,21 +71,23 @@ export function splitDraftFiles<T extends FileRef>(
 ): { item: T; done: boolean }[] {
   const pool = [...serverFiles];
   return draftFiles.map((item) => {
-    const at = pool.findIndex((f) => f.name === item.name && f.size === item.size);
+    const at = pool.findIndex((f) => sameFile(f, item));
     if (at === -1) return { item, done: false };
     pool.splice(at, 1);
     return { item, done: true };
   });
 }
 
-/** Finds, for every wanted file, a picked `File` with the same name and size (used once). */
+/** Finds, for every wanted file, a picked file with the same path, name and size (used once). */
 export function matchPickedFiles(
   wanted: FileRef[],
-  picked: File[],
-): { matches: (File | null)[]; missing: FileRef[] } {
+  picked: PickedFile[],
+): { matches: (PickedFile | null)[]; missing: FileRef[] } {
   const pool = [...picked];
   const matches = wanted.map((ref) => {
-    const at = pool.findIndex((f) => f.name === ref.name && f.size === ref.size);
+    const at = pool.findIndex((p) =>
+      sameFile({ name: p.file.name, size: p.file.size, path: p.path }, ref),
+    );
     if (at === -1) return null;
     return pool.splice(at, 1)[0] ?? null;
   });

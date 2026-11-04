@@ -137,6 +137,12 @@ test('setup wizard in production mode', async ({ page }) => {
   expect(composeExec('api', ['test', '-s', '/shared/tunnel-token']).status).toBe(0);
   await page.getByRole('button', { name: 'Continua' }).click();
 
+  // ---------------------------------------------------------------- file storage (optional step)
+  await expect(page.getByRole('heading', { name: 'Dove salvare i file' })).toBeVisible();
+  await expect(page.getByRole('radio', { name: /^Disco locale/ })).toBeChecked();
+  await checkA11y(page, 'setup-storage');
+  await page.getByRole('button', { name: 'Continua' }).click();
+
   // ---------------------------------------------------------------- general settings
   await expect(page.getByRole('heading', { name: 'Impostazioni generali' })).toBeVisible();
   await page.getByLabel(/^Dimensione dei blocchi di caricamento/).fill('1');

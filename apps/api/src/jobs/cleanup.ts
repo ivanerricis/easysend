@@ -4,28 +4,40 @@ import { and, eq, isNotNull, lte, or, sql } from 'drizzle-orm';
 import { schedule, validate } from 'node-cron';
 import { nowSeconds } from '../clock.js';
 import type { AppContext } from '../context.js';
+import { STORAGE_DRIVERS, type StorageDriverKind } from '@easysend/shared';
 import {
   auditLog,
   downloadLogs,
   passwordResetTokens,
+  storageDeletions,
   transferFiles,
   transfers,
+  uploadRequests,
   uploads,
 } from '../db/schema/index.js';
-import { isStorageName, isStorageEntry, PART_SUFFIX } from '../storage/paths.js';
+import { isStorageName } from '../storage/paths.js';
 import { removeFileQuietly, removeTusFiles } from '../storage/remove.js';
+import type { StorageDriver } from '../storage/types.js';
 import { deleteTransfer, recomputeUsedBytes } from '../transfers/service.js';
 
 /** Counters of one cleanup run, one entry per step. */
 export interface CleanupReport {
   /** Expired, revoked and abandoned-draft transfers removed (rows and files). */
   deletedTransfers: number;
+  /** Expired and revoked upload requests removed (their received transfers stay). */
+  deletedRequests: number;
   /** `in_progress` uploads past their expiry and old `aborted` uploads removed. */
   abortedUploads: number;
   /** Files in `TMP_UPLOAD_DIR` with no `uploads` row, removed. */
   orphanTmpFiles: number;
-  /** Files in `STORAGE_DIR` not referenced by any transfer file, removed. */
+  /** Stored objects (any driver) not referenced by any transfer file, removed. */
   orphanFiles: number;
+  /** Queued storage deletions carried out (storage_deletions). */
+  deletedQueued: number;
+  /** Queued storage deletions that failed and stay queued for the next run. */
+  retriedDeletions: number;
+  /** Queued storage deletions given up after too many failures. */
+  droppedDeletions: number;
   /** `download_logs` and `audit_log` rows past the retention. */
   purgedLogRows: number;
   /** Expired sessions plus expired or used password reset tokens. */
@@ -165,30 +177,127 @@ async function cleanTmpOrphans(ctx: AppContext, now: number): Promise<number> {
 }
 
 /**
- * Encrypted files no `transfer_files` row points to: the retry path for failed unlinks and for
- * users deleted with `transfers=delete`. `.part` files are skipped (the upload worker removes
- * its leftovers at startup), as are names that are not UUIDs and files younger than an hour.
- * The referenced names are loaded as a set (36 bytes per file).
+ * Encrypted objects no `transfer_files` row points to, per driver: the retry path for failed
+ * deletes and for users deleted with `transfers=delete`. For a driver the referenced names are the
+ * rows with that `storage` plus the names waiting in `storage_deletions` (a migrated source keeps
+ * its grace period). Leftovers (`.part`), names that are not UUIDs and objects younger than an
+ * hour are skipped. The names are loaded as a set (36 bytes per file). A driver that cannot be
+ * reached (S3 down or not configured) is skipped: this step counts as failed only when the
+ * local sweep itself fails.
  */
 async function cleanStorageOrphans(ctx: AppContext, now: number): Promise<number> {
-  const referenced = new Set(
-    ctx.db
-      .select({ name: transferFiles.storageName })
-      .from(transferFiles)
-      .all()
-      .map((r) => r.name),
-  );
   const cutoff = now - ORPHAN_GRACE_SECONDS;
   let removed = 0;
-  for await (const { name, full } of listFiles(ctx.config.storageDir)) {
-    if (name.endsWith(PART_SUFFIX) || !isStorageEntry(name) || referenced.has(name)) continue;
-    const mtime = await mtimeSeconds(full);
-    if (mtime === undefined || mtime > cutoff) continue;
-    if (await removeFileQuietly(full, ctx.logger)) removed += 1;
+  for (const kind of STORAGE_DRIVERS) {
+    const rows = ctx.db
+      .select({ name: transferFiles.storageName })
+      .from(transferFiles)
+      .where(eq(transferFiles.storage, kind))
+      .all();
+    const queued = ctx.db
+      .select({ name: storageDeletions.name })
+      .from(storageDeletions)
+      .where(eq(storageDeletions.storage, kind))
+      .all();
+    const referenced = new Set([...rows, ...queued].map((r) => r.name));
+
+    let driver: StorageDriver;
+    try {
+      driver = ctx.storage.forFile(kind);
+    } catch {
+      continue; // Not available (for example S3 never configured): nothing to sweep.
+    }
+    try {
+      for await (const { name, mtimeSeconds } of driver.list()) {
+        if (!isStorageName(name) || referenced.has(name) || mtimeSeconds > cutoff) continue;
+        if (await driver.delete(name)) removed += 1;
+      }
+    } catch (error) {
+      // The local disk failing is a real failure; a remote driver being down is not.
+      if (kind === 'local') throw error;
+      ctx.logger.warn({ storage: kind, err: errorId(error) }, 'orphan sweep skipped');
+    }
   }
   return removed;
 }
 
+/** Deletions that failed this many times are given up (the orphan sweep still catches them). */
+export const MAX_DELETION_ATTEMPTS = 10;
+
+interface DeletionsOutcome {
+  deleted: number;
+  retried: number;
+  dropped: number;
+}
+
+/**
+ * Processes the `storage_deletions` queue: rows whose `delete_after` has passed are deleted
+ * through their driver. Success removes the row; a failure increments `attempts` and the row
+ * stays for the next run; after `MAX_DELETION_ATTEMPTS` it is dropped with a warning (the name is
+ * not logged with any secret: it is just a UUID).
+ */
+/** One delete through the driver of storage; a driver that cannot be built counts as a failure. */
+async function tryDelete(
+  ctx: AppContext,
+  storage: StorageDriverKind,
+  name: string,
+): Promise<boolean> {
+  if (!isStorageName(name)) return true;
+  try {
+    return await ctx.storage.forFile(storage).delete(name);
+  } catch {
+    return false;
+  }
+}
+
+async function processDeletionQueue(ctx: AppContext, now: number): Promise<DeletionsOutcome> {
+  const outcome: DeletionsOutcome = { deleted: 0, retried: 0, dropped: 0 };
+  const due = ctx.db
+    .select()
+    .from(storageDeletions)
+    .where(lte(storageDeletions.deleteAfter, now))
+    .all();
+  for (const row of due) {
+    const ok = await tryDelete(ctx, row.storage, row.name);
+    if (ok) {
+      ctx.db.delete(storageDeletions).where(eq(storageDeletions.id, row.id)).run();
+      outcome.deleted += 1;
+    } else if (row.attempts + 1 >= MAX_DELETION_ATTEMPTS) {
+      ctx.db.delete(storageDeletions).where(eq(storageDeletions.id, row.id)).run();
+      outcome.dropped += 1;
+      ctx.logger.warn(
+        { storage: row.storage, name: row.name, attempts: row.attempts + 1 },
+        'storage deletion given up',
+      );
+    } else {
+      ctx.db
+        .update(storageDeletions)
+        .set({ attempts: row.attempts + 1 })
+        .where(eq(storageDeletions.id, row.id))
+        .run();
+      outcome.retried += 1;
+    }
+  }
+  return outcome;
+}
+
+/**
+ * Housekeeping of remote drivers (closes stale S3 multipart uploads). The local driver is left
+ * out on purpose: its `recover()` removes every `*.part` file, which is only safe at startup
+ * (the upload worker does it), not while an encryption may be writing one.
+ */
+async function recoverRemoteStorage(ctx: AppContext): Promise<void> {
+  for (const kind of STORAGE_DRIVERS) {
+    if (kind === 'local') continue;
+    let driver: StorageDriver;
+    try {
+      driver = ctx.storage.forFile(kind);
+    } catch {
+      continue;
+    }
+    await driver.recover();
+  }
+}
 function purgeOldLogs(ctx: AppContext, now: number): number {
   const cutoff = now - ctx.config.logRetentionDays * 86_400;
   const downloads = ctx.db.delete(downloadLogs).where(lte(downloadLogs.createdAt, cutoff - 1));
@@ -213,9 +322,13 @@ export async function runCleanup(ctx: AppContext): Promise<CleanupReport> {
   const now = nowSeconds(ctx.clock);
   const report: CleanupReport = {
     deletedTransfers: 0,
+    deletedRequests: 0,
     abortedUploads: 0,
     orphanTmpFiles: 0,
     orphanFiles: 0,
+    deletedQueued: 0,
+    retriedDeletions: 0,
+    droppedDeletions: 0,
     purgedLogRows: 0,
     purgedAuthRows: 0,
     usedBytesFixed: 0,
@@ -234,6 +347,18 @@ export async function runCleanup(ctx: AppContext): Promise<CleanupReport> {
   await step('transfers', async () => {
     report.deletedTransfers = await cleanTransfers(ctx, now);
   });
+  await step('requests', () => {
+    // Received transfers keep existing: their `upload_request_id` becomes NULL (FK set null).
+    report.deletedRequests = ctx.db
+      .delete(uploadRequests)
+      .where(
+        or(
+          eq(uploadRequests.status, 'revoked'),
+          and(eq(uploadRequests.status, 'active'), lte(uploadRequests.expiresAt, now)),
+        ),
+      )
+      .run().changes;
+  });
   await step('uploads', async () => {
     report.abortedUploads = await cleanUploads(ctx, now);
   });
@@ -243,6 +368,13 @@ export async function runCleanup(ctx: AppContext): Promise<CleanupReport> {
   await step('storage-orphans', async () => {
     report.orphanFiles = await cleanStorageOrphans(ctx, now);
   });
+  await step('storage-deletions', async () => {
+    const result = await processDeletionQueue(ctx, now);
+    report.deletedQueued = result.deleted;
+    report.retriedDeletions = result.retried;
+    report.droppedDeletions = result.dropped;
+  });
+  await step('storage-recover', () => recoverRemoteStorage(ctx));
   await step('logs', () => {
     report.purgedLogRows = purgeOldLogs(ctx, now);
   });

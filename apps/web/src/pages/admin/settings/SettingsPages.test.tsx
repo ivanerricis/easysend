@@ -6,7 +6,13 @@ import EmailSettingsPage from './EmailSettingsPage';
 import GeneralSettingsPage from './GeneralSettingsPage';
 import UpdatesSettingsPage from './UpdatesSettingsPage';
 
-const general = { diskReserveMb: 1024, chunkSizeMb: 25, defaultLocale: 'en', updateCheck: true };
+const general = {
+  diskReserveMb: 1024,
+  chunkSizeMb: 25,
+  maxFilesPerTransfer: 1000,
+  defaultLocale: 'en',
+  updateCheck: true,
+};
 
 const updateStatus = (overrides: Record<string, unknown> = {}) => ({
   enabled: true,
@@ -43,6 +49,7 @@ function renderPage(page: keyof typeof PAGES, routes: Record<string, unknown> = 
         publicUrl: null,
         tunnelId: null,
         configuredAt: null,
+        publicUrlEnv: null,
       },
       ...routes,
     },
@@ -139,6 +146,7 @@ describe('Settings pages', () => {
         publicUrl: null,
         tunnelId: null,
         configuredAt: null,
+        publicUrlEnv: null,
       },
       'POST /api/admin/tunnel': apiError(409, 'CLOUDFLARE_RECORD_EXISTS'),
     });
@@ -162,6 +170,59 @@ describe('Settings pages', () => {
     expect(screen.getByLabelText('Cloudflare API token')).toHaveValue('');
   });
 
+  const configuredTunnel = (publicUrlEnv: string | null) => ({
+    'GET /api/admin/tunnel': {
+      appMode: 'production',
+      configured: true,
+      hostname: 'send.example.com',
+      publicUrl: publicUrlEnv ?? 'https://send.example.com',
+      tunnelId: 'tun-1',
+      configuredAt: 1_790_000_000,
+      publicUrlEnv,
+    },
+  });
+
+  it('warns when PUBLIC_URL in .env differs from the configured address', async () => {
+    renderPage('cloudflare', configuredTunnel('https://old.example.org'));
+    expect(
+      await screen.findByText('PUBLIC_URL in the .env file differs from the new address'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/https:\/\/old\.example\.org.*https:\/\/send\.example\.com/),
+    ).toBeInTheDocument();
+  });
+
+  it('does not warn when PUBLIC_URL matches (case and trailing slash ignored) or is unset', async () => {
+    const first = renderPage('cloudflare', configuredTunnel('https://SEND.example.com/'));
+    await screen.findByText('Change domain');
+    expect(screen.queryByText(/differs from the new address/)).toBeNull();
+    first.unmount();
+    renderPage('cloudflare', configuredTunnel(null));
+    await screen.findByText('Change domain');
+    expect(screen.queryByText(/differs from the new address/)).toBeNull();
+  });
+
+  it('tells the admin to delete the old DNS record by hand when the removal failed', async () => {
+    renderPage('cloudflare', {
+      ...configuredTunnel(null),
+      'POST /api/admin/tunnel': {
+        hostname: 'send.example.com',
+        publicUrl: 'https://send.example.com',
+        tunnelId: 'tun-1',
+        previousHostname: 'files.example.com',
+        previousRecord: 'failed',
+      },
+    });
+    fireEvent.change(await screen.findByLabelText('Domain'), { target: { value: 'example.com' } });
+    fireEvent.change(screen.getByLabelText('Cloudflare API token'), {
+      target: { value: 'a'.repeat(40) },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Change domain' }));
+    expect(
+      await screen.findByText(/Could not remove the old DNS record for files\.example\.com/),
+    ).toBeInTheDocument();
+  });
+
   it('saves the general settings', async () => {
     const { api } = renderPage('general', {
       'PATCH /api/admin/settings': {
@@ -176,8 +237,32 @@ describe('Settings pages', () => {
     expect(api.callsTo('PATCH /api/admin/settings')[0]?.body).toEqual({
       diskReserveMb: 1024,
       chunkSizeMb: 40,
+      maxFilesPerTransfer: 1000,
       defaultLocale: 'en',
       updateCheck: true,
+    });
+  });
+
+  it('saves the files-per-transfer limit and rejects values over the cap', async () => {
+    const { api } = renderPage('general', {
+      'PATCH /api/admin/settings': {
+        general: { ...general, maxFilesPerTransfer: 2500 },
+        smtp: null,
+      },
+    });
+    const field = await screen.findByLabelText('Max files per transfer');
+    expect(field).toHaveValue('1000');
+    fireEvent.change(field, { target: { value: '5001' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save' })[0]!);
+    expect(
+      (await screen.findAllByText('Enter a whole number from 1 to 5000.')).length,
+    ).toBeGreaterThan(0);
+    expect(api.callsTo('PATCH /api/admin/settings')).toHaveLength(0);
+    fireEvent.change(field, { target: { value: '2500' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save' })[0]!);
+    await waitFor(() => expect(api.callsTo('PATCH /api/admin/settings')).toHaveLength(1));
+    expect(api.callsTo('PATCH /api/admin/settings')[0]?.body).toMatchObject({
+      maxFilesPerTransfer: 2500,
     });
   });
 

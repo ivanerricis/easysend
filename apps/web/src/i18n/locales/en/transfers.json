@@ -18,12 +18,15 @@
     "protectionHeading": "Protection",
     "summaryEmpty": "No files selected",
     "quotaLabel": "Space used",
-    "dropHint": "Drag files here or choose them from your device",
-    "dropActive": "Drop the files to add them",
+    "dropHint": "Drag files or folders here, or choose them from your device",
+    "dropActive": "Drop the files or folders to add them",
     "chooseFiles": "Choose files",
+    "chooseFolder": "Choose folder",
     "limits": "Up to {{max}} files per transfer. Empty files are allowed.",
     "selectedFiles": "Selected files",
     "removeFile": "Remove {{name}}",
+    "removeFolder": "Remove folder {{name}}",
+    "folderRemoved": "Folder {{name}} removed.",
     "filesAdded_one": "{{count}} file added.",
     "filesAdded_other": "{{count}} files added.",
     "duplicatesSkipped_one": "{{count}} duplicate skipped.",
@@ -132,6 +135,7 @@
     "toSelect": "to select again",
     "missing": "Files not found among the ones you selected: {{files}}. Choose the same files (same name and size).",
     "selectAndResume": "Select files and resume",
+    "selectFolder": "Select folder",
     "resume": "Resume",
     "discard": "Discard",
     "discardTitle": "Discard the interrupted upload?",
@@ -148,6 +152,8 @@
     "allStatuses": "All statuses",
     "mode": "Mode",
     "allModes": "All modes",
+    "origin": "Origin",
+    "allOrigins": "Sent and received",
     "untitled": "Untitled transfer",
     "emptyTitle": "No transfers yet",
     "emptyDescription": "Send your first files to see them here.",
@@ -166,7 +172,21 @@
       "actions": "Actions"
     }
   },
+  "origin": {
+    "sent": "Sent",
+    "received": "Received"
+  },
+  "received": {
+    "from": "Received from {{who}}",
+    "anonymous": "anonymous"
+  },
   "detail": {
+    "sender": "Sender",
+    "senderName": "Name",
+    "senderEmail": "Email",
+    "anonymousSender": "Anonymous",
+    "receivedVia": "Received through an upload request",
+    "openRequest": "Open the request",
     "backToList": "All transfers",
     "notFoundTitle": "Transfer not found",
     "draftNotice": "This transfer was never completed: it has no link yet. Resume the upload from the Send page or delete it.",
@@ -244,6 +264,8 @@
   },
   "actions": {
     "menu": "Actions for {{title}}",
+    "linkCopied": "Link copied",
+    "copyLinkOf": "Copy the link of {{title}}",
     "open": "Open details"
   }
 }

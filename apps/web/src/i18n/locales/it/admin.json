@@ -121,6 +121,8 @@
       "allStatuses": "Tutti gli stati",
       "mode": "Tipo",
       "allModes": "Tutti i tipi",
+      "origin": "Origine",
+      "allOrigins": "Inviati e ricevuti",
       "owner": "Proprietario",
       "allOwners": "Tutti gli utenti",
       "clear": "Azzera i filtri"
@@ -176,6 +178,17 @@
     "columns": {
       "user": "Utente",
       "usage": "Spazio usato"
+    },
+    "driver": {
+      "title": "Archiviazione in uso",
+      "active": "I nuovi file vanno su",
+      "local": "Disco locale",
+      "s3": "Archiviazione compatibile S3",
+      "usage": "File per archiviazione",
+      "files_one": "{{count}} file",
+      "files_other": "{{count}} file",
+      "s3Note": "Con S3 i dati del disco qui sotto riguardano la cartella temporanea di upload sul server, non i file salvati su S3.",
+      "manage": "Cambia archiviazione"
     }
   },
   "settings": {
@@ -188,11 +201,14 @@
       "diskReserveHelp": "Spazio libero che gli upload non usano mai. 0 disattiva la riserva.",
       "chunkSize": "Dimensione dei blocchi di upload (MB)",
       "chunkSizeHelp": "Da 1 a {{max}} MB. Dietro Cloudflare nessuna richiesta può superare 100 MB, quindi il valore predefinito di 25 MB è una scelta sicura.",
+      "maxFiles": "File massimi per trasferimento",
+      "maxFilesHelp": "Da 1 a {{max}}. Una cartella conta tutti i file che contiene: alza il limite per permettere cartelle grandi.",
       "defaultLocale": "Lingua predefinita",
       "defaultLocaleHelp": "Usata per le email ai destinatari e per chi non ha una preferenza.",
       "errors": {
         "reserve": "Inserisci un numero intero di MB, da 0 a 10485760.",
-        "chunk": "Inserisci un numero intero di MB, da 1 a 50."
+        "chunk": "Inserisci un numero intero di MB, da 1 a 50.",
+        "maxFiles": "Inserisci un numero intero da 1 a 5000."
       },
       "updateCheck": "Controlla gli aggiornamenti",
       "updateCheckHelp": "Una volta al giorno il server chiede a GitHub l'ultima versione pubblicata. Nessun dato dell'istanza viene inviato."
@@ -225,7 +241,11 @@
       "reconfigureWarning": "Cambiando il dominio cambia l'indirizzo pubblico: i link già condivisi con il vecchio indirizzo smetteranno di funzionare.",
       "configure": "Configura il tunnel",
       "reconfigure": "Cambia dominio",
-      "savedToast": "Tunnel configurato: {{url}}"
+      "savedToast": "Tunnel configurato: {{url}}",
+      "envMismatchTitle": "PUBLIC_URL nel file .env è diverso dal nuovo indirizzo",
+      "envMismatchBody": "Link e email usano il valore di PUBLIC_URL del file .env ({{env}}) invece del nuovo indirizzo ({{url}}). Aggiorna PUBLIC_URL nel file .env e riavvia lo stack con docker compose up -d.",
+      "oldRecordRemoved": "Il vecchio record DNS di {{hostname}} è stato rimosso.",
+      "oldRecordFailed": "Impossibile rimuovere il vecchio record DNS di {{hostname}}: eliminalo dalla dashboard di Cloudflare."
     },
     "updates": {
       "title": "Aggiornamenti",
@@ -315,7 +335,53 @@
       "general": "Generali",
       "email": "Email",
       "cloudflare": "Cloudflare",
-      "updates": "Aggiornamenti"
+      "updates": "Aggiornamenti",
+      "storage": "Archiviazione"
+    },
+    "storage": {
+      "title": "Archiviazione dei file",
+      "description": "Dove sono salvati i file cifrati. La modifica vale subito per i nuovi file; quelli esistenti restano dove sono finché non li sposti.",
+      "envDiffers": {
+        "title": "Le impostazioni di archiviazione nel .env sono diverse",
+        "body": "Le variabili S3 nel .env si leggono solo al primo avvio. Quelle mostrate qui sono le impostazioni in uso: modificale da questa pagina."
+      },
+      "usage": {
+        "title": "File per archiviazione",
+        "active": "In uso per i nuovi file",
+        "local": "Disco locale",
+        "s3": "S3",
+        "files_one": "{{count}} file",
+        "files_other": "{{count}} file"
+      },
+      "migration": {
+        "title": "Sposta i file tra le archiviazioni",
+        "intro_local": "{{files}} ({{size}}) sono ancora su S3, mentre i nuovi file vanno sul disco locale.",
+        "intro_s3": "{{files}} ({{size}}) sono ancora sul disco locale, mentre i nuovi file vanno su S3.",
+        "none": "Tutti i file sono già sull'archiviazione in uso.",
+        "start_local": "Sposta {{files}} ({{size}}) sul disco locale",
+        "start_s3": "Sposta {{files}} ({{size}}) su S3",
+        "targetMissing": "Salva prima la configurazione S3.",
+        "running": "Uno spostamento è in corso.",
+        "confirmTitle_local": "Spostare i file sul disco locale?",
+        "confirmTitle_s3": "Spostare i file su S3?",
+        "confirmBody": "I file cifrati vengono copiati uno alla volta e i download continuano a funzionare. L'originale di ogni file si elimina dopo circa un'ora. Puoi interrompere in qualsiasi momento.",
+        "confirm": "Avvia lo spostamento",
+        "started": "Spostamento avviato.",
+        "progressTitle": "Spostamento dei file su {{target}}",
+        "progressLabel": "Avanzamento dello spostamento",
+        "progressText": "{{done}} di {{total}} file, {{doneSize}} di {{totalSize}}",
+        "cancel": "Interrompi",
+        "cancelling": "Mi fermo dopo il file in corso…",
+        "outcomeDone": "Spostamento completato: {{files}} su {{target}}.",
+        "outcomeCancelled": "Spostamento interrotto: {{done}} file su {{total}} spostati. Gli altri restano dove sono.",
+        "outcomeFailed": "Spostamento non riuscito.",
+        "failedFiles_one": "{{count}} file non è stato spostato.",
+        "failedFiles_other": "{{count}} file non sono stati spostati.",
+        "targets": {
+          "local": "il disco locale",
+          "s3": "S3"
+        }
+      }
     }
   },
   "appearance": {

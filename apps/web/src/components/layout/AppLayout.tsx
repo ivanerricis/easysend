@@ -3,6 +3,7 @@ import {
   ChevronsUpDown,
   ArrowUpCircle,
   HardDrive,
+  Inbox,
   LogOut,
   Palette,
   Send,
@@ -66,6 +67,7 @@ interface NavItem {
 const MAIN_NAV: NavItem[] = [
   { to: '/', labelKey: 'common.nav.send', icon: Send },
   { to: '/transfers', labelKey: 'common.nav.transfers', icon: Share2 },
+  { to: '/requests', labelKey: 'common.nav.requests', icon: Inbox },
 ];
 
 const ADMIN_NAV: NavItem[] = [
@@ -81,6 +83,7 @@ const SETTINGS_NAV: Omit<NavItem, 'icon'>[] = [
   { to: `${SETTINGS_PATH}/email`, labelKey: 'admin.settings.nav.email' },
   { to: `${SETTINGS_PATH}/cloudflare`, labelKey: 'admin.settings.nav.cloudflare' },
   { to: `${SETTINGS_PATH}/updates`, labelKey: 'admin.settings.nav.updates' },
+  { to: `${SETTINGS_PATH}/storage`, labelKey: 'admin.settings.nav.storage' },
 ];
 
 function isActivePath(current: string, to: string): boolean {

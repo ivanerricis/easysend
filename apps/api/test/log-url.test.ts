@@ -15,6 +15,13 @@ describe('maskLogUrl', () => {
     expect(maskLogUrl('/d/abc_DEF-123/')).toBe('/d/[token]/');
   });
 
+  it('masks the tokens of upload request links', () => {
+    expect(maskLogUrl('/r/abc_DEF-123')).toBe('/r/[token]');
+    expect(maskLogUrl('/api/r/abc_DEF-123/submissions/x/finalize')).toBe(
+      '/api/r/[token]/submissions/x/finalize',
+    );
+  });
+
   it('drops query strings and fragments', () => {
     expect(maskLogUrl('/api/health?x=secret')).toBe('/api/health');
     expect(maskLogUrl('/api/downloads/tok?download=1#frag')).toBe('/api/downloads/[token]');

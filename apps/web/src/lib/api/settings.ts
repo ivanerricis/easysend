@@ -6,6 +6,10 @@ import type {
   SmtpSettings,
   SmtpSettingsPublic,
   SmtpTestResponse,
+  StorageSettingsResponse,
+  StorageTestRequest,
+  StorageTestResponse,
+  StorageUpdateRequest,
   UpdateGeneralSettingsRequest,
   UploadBrandingAssetResponse,
 } from '@easysend/shared';
@@ -20,6 +24,9 @@ const api = createApi([
   'settings.appearanceReset',
   'settings.assetUpload',
   'settings.assetDelete',
+  'settings.storage',
+  'settings.storageTest',
+  'settings.storageUpdate',
 ] as const);
 
 export const USED_ENDPOINTS = api.ids;
@@ -71,4 +78,18 @@ export function deleteBrandingAsset(kind: BrandingAssetKind): Promise<void> {
 /** URL of a branding asset; `updatedAt` busts the cache when the image changes. */
 export function assetUrl(kind: BrandingAssetKind, updatedAt: number): string {
   return `/api/assets/${kind}?v=${updatedAt}`;
+}
+
+/** Storage configuration, usage per driver and locked fields. */
+export function getStorageSettings(): Promise<StorageSettingsResponse> {
+  return api.call('settings.storage');
+}
+
+/** Checks the S3 connection; saving an S3 configuration needs a successful test of the same values. */
+export function testStorage(body: StorageTestRequest): Promise<StorageTestResponse> {
+  return api.call('settings.storageTest', { body });
+}
+
+export function saveStorage(body: StorageUpdateRequest): Promise<StorageSettingsResponse> {
+  return api.call('settings.storageUpdate', { body });
 }

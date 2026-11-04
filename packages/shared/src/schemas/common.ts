@@ -2,12 +2,16 @@ import { z } from 'zod';
 import {
   APP_MODES,
   EMAIL_MAX_LENGTH,
+  FILE_PATH_MAX_LENGTH,
   PAGE_SIZE_DEFAULT,
   PAGE_SIZE_MAX,
   PASSWORD_MAX_LENGTH,
 } from '../constants.js';
 
 /** Opaque random text id. */
+/** Folder of a file inside a transfer: segments joined by "/", empty string for the root. */
+export const filePathSchema = z.string().max(FILE_PATH_MAX_LENGTH);
+
 export const idSchema = z.string().min(1).max(64);
 
 /** Unix timestamp in seconds, as stored in the database. */

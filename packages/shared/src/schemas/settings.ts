@@ -6,6 +6,8 @@ import {
   DEFAULT_FONT,
   DISK_RESERVE_MAX_MB,
   FOOTER_MAX_LENGTH,
+  MAX_FILES_PER_TRANSFER_CAP,
+  MAX_FILES_PER_TRANSFER_DEFAULT,
   INSTANCE_NAME_MAX_LENGTH,
   SMTP_FROM_NAME_MAX_LENGTH,
   SMTP_HOST_MAX_LENGTH,
@@ -82,13 +84,26 @@ export const generalSettingsSchema = z.object({
   ...generalSettingsFields,
   /** Once a day the server asks GitHub for the latest release (admin "update available" notice). */
   updateCheck: z.boolean().default(true),
+  /** Files per transfer (a folder counts every file in it); the admin can raise it up to the cap. */
+  maxFilesPerTransfer: z
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_FILES_PER_TRANSFER_CAP)
+    .default(MAX_FILES_PER_TRANSFER_DEFAULT),
 });
 export type GeneralSettings = z.infer<typeof generalSettingsSchema>;
 
 // Built from the plain fields: `.partial()` on the schema above would apply the default to a
-// missing `updateCheck` and silently re-enable the check on every unrelated PATCH.
+// missing `updateCheck` (or reset `maxFilesPerTransfer`) on every unrelated PATCH.
 export const updateGeneralSettingsRequestSchema = atLeastOneField(
-  z.object({ ...generalSettingsFields, updateCheck: z.boolean() }).partial(),
+  z
+    .object({
+      ...generalSettingsFields,
+      updateCheck: z.boolean(),
+      maxFilesPerTransfer: z.number().int().min(1).max(MAX_FILES_PER_TRANSFER_CAP),
+    })
+    .partial(),
 );
 export type UpdateGeneralSettingsRequest = z.infer<typeof updateGeneralSettingsRequestSchema>;
 

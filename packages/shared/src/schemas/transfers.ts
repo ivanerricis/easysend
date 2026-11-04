@@ -7,7 +7,9 @@ import {
   MESSAGE_MAX_LENGTH,
   PASSWORD_MAX_LENGTH,
   TITLE_MAX_LENGTH,
+  SENDER_NAME_MAX_LENGTH,
   TRANSFER_MODES,
+  TRANSFER_SOURCES,
   TRANSFER_STATUSES,
   UPLOAD_STATUSES,
 } from '../constants.js';
@@ -15,6 +17,7 @@ import {
   atLeastOneField,
   byteSizeSchema,
   emailSchema,
+  filePathSchema,
   idSchema,
   paginatedSchema,
   paginationQuerySchema,
@@ -27,6 +30,7 @@ export const LINK_PASSWORD_MIN_LENGTH = 8;
 export const expiryKeySchema = z.enum(EXPIRY_KEYS);
 export const transferModeSchema = z.enum(TRANSFER_MODES);
 export const transferStatusSchema = z.enum(TRANSFER_STATUSES);
+export const transferSourceSchema = z.enum(TRANSFER_SOURCES);
 
 export const linkPasswordSchema = z.string().min(LINK_PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH);
 export const maxDownloadsSchema = z.number().int().min(1).max(MAX_DOWNLOADS_LIMIT);
@@ -96,6 +100,8 @@ export const transferFileParamsSchema = z.object({ id: idSchema, fileId: idSchem
 export const listTransfersQuerySchema = paginationQuerySchema.extend({
   status: transferStatusSchema.optional(),
   mode: transferModeSchema.optional(),
+  /** `sent` (created by the user) or `received` (through an upload request). */
+  source: transferSourceSchema.optional(),
   q: z.string().min(1).max(100).optional(),
 });
 export type ListTransfersQuery = z.infer<typeof listTransfersQuerySchema>;
@@ -111,6 +117,8 @@ export const listDownloadLogsQuerySchema = paginationQuerySchema;
 export const transferFileSchema = z.object({
   id: idSchema,
   name: z.string().min(1).max(FILENAME_MAX_LENGTH),
+  /** Folder inside the transfer ("" for the root). */
+  path: filePathSchema,
   sizeBytes: byteSizeSchema,
   mimeType: z.string().max(255).nullable(),
   sha256: z.string().regex(/^[0-9a-f]{64}$/),
@@ -130,6 +138,7 @@ export const transferRecipientSchema = z.object({
 export const transferUploadSchema = z.object({
   id: idSchema,
   fileName: z.string().max(FILENAME_MAX_LENGTH),
+  path: filePathSchema,
   totalSize: byteSizeSchema,
   status: z.enum(UPLOAD_STATUSES),
   expiresAt: unixSecondsSchema,
@@ -150,6 +159,14 @@ export const transferSummarySchema = z.object({
   downloadCount: z.number().int().nonnegative(),
   maxDownloads: maxDownloadsSchema.nullable(),
   hasPassword: z.boolean(),
+  /** `received` when the files were uploaded by someone else through an upload request link. */
+  source: transferSourceSchema,
+  /** Upload request that produced a received transfer; `null` for sent ones or after the request was deleted. */
+  uploadRequestId: idSchema.nullable(),
+  /** Name given by the person who uploaded (received transfers only). */
+  senderName: z.string().max(SENDER_NAME_MAX_LENGTH).nullable(),
+  /** Email given by the person who uploaded, unverified (received transfers only). */
+  senderEmail: emailSchema.nullable(),
   /** Public download URL `<PUBLIC_URL>/d/<token>`. `null` while the transfer is a draft (`uploading`) or no public URL is known. */
   shareUrl: z.string().nullable(),
 });

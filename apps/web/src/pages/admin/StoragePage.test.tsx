@@ -32,6 +32,40 @@ describe('StoragePage', () => {
     expect(api.callsTo('GET /api/admin/storage')).toHaveLength(1);
   });
 
+  it('shows the driver card and, with S3, the note about the temporary disk', async () => {
+    const gib = 1024 ** 3;
+    const first = renderWithProviders(<StoragePage />, {
+      session: makeAdmin(),
+      route: '/admin/storage',
+      routes: { 'GET /api/admin/storage': makeStorage() },
+    });
+    const card = await screen.findByRole('region', { name: 'Storage in use' });
+    expect(within(card).getByText('42 files, 10 GiB')).toBeInTheDocument();
+    expect(within(card).queryByText(/temporary upload folder/)).not.toBeInTheDocument();
+    first.unmount();
+
+    renderWithProviders(<StoragePage />, {
+      session: makeAdmin(),
+      route: '/admin/storage',
+      routes: {
+        'GET /api/admin/storage': makeStorage({
+          driver: 's3',
+          usageByDriver: {
+            local: { files: 0, bytes: 0 },
+            s3: { files: 5, bytes: 2 * gib },
+          },
+        }),
+      },
+    });
+    const s3Card = await screen.findByRole('region', { name: 'Storage in use' });
+    expect(within(s3Card).getByText('5 files, 2 GiB')).toBeInTheDocument();
+    expect(within(s3Card).getByText(/temporary upload folder/)).toBeInTheDocument();
+    expect(within(s3Card).getByRole('link', { name: 'Change storage' })).toHaveAttribute(
+      'href',
+      '/admin/settings/storage',
+    );
+  });
+
   it('shows the Docker volume by default and the host folder when DATA_PATH is set', async () => {
     const first = renderWithProviders(<StoragePage />, {
       session: makeAdmin(),

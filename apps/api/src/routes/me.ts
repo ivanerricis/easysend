@@ -1,12 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { Router, type Request, type Response } from 'express';
-import {
-  BYTES_PER_MB,
-  CHUNK_SIZE_MB,
-  staticConfig,
-  type ReauthRequest,
-  type UpdateMeRequest,
-} from '@easysend/shared';
+import { staticConfig, type ReauthRequest, type UpdateMeRequest } from '@easysend/shared';
 import { generateTotpEnrollment, verifyTotp } from '../auth/totp.js';
 import { auditRequest } from '../audit.js';
 import type { AppContext } from '../context.js';
@@ -16,6 +10,8 @@ import { endpointGuards } from '../http/endpoint-guards.js';
 import { AppError } from '../http/errors.js';
 import { assertNotLimited, limitedError } from '../http/rate-limit.js';
 import { sendJson, validBody } from '../http/validate.js';
+import { chunkSizeBytes } from '../uploads/chunk-size.js';
+import { maxFilesPerTransfer } from '../uploads/limits.js';
 import { clearTwoFactor, replaceRecoveryCodes, toMe } from '../users/service.js';
 
 export function meRouter(ctx: AppContext): Router {
@@ -201,11 +197,11 @@ export function meRouter(ctx: AppContext): Router {
   );
 
   router.get('/config', ...endpointGuards(ctx.csrf, 'me.config'), (_req, res) => {
-    const chunkMb = Math.min(
-      ctx.settings.get('general')?.chunkSizeMb ?? ctx.config.defaultChunkSizeMb,
-      CHUNK_SIZE_MB.max,
-    );
-    sendJson(res, 'me.config', 200, { chunkSizeBytes: chunkMb * BYTES_PER_MB, ...staticConfig });
+    sendJson(res, 'me.config', 200, {
+      chunkSizeBytes: chunkSizeBytes(ctx),
+      ...staticConfig,
+      limits: { ...staticConfig.limits, maxFilesPerTransfer: maxFilesPerTransfer(ctx) },
+    });
   });
 
   return router;

@@ -72,6 +72,7 @@ describe('TransferRunner', () => {
             {
               id: 'u1',
               fileName: 'a',
+              path: '',
               totalSize: 1,
               status: 'processing',
               expiresAt: 4_100_000_000,
@@ -85,8 +86,8 @@ describe('TransferRunner', () => {
       create,
       chunkSize: 1000,
       files: [
-        { name: 'a.txt', size: 3, file: makeFile('a.txt', 3) },
-        { name: 'b.txt', size: 5, file: makeFile('b.txt', 5) },
+        { name: 'a.txt', size: 3, path: '', file: makeFile('a.txt', 3) },
+        { name: 'b.txt', size: 5, path: '', file: makeFile('b.txt', 5) },
       ],
     });
 
@@ -107,13 +108,13 @@ describe('TransferRunner', () => {
     await h.runner.run({
       create,
       chunkSize: 1,
-      files: [{ name: 'a.txt', size: 4, file: makeFile('a.txt', 4) }],
+      files: [{ name: 'a.txt', size: 4, path: '', file: makeFile('a.txt', 4) }],
     });
     const state = h.events.reduce(sessionReducer, initialSessionState);
     expect(state.phase).toBe('done');
     expect(state.transferId).toBe('draft1');
     expect(state.files[0]?.status).toBe('ready');
-    expect(state.result?.id).toBe('draft1');
+    expect(state.result && 'id' in state.result ? state.result.id : null).toBe('draft1');
   });
 
   it('skips files the server already has when continuing a draft', async () => {
@@ -122,8 +123,8 @@ describe('TransferRunner', () => {
       transferId: 'draft9',
       chunkSize: 1,
       files: [
-        { name: 'done.txt', size: 4, file: null },
-        { name: 'todo.txt', size: 2, file: makeFile('todo.txt', 2) },
+        { name: 'done.txt', size: 4, path: '', file: null },
+        { name: 'todo.txt', size: 2, path: '', file: makeFile('todo.txt', 2) },
       ],
     });
     expect(h.deps.createTransfer).not.toHaveBeenCalled();
@@ -150,8 +151,8 @@ describe('TransferRunner', () => {
       create,
       chunkSize: 1,
       files: [
-        { name: 'a.txt', size: 1, file: makeFile('a.txt', 1) },
-        { name: 'b.txt', size: 1, file: makeFile('b.txt', 1) },
+        { name: 'a.txt', size: 1, path: '', file: makeFile('a.txt', 1) },
+        { name: 'b.txt', size: 1, path: '', file: makeFile('b.txt', 1) },
       ],
     });
     expect(h.deps.createUpload).toHaveBeenCalledTimes(1);
@@ -174,7 +175,7 @@ describe('TransferRunner', () => {
     await h.runner.run({
       create,
       chunkSize: 1,
-      files: [{ name: 'a.txt', size: 1, file: makeFile('a.txt', 1) }],
+      files: [{ name: 'a.txt', size: 1, path: '', file: makeFile('a.txt', 1) }],
     });
     expect(finalizeTransfer).toHaveBeenCalledTimes(3);
     expect(h.events.at(-1)?.type).toBe('done');
@@ -186,7 +187,7 @@ describe('TransferRunner', () => {
     await h.runner.run({
       create,
       chunkSize: 1,
-      files: [{ name: 'a.txt', size: 1, file: makeFile('a.txt', 1) }],
+      files: [{ name: 'a.txt', size: 1, path: '', file: makeFile('a.txt', 1) }],
     });
     const state = h.events.reduce(sessionReducer, initialSessionState);
     expect(state.phase).toBe('error');
@@ -200,8 +201,8 @@ describe('TransferRunner', () => {
       create,
       chunkSize: 1,
       files: [
-        { name: 'a.txt', size: 2, file: makeFile('a.txt', 2) },
-        { name: 'b.txt', size: 2, file: makeFile('b.txt', 2) },
+        { name: 'a.txt', size: 2, path: '', file: makeFile('a.txt', 2) },
+        { name: 'b.txt', size: 2, path: '', file: makeFile('b.txt', 2) },
       ],
     });
     await vi.waitFor(() => expect(h.uploads).toHaveLength(1));
@@ -224,7 +225,7 @@ describe('TransferRunner', () => {
     const run = h.runner.run({
       create,
       chunkSize: 1,
-      files: [{ name: 'a.txt', size: 2, file: makeFile('a.txt', 2) }],
+      files: [{ name: 'a.txt', size: 2, path: '', file: makeFile('a.txt', 2) }],
     });
     await vi.waitFor(() => expect(h.uploads).toHaveLength(1));
     const cancelHandle = h.uploads[0]?.handle.cancel;
@@ -243,8 +244,8 @@ describe('sessionReducer helpers', () => {
       {
         type: 'files',
         files: [
-          { name: 'a', size: 10 },
-          { name: 'b', size: 30 },
+          { name: 'a', size: 10, path: '' },
+          { name: 'b', size: 30, path: '' },
         ],
       },
       { type: 'fileStatus', index: 0, status: 'uploaded' },

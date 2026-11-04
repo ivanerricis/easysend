@@ -66,14 +66,14 @@ describe('settings submenu in the sidebar', () => {
     },
   };
 
-  it('is collapsed outside the settings and expands to the four sub-pages', async () => {
+  it('is collapsed outside the settings and expands to the five sub-pages', async () => {
     renderApp({ route: '/transfers', session: makeAdmin() });
     const toggle = await screen.findByRole('button', { name: 'Settings' });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     const nav = screen.getByRole('navigation', { name: 'Main navigation' });
-    const hrefs = ['General', 'Email', 'Cloudflare', 'Updates'].map((name) =>
+    const hrefs = ['General', 'Email', 'Cloudflare', 'Updates', 'File storage'].map((name) =>
       within(nav).getByRole('link', { name }).getAttribute('href'),
     );
     expect(hrefs).toEqual([
@@ -81,6 +81,7 @@ describe('settings submenu in the sidebar', () => {
       '/admin/settings/email',
       '/admin/settings/cloudflare',
       '/admin/settings/updates',
+      '/admin/settings/storage',
     ]);
   });
 

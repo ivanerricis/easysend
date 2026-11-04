@@ -1,7 +1,8 @@
-import { and, asc, count, desc, eq, gt, inArray, lte, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, inArray, lte, ne, or, sql, type SQL } from 'drizzle-orm';
 import type {
   TransferDetail,
   TransferMode,
+  TransferSource,
   TransferStatus,
   TransferSummary,
   UserRole,
@@ -20,7 +21,8 @@ import {
   users,
 } from '../db/schema/index.js';
 import { AppError } from '../http/errors.js';
-import { isStorageName, storagePath, tusPathList } from '../storage/paths.js';
+import { deleteStoredObjects } from '../storage/deletions.js';
+import { tusPathList } from '../storage/paths.js';
 import { removeFileQuietly } from '../storage/remove.js';
 import { TRANSFER_POLICY } from './policy.js';
 
@@ -31,7 +33,7 @@ export interface Actor {
   user: { id: string; role: UserRole };
 }
 
-type ServiceContext = Pick<AppContext, 'db' | 'config' | 'logger' | 'clock'>;
+type ServiceContext = Pick<AppContext, 'db' | 'config' | 'logger' | 'clock' | 'storage'>;
 
 /** A new unguessable link token (32 random bytes, base64url). */
 export const generateTransferToken = (): string => randomToken(TRANSFER_POLICY.tokenBytes);
@@ -93,6 +95,10 @@ export function summaryFrom(
     downloadCount: row.downloadCount,
     maxDownloads: row.maxDownloads,
     hasPassword: row.passwordHash !== null,
+    source: row.source,
+    uploadRequestId: row.uploadRequestId,
+    senderName: row.senderName,
+    senderEmail: row.senderEmail,
     shareUrl: shareUrlOf(row, extra.publicUrl),
   };
 }
@@ -134,7 +140,7 @@ export function toTransferDetail(
     .select()
     .from(transferFiles)
     .where(eq(transferFiles.transferId, row.id))
-    .orderBy(asc(transferFiles.originalName), asc(transferFiles.createdAt))
+    .orderBy(asc(transferFiles.path), asc(transferFiles.originalName), asc(transferFiles.createdAt))
     .all();
   const recipients = db
     .select()
@@ -175,6 +181,7 @@ export function toTransferDetail(
     files: files.map((file) => ({
       id: file.id,
       name: file.originalName,
+      path: file.path,
       sizeBytes: file.sizeBytes,
       mimeType: file.mimeType,
       sha256: file.sha256 ?? '',
@@ -184,6 +191,7 @@ export function toTransferDetail(
     uploads: pending.map((u) => ({
       id: u.id,
       fileName: u.fileName,
+      path: u.path,
       totalSize: u.totalSize,
       status: u.status,
       expiresAt: u.expiresAt,
@@ -227,7 +235,11 @@ export async function deleteTransfer(
     const row = tx.select().from(transfers).where(eq(transfers.id, transferId)).get();
     if (!row) return null;
     const files = tx
-      .select({ storageName: transferFiles.storageName, sizeBytes: transferFiles.sizeBytes })
+      .select({
+        storageName: transferFiles.storageName,
+        storage: transferFiles.storage,
+        sizeBytes: transferFiles.sizeBytes,
+      })
       .from(transferFiles)
       .where(eq(transferFiles.transferId, transferId))
       .all();
@@ -260,25 +272,23 @@ export async function deleteTransfer(
     return {
       ownerId: row.ownerId,
       freedBytes,
-      storageNames: files.map((f) => f.storageName),
+      stored: files.map((f) => ({ storage: f.storage, name: f.storageName })),
       uploadIds,
     };
   });
   if (!outcome) return null;
 
-  let unlinkFailures = 0;
-  const targets = [
-    ...outcome.storageNames.filter(isStorageName).map((name) => storagePath(ctx.config, name)),
-    ...outcome.uploadIds.flatMap((id) => tusPathList(ctx.config, id)),
-  ];
-  for (const target of targets) {
+  // Stored (encrypted) files go through their driver, failures into the retry queue; the tus
+  // temporary files are always on the local disk.
+  let unlinkFailures = await deleteStoredObjects(ctx, outcome.stored);
+  for (const target of outcome.uploadIds.flatMap((id) => tusPathList(ctx.config, id))) {
     if (!(await removeFileQuietly(target, ctx.logger))) unlinkFailures += 1;
   }
   ctx.logger.info(
     {
       transferId,
       reason: context.reason,
-      files: outcome.storageNames.length,
+      files: outcome.stored.length,
       freedBytes: outcome.freedBytes,
       unlinkFailures,
     },
@@ -286,7 +296,7 @@ export async function deleteTransfer(
   );
   return {
     ownerId: outcome.ownerId,
-    fileCount: outcome.storageNames.length,
+    fileCount: outcome.stored.length,
     freedBytes: outcome.freedBytes,
     unlinkFailures,
   };
@@ -335,10 +345,10 @@ export async function deleteTransferFile(
         now: nowSeconds(ctx.clock),
       });
     }
-    return file.storageName;
+    return { storage: file.storage, name: file.storageName };
   });
   if (outcome === null) return false;
-  if (isStorageName(outcome)) await removeFileQuietly(storagePath(ctx.config, outcome), ctx.logger);
+  await deleteStoredObjects(ctx, [outcome]);
   return true;
 }
 
@@ -368,6 +378,9 @@ export interface TransferListFilter {
   /** Effective status: `expired` also matches `active` rows past their expiry. */
   status?: TransferStatus | undefined;
   mode?: TransferMode | undefined;
+  source?: TransferSource | undefined;
+  /** Only the transfers received through this upload request. */
+  uploadRequestId?: string | undefined;
   /** Substring of the title or of a recipient email. */
   q?: string | undefined;
   page: number;
@@ -396,6 +409,10 @@ export function listTransfersPage(
     filter.ownerId ? eq(transfers.ownerId, filter.ownerId) : undefined,
     filter.status ? statusCondition(filter.status, nowSec) : undefined,
     filter.mode ? eq(transfers.mode, filter.mode) : undefined,
+    filter.source ? eq(transfers.source, filter.source) : undefined,
+    filter.uploadRequestId ? eq(transfers.uploadRequestId, filter.uploadRequestId) : undefined,
+    // Drafts of people still uploading through a request are not the owner's to see yet.
+    or(ne(transfers.source, 'received'), ne(transfers.status, 'uploading')),
     pattern
       ? or(
           sql`${transfers.title} LIKE ${pattern} ESCAPE '\\'`,
@@ -434,6 +451,31 @@ export function listTransfersPage(
     ),
     total,
   };
+}
+
+/**
+ * Number of completed files of a draft that is ready to finalize. Throws `UPLOAD_INCOMPLETE`
+ * while an upload is still running and `TRANSFER_EMPTY` when there is no file at all.
+ */
+export function finalizableFileCount(db: Db, transferId: string): number {
+  const pending = db
+    .select({ n: count() })
+    .from(uploads)
+    .where(
+      and(
+        eq(uploads.transferId, transferId),
+        inArray(uploads.status, ['in_progress', 'processing']),
+      ),
+    )
+    .get()!.n;
+  if (pending > 0) throw new AppError('UPLOAD_INCOMPLETE', 'Some uploads are not finished yet');
+  const fileCount = db
+    .select({ n: count() })
+    .from(transferFiles)
+    .where(eq(transferFiles.transferId, transferId))
+    .get()!.n;
+  if (fileCount === 0) throw new AppError('TRANSFER_EMPTY', 'The transfer has no files');
+  return fileCount;
 }
 
 /**

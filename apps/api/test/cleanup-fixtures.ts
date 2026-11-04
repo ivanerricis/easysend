@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, utimesSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
 import { eq, sql } from 'drizzle-orm';
 import type { TransferStatus, UploadStatus } from '@easysend/shared';
-import { encryptFile } from '../src/crypto/segments.js';
 import { transferFiles, transfers, uploads, users } from '../src/db/schema/index.js';
 import { storagePath, tusFilePaths } from '../src/storage/paths.js';
+import { createStorageRegistry } from '../src/storage/registry.js';
 import { createTestApp, makeTempDir, type TestApp } from './helpers.js';
+import { encryptContentToDriver } from './storage-helpers.js';
 
 /** Test app whose DATA_DIR is a temp dir with the storage and tmp directories created. */
 export async function createCleanupApp(env: Record<string, string> = {}): Promise<TestApp> {
@@ -51,12 +51,15 @@ export async function insertStoredFile(
   ownerId: string,
   content = 'hello cleanup',
 ): Promise<{ storageName: string; fileId: string; path: string }> {
-  const src = path.join(makeTempDir(), 'plain.bin');
-  writeFileSync(src, content);
   const size = Buffer.byteLength(content);
   const storageName = randomUUID();
   const dst = storagePath(t.config, storageName);
-  const enc = await encryptFile({ srcPath: src, dstPath: dst, size, fileKey: t.ctx.keys.file });
+  const enc = await encryptContentToDriver(
+    t.ctx.storage.forFile('local'),
+    content,
+    t.ctx.keys.file,
+    storageName,
+  );
   const row = t.db.db
     .insert(transferFiles)
     .values({
@@ -120,3 +123,25 @@ export function ageFile(t: TestApp, file: string, secondsAgo: number): void {
 }
 
 export const exists = (file: string): boolean => existsSync(file);
+
+/**
+ * Context of `t` whose storage directory (and optionally other config fields) is replaced.
+ * The storage registry is rebuilt on the new config: it captures `storageDir` when created.
+ */
+export function withStorageDir(
+  t: TestApp,
+  storageDir: string,
+  extra: Partial<TestApp['config']> = {},
+): TestApp['ctx'] {
+  const config = { ...t.config, storageDir, ...extra };
+  return {
+    ...t.ctx,
+    config,
+    storage: createStorageRegistry({
+      config,
+      settings: t.ctx.settings,
+      logger: t.ctx.logger,
+      diskSpace: t.ctx.diskSpace,
+    }),
+  };
+}

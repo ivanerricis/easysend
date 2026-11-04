@@ -5,8 +5,11 @@ import { USED_ENDPOINTS as auth } from './auth';
 import { USED_ENDPOINTS as downloads } from './downloads';
 import { USED_ENDPOINTS as me } from './me';
 import { USED_ENDPOINTS as publicApi } from './public';
+import { USED_ENDPOINTS as requests } from './requests';
 import { USED_ENDPOINTS as settings } from './settings';
 import { USED_ENDPOINTS as setup } from './setup';
+import { USED_ENDPOINTS as storage } from './storage';
+import { USED_ENDPOINTS as submissions } from './submissions';
 import { USED_ENDPOINTS as transfers } from './transfers';
 
 const used = new Set<string>([
@@ -15,8 +18,11 @@ const used = new Set<string>([
   ...downloads,
   ...me,
   ...publicApi,
+  ...requests,
   ...settings,
   ...setup,
+  ...storage,
+  ...submissions,
   ...transfers,
 ]);
 

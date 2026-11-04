@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { DEFAULT_APPEARANCE, type Locale } from '@easysend/shared';
 import {
   firstDownloadEmail,
+  submissionReceivedEmail,
   passwordResetEmail,
   smtpTestEmail,
   transferLinkEmail,
@@ -49,6 +50,15 @@ function emails(locale: Locale): Record<string, EmailContent> {
       link: `${base}/transfers/sample-id`,
       downloadedAt: Math.floor(Date.now() / 1000),
       timezone: 'Europe/Rome',
+    }),
+    'submission-received': submissionReceivedEmail({
+      ...common,
+      requestTitle: 'Documents for the accountant',
+      submitterName: 'Marco Bianchi',
+      submitterEmail: 'marco@example.com',
+      fileCount: 3,
+      totalBytes: 52_428_800,
+      link: `${base}/transfers/sample-id`,
     }),
     'smtp-test': smtpTestEmail(common),
   };

@@ -60,12 +60,13 @@ export async function resolveTransfer(
  * First 16 hex characters of the hash of the link password hash: binds the cookie to the current
  * password, so changing or removing it invalidates cookies already handed out.
  */
-const fingerprint = (passwordHash: string): string => sha256Hex(passwordHash).slice(0, 16);
+export const passwordFingerprint = (passwordHash: string): string =>
+  sha256Hex(passwordHash).slice(0, 16);
 
 function cookieMac(ctx: AppContext, transfer: TransferRow, exp: number): string {
   return hmacBase64url(
     ctx.keys.downloadCookie,
-    `${transfer.id}:${exp}:${fingerprint(transfer.passwordHash ?? '')}`,
+    `${transfer.id}:${exp}:${passwordFingerprint(transfer.passwordHash ?? '')}`,
   );
 }
 

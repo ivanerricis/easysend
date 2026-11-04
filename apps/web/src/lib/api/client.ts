@@ -47,6 +47,8 @@ export interface RequestOptions<T> {
   raw?: { body: Blob; contentType: string } | undefined;
   /** Validates (and types) a successful JSON response. */
   schema?: z.ZodType<T> | undefined;
+  /** Extra request headers (e.g. `X-Submission-Token`). */
+  headers?: Record<string, string> | undefined;
   /** Do not run the SETUP_REQUIRED / UNAUTHENTICATED hooks (login-flow calls). */
   skipAuthRedirect?: boolean | undefined;
   signal?: AbortSignal | undefined;
@@ -144,7 +146,7 @@ async function toApiError(response: Response): Promise<ApiError> {
 }
 
 async function send(options: RequestOptions<unknown>, retriedCsrf: boolean): Promise<Response> {
-  const headers: Record<string, string> = { Accept: 'application/json' };
+  const headers: Record<string, string> = { Accept: 'application/json', ...options.headers };
   const init: RequestInit = { method: options.method, credentials: 'same-origin', headers };
   if (options.signal) init.signal = options.signal;
   if (options.raw) {
