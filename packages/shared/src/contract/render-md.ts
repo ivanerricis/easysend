@@ -211,7 +211,8 @@ const formatBytes = (n: number): string => {
   return `${n} B`;
 };
 
-const escapeCell = (text: string): string => text.replace(/\|/g, '\\|');
+/** Escapes a Markdown table cell: backslashes first, so an input `\|` cannot unescape the pipe. */
+const escapeCell = (text: string): string => text.replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
 
 const errorLine = (code: ErrorCode): string =>
   `- \`${ERROR_CODES[code]}\` \`${code}\`: ${ERROR_MEANINGS[code]}`;
