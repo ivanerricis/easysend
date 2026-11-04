@@ -178,6 +178,17 @@
     "columns": {
       "user": "Utente",
       "usage": "Spazio usato"
+    },
+    "driver": {
+      "title": "Archiviazione in uso",
+      "active": "I nuovi file vanno su",
+      "local": "Disco locale",
+      "s3": "Archiviazione compatibile S3",
+      "usage": "File per archiviazione",
+      "files_one": "{{count}} file",
+      "files_other": "{{count}} file",
+      "s3Note": "Con S3 i dati del disco qui sotto riguardano la cartella temporanea di upload sul server, non i file salvati su S3.",
+      "manage": "Cambia archiviazione"
     }
   },
   "settings": {
@@ -321,7 +332,53 @@
       "general": "Generali",
       "email": "Email",
       "cloudflare": "Cloudflare",
-      "updates": "Aggiornamenti"
+      "updates": "Aggiornamenti",
+      "storage": "Archiviazione"
+    },
+    "storage": {
+      "title": "Archiviazione dei file",
+      "description": "Dove sono salvati i file cifrati. La modifica vale subito per i nuovi file; quelli esistenti restano dove sono finché non li sposti.",
+      "envDiffers": {
+        "title": "Le impostazioni di archiviazione nel .env sono diverse",
+        "body": "Le variabili S3 nel .env si leggono solo al primo avvio. Quelle mostrate qui sono le impostazioni in uso: modificale da questa pagina."
+      },
+      "usage": {
+        "title": "File per archiviazione",
+        "active": "In uso per i nuovi file",
+        "local": "Disco locale",
+        "s3": "S3",
+        "files_one": "{{count}} file",
+        "files_other": "{{count}} file"
+      },
+      "migration": {
+        "title": "Sposta i file tra le archiviazioni",
+        "intro_local": "{{files}} ({{size}}) sono ancora su S3, mentre i nuovi file vanno sul disco locale.",
+        "intro_s3": "{{files}} ({{size}}) sono ancora sul disco locale, mentre i nuovi file vanno su S3.",
+        "none": "Tutti i file sono già sull'archiviazione in uso.",
+        "start_local": "Sposta {{files}} ({{size}}) sul disco locale",
+        "start_s3": "Sposta {{files}} ({{size}}) su S3",
+        "targetMissing": "Salva prima la configurazione S3.",
+        "running": "Uno spostamento è in corso.",
+        "confirmTitle_local": "Spostare i file sul disco locale?",
+        "confirmTitle_s3": "Spostare i file su S3?",
+        "confirmBody": "I file cifrati vengono copiati uno alla volta e i download continuano a funzionare. L'originale di ogni file si elimina dopo circa un'ora. Puoi interrompere in qualsiasi momento.",
+        "confirm": "Avvia lo spostamento",
+        "started": "Spostamento avviato.",
+        "progressTitle": "Spostamento dei file su {{target}}",
+        "progressLabel": "Avanzamento dello spostamento",
+        "progressText": "{{done}} di {{total}} file, {{doneSize}} di {{totalSize}}",
+        "cancel": "Interrompi",
+        "cancelling": "Mi fermo dopo il file in corso…",
+        "outcomeDone": "Spostamento completato: {{files}} su {{target}}.",
+        "outcomeCancelled": "Spostamento interrotto: {{done}} file su {{total}} spostati. Gli altri restano dove sono.",
+        "outcomeFailed": "Spostamento non riuscito.",
+        "failedFiles_one": "{{count}} file non è stato spostato.",
+        "failedFiles_other": "{{count}} file non sono stati spostati.",
+        "targets": {
+          "local": "il disco locale",
+          "s3": "S3"
+        }
+      }
     }
   },
   "appearance": {

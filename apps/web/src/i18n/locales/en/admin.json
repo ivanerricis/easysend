@@ -178,6 +178,17 @@
     "columns": {
       "user": "User",
       "usage": "Storage used"
+    },
+    "driver": {
+      "title": "Storage in use",
+      "active": "New files go to",
+      "local": "Local disk",
+      "s3": "S3-compatible storage",
+      "usage": "Files by storage",
+      "files_one": "{{count}} file",
+      "files_other": "{{count}} files",
+      "s3Note": "With S3 the disk figures below describe the temporary upload folder on the server, not the files stored on S3.",
+      "manage": "Change storage"
     }
   },
   "settings": {
@@ -321,7 +332,53 @@
       "general": "General",
       "email": "Email",
       "cloudflare": "Cloudflare",
-      "updates": "Updates"
+      "updates": "Updates",
+      "storage": "File storage"
+    },
+    "storage": {
+      "title": "File storage",
+      "description": "Where the encrypted files are saved. The change applies to new files at once; existing files stay where they are until you move them.",
+      "envDiffers": {
+        "title": "The .env storage settings are different",
+        "body": "The S3 variables in .env are only read at the first start. The settings shown here are the ones in use: change them on this page."
+      },
+      "usage": {
+        "title": "Files by storage",
+        "active": "In use for new files",
+        "local": "Local disk",
+        "s3": "S3",
+        "files_one": "{{count}} file",
+        "files_other": "{{count}} files"
+      },
+      "migration": {
+        "title": "Move files between storages",
+        "intro_local": "{{files}} ({{size}}) are still on S3, while new files go to the local disk.",
+        "intro_s3": "{{files}} ({{size}}) are still on the local disk, while new files go to S3.",
+        "none": "All files are already on the storage in use.",
+        "start_local": "Move {{files}} ({{size}}) to the local disk",
+        "start_s3": "Move {{files}} ({{size}}) to S3",
+        "targetMissing": "Save the S3 configuration first.",
+        "running": "A move is in progress.",
+        "confirmTitle_local": "Move the files to the local disk?",
+        "confirmTitle_s3": "Move the files to S3?",
+        "confirmBody": "The encrypted files are copied one at a time and downloads keep working. The original of each file is removed after about an hour. You can stop at any time.",
+        "confirm": "Start moving",
+        "started": "The move has started.",
+        "progressTitle": "Moving files to {{target}}",
+        "progressLabel": "Move progress",
+        "progressText": "{{done}} of {{total}} files, {{doneSize}} of {{totalSize}}",
+        "cancel": "Stop",
+        "cancelling": "Stopping after the current file…",
+        "outcomeDone": "The move is complete: {{files}} moved to {{target}}.",
+        "outcomeCancelled": "The move was stopped: {{done}} of {{total}} files moved. The others stay where they are.",
+        "outcomeFailed": "The move failed.",
+        "failedFiles_one": "{{count}} file could not be moved.",
+        "failedFiles_other": "{{count}} files could not be moved.",
+        "targets": {
+          "local": "the local disk",
+          "s3": "S3"
+        }
+      }
     }
   },
   "appearance": {

@@ -39,6 +39,8 @@ export const queryKeys = {
     users: (query?: object) => ['admin', 'users', query ?? {}] as const,
     transfers: (query?: object) => ['admin', 'transfers', query ?? {}] as const,
     storage: ['admin', 'storage'] as const,
+    storageSettings: ['admin', 'storage', 'settings'] as const,
+    storageMigration: ['admin', 'storage', 'migration'] as const,
     settings: ['admin', 'settings'] as const,
     tunnel: ['admin', 'tunnel'] as const,
     updates: ['admin', 'updates'] as const,
@@ -47,6 +49,7 @@ export const queryKeys = {
   setup: {
     status: ['setup', 'status'] as const,
     smtp: ['setup', 'smtp'] as const,
+    storage: ['setup', 'storage'] as const,
   },
   download: (token: string) => ['download', token] as const,
   submitRequest: (token: string) => ['submit-request', token] as const,

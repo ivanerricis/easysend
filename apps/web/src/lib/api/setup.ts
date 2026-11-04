@@ -12,6 +12,10 @@ import type {
   SmtpSettings,
   SmtpSettingsPublic,
   SmtpTestResponse,
+  StorageSettingsResponse,
+  StorageTestRequest,
+  StorageTestResponse,
+  StorageUpdateRequest,
   TwoFactorSetupResponse,
 } from '@easysend/shared';
 import { setCsrfToken } from './client';
@@ -26,6 +30,9 @@ const api = createApi([
   'setup.smtpTest',
   'setup.smtpSave',
   'setup.cloudflare',
+  'setup.storage',
+  'setup.storageTest',
+  'setup.storageSave',
   'setup.general',
   'setup.complete',
 ] as const);
@@ -72,6 +79,18 @@ export function saveSetupSmtp(body: SmtpSettings): Promise<SmtpSettingsPublic> {
 
 export function setupCloudflare(body: CloudflareRequest): Promise<CloudflareResponse> {
   return api.call('setup.cloudflare', { ...flow, body });
+}
+
+export function getSetupStorage(): Promise<StorageSettingsResponse> {
+  return api.call('setup.storage', flow);
+}
+
+export function testSetupStorage(body: StorageTestRequest): Promise<StorageTestResponse> {
+  return api.call('setup.storageTest', { ...flow, body });
+}
+
+export function saveSetupStorage(body: StorageUpdateRequest): Promise<StorageSettingsResponse> {
+  return api.call('setup.storageSave', { ...flow, body });
 }
 
 export function saveSetupGeneral(body: SetupGeneralRequest): Promise<OkResponse> {
