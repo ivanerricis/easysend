@@ -9,6 +9,8 @@ export interface SetupLimiters {
   setupCodeGlobal: Limiter;
   /** SMTP test emails, key: `setup` or `admin`. Use `consume`. */
   smtpTest: Limiter;
+  /** S3 storage connection tests, key: `setup` or `admin`. Use `consume`. */
+  storageTest: Limiter;
   /** Cloudflare configuration attempts, single key `global`. Use `consume`. */
   cloudflare: Limiter;
 }
@@ -19,6 +21,7 @@ export function createSetupLimiters(): SetupLimiters {
     setupCodeIp: createLimiter(limits.setupCodeIp),
     setupCodeGlobal: createLimiter(limits.setupCodeGlobal),
     smtpTest: createLimiter(limits.smtpTest),
+    storageTest: createLimiter(limits.storageTest),
     cloudflare: createLimiter(limits.cloudflare),
   };
 }

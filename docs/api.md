@@ -252,6 +252,7 @@ Setup progress (resumable wizard)
     smtp: boolean
     cloudflare: boolean
     general: boolean
+    storage?: boolean
   }
 }
 ```

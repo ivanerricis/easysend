@@ -7,6 +7,8 @@ import type {
   SetupGeneralRequest,
   SmtpSettings,
   SmtpSettingsPublic,
+  StorageTestRequest,
+  StorageUpdateRequest,
 } from '@easysend/shared';
 import { auditRequest } from '../audit.js';
 import { tunnelHandler } from '../cloudflare/handler.js';
@@ -20,6 +22,11 @@ import { AppError } from '../http/errors.js';
 import { assertNotLimited } from '../http/rate-limit.js';
 import { sendJson, validBody } from '../http/validate.js';
 import { saveVerifiedSmtpSettings, testSmtpSettings, toSmtpPublic } from '../settings/smtp.js';
+import {
+  saveStorageSettings,
+  storageSettingsView,
+  testStorageConfig,
+} from '../storage/settings.js';
 import { clearSetupCookie, hasValidSetupCookie, setSetupCookie } from '../setup/cookie.js';
 import { setupEndpointGuards } from '../setup/guard.js';
 import { normalizeEmail, replaceRecoveryCodes, toUser } from '../users/service.js';
@@ -34,12 +41,19 @@ export function setupRouter(ctx: AppContext): Router {
   const adminExists = (): boolean =>
     (db.select({ n: count() }).from(users).where(eq(users.role, 'admin')).get()?.n ?? 0) > 0;
 
+  const storageStepDone = (): boolean => {
+    const stored = settings.get('storage');
+    return !stored || stored.driver === 'local' || stored.s3 !== undefined;
+  };
+
   const steps = () => ({
     admin: adminExists(),
     smtp: settings.has('smtp'),
     // `configuredAt` 0 marks a tunnel created by an attempt that did not finish.
     cloudflare: isLocal || (settings.get('tunnel')?.configuredAt ?? 0) > 0,
     general: settings.get('general') !== undefined,
+    // Optional step: done with the local disk (default) or a saved S3 configuration.
+    storage: storageStepDone(),
   });
 
   router.get('/setup/status', (req, res) => {
@@ -192,6 +206,25 @@ export function setupRouter(ctx: AppContext): Router {
     const saved = saveVerifiedSmtpSettings(ctx, validBody<SmtpSettings>(req));
     auditRequest(ctx, req, 'setup.smtp_saved', { targetType: 'settings' });
     sendJson(res, 'setup.smtpSave', 200, saved);
+  });
+
+  router.get('/setup/storage', ...guards('setup.storage'), (_req, res) => {
+    sendJson(res, 'setup.storage', 200, storageSettingsView(ctx));
+  });
+
+  router.post('/setup/storage/test', ...guards('setup.storageTest'), async (req, res) => {
+    assertNotLimited(res, await ctx.setupLimiters.storageTest.consume('setup'));
+    await testStorageConfig(ctx, validBody<StorageTestRequest>(req).s3);
+    sendJson(res, 'setup.storageTest', 200, { ok: true });
+  });
+
+  router.put('/setup/storage', ...guards('setup.storageSave'), (req, res) => {
+    const view = saveStorageSettings(ctx, validBody<StorageUpdateRequest>(req));
+    auditRequest(ctx, req, 'setup.storage_saved', {
+      targetType: 'settings',
+      metadata: { driver: view.driver },
+    });
+    sendJson(res, 'setup.storageSave', 200, view);
   });
 
   router.put('/setup/general', ...guards('setup.general'), (req, res) => {

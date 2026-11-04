@@ -4,7 +4,8 @@ import { createAuthLimiters, type AuthLimiters } from './auth/limiters.js';
 import { createSessionService, type SessionService } from './auth/session.js';
 import { systemClock, type Clock } from './clock.js';
 import { deriveKeys, type DerivedKeys } from './crypto/keys.js';
-import type { StorageDriverKind } from '@easysend/shared';
+import type { S3Config, StorageDriverKind } from '@easysend/shared';
+import { AppError } from './http/errors.js';
 import type { Db, DbHandle } from './db/client.js';
 import { createClientIpResolver, ipHash, type ClientIpResolver } from './http/client-ip.js';
 import { createCsrf, type CsrfService } from './http/csrf.js';
@@ -16,6 +17,7 @@ import { createSmtpVerification, type SmtpVerification } from './settings/smtp-v
 import { statfsDiskSpace, type DiskSpace } from './storage/disk.js';
 import { createStorageRegistry, type StorageRegistry } from './storage/registry.js';
 import type { StorageDriver } from './storage/types.js';
+import { createStorageVerification, type StorageVerification } from './storage/verification.js';
 import { createSetupCodeService, type SetupCodeService } from './setup/code.js';
 import { createSetupLimiters, type SetupLimiters } from './setup/limiters.js';
 import { createUpdateLimiters, type UpdateLimiters } from './updates/policy.js';
@@ -41,6 +43,11 @@ export interface AppDeps {
   diskSpace?: DiskSpace;
   /** Ready-made storage drivers that win over the built ones (tests inject an in-memory fake). */
   storageDrivers?: Partial<Record<StorageDriverKind, StorageDriver>>;
+  /**
+   * Connection test of an S3 configuration (writes, reads and deletes a probe object). Throws
+   * `AppError('STORAGE_UNAVAILABLE', msg, { reason })`. Tests inject a fake.
+   */
+  storageProbe?: (config: S3Config) => Promise<void>;
   /** `fetch` used for the Cloudflare API. Default: `globalThis.fetch`. Tests inject a fake. */
   cloudflareFetch?: typeof fetch;
   /** `fetch` used for the GitHub release check. Default: `globalThis.fetch`. Tests inject a fake. */
@@ -61,6 +68,10 @@ export interface AppContext {
   mailer: Mailer;
   /** Remembers the last SMTP configuration that passed a test email (wizard and admin panel). */
   smtpVerification: SmtpVerification;
+  /** Connection test of an S3 configuration (injectable for tests). */
+  storageProbe: (config: S3Config) => Promise<void>;
+  /** Remembers the last S3 configuration that passed a connection test (wizard and panel). */
+  storageVerification: StorageVerification;
   /** `fetch` for the Cloudflare API (injectable for tests). */
   cloudflareFetch: typeof fetch;
   /** Latest-release check behind the admin update notice (cached, on demand only). */
@@ -121,6 +132,13 @@ export function createContext(deps: AppDeps): AppContext {
     settings,
     mailer,
     smtpVerification: createSmtpVerification(clock),
+    storageProbe:
+      deps.storageProbe ??
+      (() =>
+        Promise.reject(
+          new AppError('STORAGE_UNAVAILABLE', 'S3 storage is not available', { reason: 'NETWORK' }),
+        )),
+    storageVerification: createStorageVerification(clock),
     cloudflareFetch: deps.cloudflareFetch ?? globalThis.fetch,
     updates: createUpdateService({
       url: config.updateCheckUrl,
