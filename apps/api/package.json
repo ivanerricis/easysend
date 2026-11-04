@@ -14,6 +14,7 @@
     "key:rotate": "tsx src/cli/rotate-key.ts",
     "db:backup": "tsx src/cli/backup-db.ts",
     "db:restore": "tsx src/cli/restore-db.ts",
+    "storage:migrate": "tsx src/cli/storage-migrate.ts",
     "mail:preview": "tsx scripts/mail-preview.ts"
   },
   "dependencies": {
