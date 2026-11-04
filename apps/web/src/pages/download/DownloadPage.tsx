@@ -218,7 +218,7 @@ function TransferView({ token, info, onDownloadStarted }: TransferViewProps) {
                   className="block min-h-11 min-w-0 flex-1 basis-40 py-2 text-sm leading-snug font-normal"
                   aria-hidden="true"
                 >
-                  <span className="block break-all">{file.name}</span>
+                  <span className="block [overflow-wrap:anywhere]">{file.name}</span>
                   <span className="text-muted-foreground block font-mono text-xs">{size}</span>
                 </Label>
                 <Button asChild variant="outline" onClick={started}>

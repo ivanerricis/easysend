@@ -36,7 +36,7 @@ export function FileTree<T extends TreeFile & { id: string }>({
     <ul
       className={cn(
         'divide-border divide-y',
-        nested ? 'border-border ml-4 border-t border-l' : 'border-border border',
+        nested ? 'border-border ml-2 border-t border-l sm:ml-4' : 'border-border border',
         className && !nested ? className : '',
       )}
     >
@@ -59,7 +59,9 @@ export function FileTree<T extends TreeFile & { id: string }>({
                     className="size-4 shrink-0 transition-transform group-data-[state=open]/folder:rotate-90 motion-reduce:transition-none"
                   />
                   <Folder aria-hidden="true" className="text-muted-foreground size-4 shrink-0" />
-                  <span className="min-w-0 flex-1 text-sm font-medium break-all">{node.name}</span>
+                  <span className="min-w-0 flex-1 text-sm font-medium [overflow-wrap:anywhere]">
+                    {node.name}
+                  </span>
                   <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
                     {t('common.units.files', { count: node.fileCount })} ·{' '}
                     {formatBytes(node.totalBytes, i18n.language)}
