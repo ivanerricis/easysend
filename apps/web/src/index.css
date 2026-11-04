@@ -195,8 +195,9 @@
 }
 
 /* Static replacement of the <style> element react-remove-scroll injects (blocked by the CSP).
-   The gutter is reserved only while locked, so the layout does not shift when the scrollbar goes. */
-html:has(body[data-scroll-locked]) {
+   The scrollbar gutter is always reserved: reserving it only while locked shifted short pages
+   (no scrollbar) to the left whenever a menu, select or dialog opened. */
+html {
   scrollbar-gutter: stable;
 }
 body[data-scroll-locked] {
