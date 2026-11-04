@@ -2,7 +2,7 @@
 
 # easysend API contract
 
-83 endpoints. Source of truth: the Zod schemas and the endpoint registry in `packages/shared`; this file is generated from them (`pnpm api:docs`, checked in CI).
+92 endpoints. Source of truth: the Zod schemas and the endpoint registry in `packages/shared`; this file is generated from them (`pnpm api:docs`, checked in CI).
 
 ## Decisions to approve
 
@@ -99,6 +99,11 @@
 | `CLOUDFLARE_API_ERROR` | 502 | Cloudflare returned an unexpected error. |
 | `NOT_APPLICABLE_IN_LOCAL_MODE` | 409 | The operation needs `APP_MODE=production`. |
 | `INVALID_IMAGE` | 422 | The file is not a valid PNG, JPEG or WebP image (magic bytes checked). |
+| `STORAGE_TEST_FAILED` | 422 | The storage connection test failed (`details.reason` is one of ACCESS_DENIED, NO_SUCH_BUCKET, SIGNATURE, TIMEOUT, NETWORK, ENDPOINT). |
+| `STORAGE_NOT_VERIFIED` | 409 | The storage settings were not verified with a successful connection test. |
+| `STORAGE_IN_USE` | 409 | Endpoint, bucket or prefix cannot change (or the S3 configuration cannot be removed) while files are stored on S3: migrate them first. |
+| `STORAGE_UNAVAILABLE` | 503 | The configured file storage did not answer or refused the request. |
+| `MIGRATION_RUNNING` | 409 | A storage migration is already running. |
 | `UPDATE_RUNNER_MISSING` | 409 | The host update runner is not installed (no valid `runner.json` in the update folder). |
 | `UPDATE_IN_PROGRESS` | 409 | An update was already requested or is running. |
 | `UPDATE_VERSION_NOT_AVAILABLE` | 422 | The requested version is not a published release newer than the running one. |
@@ -116,6 +121,9 @@
 | POST | `/api/setup/smtp/test` | setup | Send a test email to the admin address |
 | PUT | `/api/setup/smtp` | setup | Save the verified SMTP settings |
 | POST | `/api/setup/cloudflare` | setup | Create the Cloudflare tunnel and DNS record |
+| GET | `/api/setup/storage` | setup | Current file storage configuration |
+| POST | `/api/setup/storage/test` | setup | Test an S3 configuration (write, read a range, delete a probe object) |
+| PUT | `/api/setup/storage` | setup | Save the file storage configuration |
 | PUT | `/api/setup/general` | setup | Save the general settings |
 | POST | `/api/setup/complete` | setup | Complete the setup (one time only) |
 | GET | `/api/auth/csrf` | public | Get a CSRF token (works before login) |
@@ -186,10 +194,16 @@
 | PATCH | `/api/admin/settings` | admin | Update general settings (disk reserve, chunk size, default language, update check) |
 | PUT | `/api/admin/settings/smtp` | admin | Change the SMTP settings |
 | POST | `/api/admin/settings/smtp/test` | admin | Send a test email to the current admin |
+| GET | `/api/admin/settings/storage` | admin | File storage configuration, usage per driver and locked fields |
+| POST | `/api/admin/settings/storage/test` | admin | Test an S3 configuration (write, read a range, delete a probe object) |
+| PUT | `/api/admin/settings/storage` | admin | Change the file storage driver or the S3 configuration |
 | PUT | `/api/admin/settings/appearance` | admin | Replace the appearance settings |
 | POST | `/api/admin/settings/appearance/reset` | admin | Restore the default appearance |
 | POST | `/api/admin/settings/appearance/assets/:kind` | admin | Upload a branding image (raw body) |
 | DELETE | `/api/admin/settings/appearance/assets/:kind` | admin | Remove a branding image |
+| GET | `/api/admin/storage/migration` | admin | Status of the latest storage migration |
+| POST | `/api/admin/storage/migration` | admin | Start moving the stored files to the target driver |
+| POST | `/api/admin/storage/migration/cancel` | admin | Stop the running migration after the current file |
 
 ## Health
 
@@ -506,6 +520,155 @@ Create the Cloudflare tunnel and DNS record
 Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`, `409` `SETUP_ALREADY_COMPLETED`.
 
 **Notes:** The API token is used for this request only and is never stored or logged. The tunnel token is written to `SHARED_DIR/tunnel-token` for the cloudflared container. The step can be retried after an error. In local mode it answers 409 `NOT_APPLICABLE_IN_LOCAL_MODE` and the wizard skips it.
+
+### `GET /api/setup/storage`
+
+Current file storage configuration
+
+**Auth:** `setup` · **CSRF:** no · **Success:** `200` json · **Id:** `setup.storage`
+
+**Response `200`**
+
+```ts
+{
+  driver: "local" | "s3"
+  s3:
+  | {
+      endpoint: any
+      region: string (min 1, max 64)
+      bucket: string (pattern /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/)
+      prefix: any
+      forcePathStyle: boolean
+      accessKeyId: string (min 1, max 128)
+      hasSecret: boolean
+    }
+  | null
+  source: "env" | "panel"
+  envDiffers: boolean
+  usage: {
+    local: {
+      files: integer (min 0)
+      bytes: integer (min 0)
+    }
+    s3: {
+      files: integer (min 0)
+      bytes: integer (min 0)
+    }
+  }
+  locked: {
+    fields: Array<"endpoint" | "bucket" | "prefix">
+    reason: "s3_has_files" | null
+  }
+}
+```
+
+Also possible: `401` `UNAUTHENTICATED`, `500` `INTERNAL_ERROR`, `409` `SETUP_ALREADY_COMPLETED`.
+
+**Notes:** Optional wizard step. The first start imports the S3 variables of the `.env` file, if any, otherwise the driver is `local`. The secret key is never returned (`hasSecret` only). `usage` is all zeros and `locked` is empty during the setup.
+
+### `POST /api/setup/storage/test`
+
+Test an S3 configuration (write, read a range, delete a probe object)
+
+**Auth:** `setup` · **CSRF:** required · **Rate limit:** `storageTest` · **Success:** `200` json · **Id:** `setup.storageTest`
+
+**Body** (`application/json`)
+
+```ts
+{
+  s3: {
+    endpoint: string (uri, max 2048)
+    region: string (min 1, max 64)
+    bucket: string (pattern /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/)
+    prefix: string (max 256, pattern /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[^\\]*$/)
+    forcePathStyle: boolean
+    accessKeyId: string (min 1, max 128)
+    secretAccessKey?: string (min 1, max 256)
+  }
+}
+```
+
+**Response `200`**
+
+```ts
+{
+  ok: true
+}
+```
+
+**Errors**
+
+- `422` `STORAGE_TEST_FAILED`: The storage connection test failed (`details.reason` is one of ACCESS_DENIED, NO_SUCH_BUCKET, SIGNATURE, TIMEOUT, NETWORK, ENDPOINT).
+
+Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`, `409` `SETUP_ALREADY_COMPLETED`.
+
+**Notes:** On success the exact settings are remembered as verified (30 minutes) until saved with `PUT /api/setup/storage`. `secretAccessKey` omitted = use the stored one. At most 10 per hour.
+
+### `PUT /api/setup/storage`
+
+Save the file storage configuration
+
+**Auth:** `setup` · **CSRF:** required · **Success:** `200` json · **Id:** `setup.storageSave`
+
+**Body** (`application/json`)
+
+```ts
+{
+  driver: "local" | "s3"
+  s3?: {
+    endpoint: string (uri, max 2048)
+    region: string (min 1, max 64)
+    bucket: string (pattern /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/)
+    prefix: string (max 256, pattern /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[^\\]*$/)
+    forcePathStyle: boolean
+    accessKeyId: string (min 1, max 128)
+    secretAccessKey?: string (min 1, max 256)
+  }
+}
+```
+
+**Response `200`**
+
+```ts
+{
+  driver: "local" | "s3"
+  s3:
+  | {
+      endpoint: any
+      region: string (min 1, max 64)
+      bucket: string (pattern /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/)
+      prefix: any
+      forcePathStyle: boolean
+      accessKeyId: string (min 1, max 128)
+      hasSecret: boolean
+    }
+  | null
+  source: "env" | "panel"
+  envDiffers: boolean
+  usage: {
+    local: {
+      files: integer (min 0)
+      bytes: integer (min 0)
+    }
+    s3: {
+      files: integer (min 0)
+      bytes: integer (min 0)
+    }
+  }
+  locked: {
+    fields: Array<"endpoint" | "bucket" | "prefix">
+    reason: "s3_has_files" | null
+  }
+}
+```
+
+**Errors**
+
+- `409` `STORAGE_NOT_VERIFIED`: The storage settings were not verified with a successful connection test.
+
+Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`, `409` `SETUP_ALREADY_COMPLETED`.
+
+**Notes:** Driver `local` needs no test. Driver `s3` fails with `STORAGE_NOT_VERIFIED` unless the same settings passed a test. The secret key is stored encrypted. Audited as `setup.storage_saved`. The step never blocks `POST /api/setup/complete` (it counts as done with the local driver).
 
 ### `PUT /api/setup/general`
 
@@ -3083,6 +3246,17 @@ Disk usage and per-user storage
   dataLocation: {
     hostPath: string | null
   }
+  driver: "local" | "s3"
+  usageByDriver: {
+    local: {
+      files: integer (min 0)
+      bytes: integer (min 0)
+    }
+    s3: {
+      files: integer (min 0)
+      bytes: integer (min 0)
+    }
+  }
   storedBytes: integer (min 0)
   activeTransfers: integer (min 0)
   totalFiles: integer (min 0)
@@ -3516,6 +3690,156 @@ Send a test email to the current admin
 
 Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `FORBIDDEN`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`.
 
+### `GET /api/admin/settings/storage`
+
+File storage configuration, usage per driver and locked fields
+
+**Auth:** `admin` · **CSRF:** no · **Success:** `200` json · **Id:** `settings.storage`
+
+**Response `200`**
+
+```ts
+{
+  driver: "local" | "s3"
+  s3:
+  | {
+      endpoint: any
+      region: string (min 1, max 64)
+      bucket: string (pattern /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/)
+      prefix: any
+      forcePathStyle: boolean
+      accessKeyId: string (min 1, max 128)
+      hasSecret: boolean
+    }
+  | null
+  source: "env" | "panel"
+  envDiffers: boolean
+  usage: {
+    local: {
+      files: integer (min 0)
+      bytes: integer (min 0)
+    }
+    s3: {
+      files: integer (min 0)
+      bytes: integer (min 0)
+    }
+  }
+  locked: {
+    fields: Array<"endpoint" | "bucket" | "prefix">
+    reason: "s3_has_files" | null
+  }
+}
+```
+
+Also possible: `401` `UNAUTHENTICATED`, `403` `FORBIDDEN`, `500` `INTERNAL_ERROR`.
+
+**Notes:** The secret key is never returned (`hasSecret` only). `source` says who wrote the configuration (`env`: imported from the `.env` file at the first start, `panel`: saved here or in the wizard); after the first start the database is the source of truth and `envDiffers` is true when the `.env` S3 variables no longer match it. `usage` counts the stored files per driver. `locked.fields` lists the S3 fields that cannot change while files live on S3.
+
+### `POST /api/admin/settings/storage/test`
+
+Test an S3 configuration (write, read a range, delete a probe object)
+
+**Auth:** `admin` · **CSRF:** required · **Rate limit:** `storageTest` · **Success:** `200` json · **Id:** `settings.storageTest`
+
+**Body** (`application/json`)
+
+```ts
+{
+  s3: {
+    endpoint: string (uri, max 2048)
+    region: string (min 1, max 64)
+    bucket: string (pattern /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/)
+    prefix: string (max 256, pattern /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[^\\]*$/)
+    forcePathStyle: boolean
+    accessKeyId: string (min 1, max 128)
+    secretAccessKey?: string (min 1, max 256)
+  }
+}
+```
+
+**Response `200`**
+
+```ts
+{
+  ok: true
+}
+```
+
+**Errors**
+
+- `422` `STORAGE_TEST_FAILED`: The storage connection test failed (`details.reason` is one of ACCESS_DENIED, NO_SUCH_BUCKET, SIGNATURE, TIMEOUT, NETWORK, ENDPOINT).
+
+Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `FORBIDDEN`, `403` `CSRF_INVALID`, `429` `RATE_LIMITED`, `500` `INTERNAL_ERROR`.
+
+**Notes:** Writes, reads a byte range and deletes the object `<prefix>/.easysend-probe-<uuid>`. `STORAGE_TEST_FAILED` carries a safe `details.reason` (ACCESS_DENIED, NO_SUCH_BUCKET, SIGNATURE, TIMEOUT, NETWORK, ENDPOINT), never the provider message. On success the exact settings are remembered as verified for 30 minutes. `secretAccessKey` omitted = use the stored one. At most 10 per hour.
+
+### `PUT /api/admin/settings/storage`
+
+Change the file storage driver or the S3 configuration
+
+**Auth:** `admin` · **CSRF:** required · **Success:** `200` json · **Id:** `settings.storageUpdate`
+
+**Body** (`application/json`)
+
+```ts
+{
+  driver: "local" | "s3"
+  s3?: {
+    endpoint: string (uri, max 2048)
+    region: string (min 1, max 64)
+    bucket: string (pattern /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/)
+    prefix: string (max 256, pattern /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[^\\]*$/)
+    forcePathStyle: boolean
+    accessKeyId: string (min 1, max 128)
+    secretAccessKey?: string (min 1, max 256)
+  }
+}
+```
+
+**Response `200`**
+
+```ts
+{
+  driver: "local" | "s3"
+  s3:
+  | {
+      endpoint: any
+      region: string (min 1, max 64)
+      bucket: string (pattern /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/)
+      prefix: any
+      forcePathStyle: boolean
+      accessKeyId: string (min 1, max 128)
+      hasSecret: boolean
+    }
+  | null
+  source: "env" | "panel"
+  envDiffers: boolean
+  usage: {
+    local: {
+      files: integer (min 0)
+      bytes: integer (min 0)
+    }
+    s3: {
+      files: integer (min 0)
+      bytes: integer (min 0)
+    }
+  }
+  locked: {
+    fields: Array<"endpoint" | "bucket" | "prefix">
+    reason: "s3_has_files" | null
+  }
+}
+```
+
+**Errors**
+
+- `409` `STORAGE_NOT_VERIFIED`: The storage settings were not verified with a successful connection test.
+- `409` `STORAGE_IN_USE`: Endpoint, bucket or prefix cannot change (or the S3 configuration cannot be removed) while files are stored on S3: migrate them first.
+
+Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `FORBIDDEN`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`.
+
+**Notes:** Takes effect immediately for NEW files, without restart; existing files stay where they are and remain readable. Driver `s3` requires a successful test of the same settings (`STORAGE_NOT_VERIFIED`). While files are stored on S3, endpoint, bucket and prefix cannot change and the S3 configuration cannot be removed (`STORAGE_IN_USE`: migrate the files to the local disk first); access keys can always be rotated after a test. Audited as `settings.storage_updated`.
+
 ### `PUT /api/admin/settings/appearance`
 
 Replace the appearance settings
@@ -3682,3 +4006,125 @@ No body.
 Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `FORBIDDEN`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`.
 
 **Notes:** Idempotent: removing an image that is not set also answers 204.
+
+## File storage migration
+
+Moves already stored files between the server disk and an S3-compatible bucket, as a background job with progress.
+
+### `GET /api/admin/storage/migration`
+
+Status of the latest storage migration
+
+**Auth:** `admin` · **CSRF:** no · **Success:** `200` json · **Id:** `storage.migration`
+
+**Response `200`**
+
+```ts
+{
+  migration:
+  | {
+      id: string (min 1, max 64)
+      target: "local" | "s3"
+      status: "running" | "cancelling" | "cancelled" | "done" | "failed"
+      totalFiles: integer (min 0)
+      doneFiles: integer (min 0)
+      totalBytes: integer (min 0)
+      doneBytes: integer (min 0)
+      failedFiles: integer (min 0)
+      errorCode: string | null
+      startedAt: integer (min 0)
+      updatedAt: integer (min 0)
+      finishedAt: integer (min 0) | null
+    }
+  | null
+}
+```
+
+Also possible: `401` `UNAUTHENTICATED`, `403` `FORBIDDEN`, `500` `INTERNAL_ERROR`.
+
+**Notes:** `migration` is null when no migration ever ran. Polled by the admin page while `running` or `cancelling`.
+
+### `POST /api/admin/storage/migration`
+
+Start moving the stored files to the target driver
+
+**Auth:** `admin` · **CSRF:** required · **Success:** `202` json · **Id:** `storage.migrationStart`
+
+**Body** (`application/json`)
+
+```ts
+{
+  target: "local" | "s3"
+}
+```
+
+**Response `202`**
+
+```ts
+{
+  migration:
+  | {
+      id: string (min 1, max 64)
+      target: "local" | "s3"
+      status: "running" | "cancelling" | "cancelled" | "done" | "failed"
+      totalFiles: integer (min 0)
+      doneFiles: integer (min 0)
+      totalBytes: integer (min 0)
+      doneBytes: integer (min 0)
+      failedFiles: integer (min 0)
+      errorCode: string | null
+      startedAt: integer (min 0)
+      updatedAt: integer (min 0)
+      finishedAt: integer (min 0) | null
+    }
+  | null
+}
+```
+
+**Errors**
+
+- `409` `CONFLICT`: The request conflicts with the current state of the resource.
+- `507` `INSUFFICIENT_DISK_SPACE`: Not enough free disk space for the upload (2x size plus reserve).
+- `503` `STORAGE_UNAVAILABLE`: The configured file storage did not answer or refused the request.
+- `409` `MIGRATION_RUNNING`: A storage migration is already running.
+
+Also possible: `400` `VALIDATION_ERROR`, `401` `UNAUTHENTICATED`, `403` `FORBIDDEN`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`.
+
+**Notes:** Background job, one file at a time: the encrypted bytes are copied as they are (no decryption, keys unchanged), the size is verified, the file row is switched to the target and the source object is deleted after a 1 hour grace period (downloads in progress). It resumes after an API restart. `target` `s3` needs a saved S3 configuration (`CONFLICT` otherwise); `target` `local` checks the free space first (`INSUFFICIENT_DISK_SPACE`) and again before each file. `MIGRATION_RUNNING` when one is already running (also when started from the CLI). Audited as `storage.migration_started` and `storage.migration_finished`.
+
+### `POST /api/admin/storage/migration/cancel`
+
+Stop the running migration after the current file
+
+**Auth:** `admin` · **CSRF:** required · **Success:** `200` json · **Id:** `storage.migrationCancel`
+
+**Response `200`**
+
+```ts
+{
+  migration:
+  | {
+      id: string (min 1, max 64)
+      target: "local" | "s3"
+      status: "running" | "cancelling" | "cancelled" | "done" | "failed"
+      totalFiles: integer (min 0)
+      doneFiles: integer (min 0)
+      totalBytes: integer (min 0)
+      doneBytes: integer (min 0)
+      failedFiles: integer (min 0)
+      errorCode: string | null
+      startedAt: integer (min 0)
+      updatedAt: integer (min 0)
+      finishedAt: integer (min 0) | null
+    }
+  | null
+}
+```
+
+**Errors**
+
+- `409` `CONFLICT`: The request conflicts with the current state of the resource.
+
+Also possible: `401` `UNAUTHENTICATED`, `403` `FORBIDDEN`, `403` `CSRF_INVALID`, `500` `INTERNAL_ERROR`.
+
+**Notes:** Sets the status to `cancelling`; the job stops between two files and becomes `cancelled`. Files already moved stay on the target. `CONFLICT` when no migration is running. Audited as `storage.migration_cancelled`.

@@ -79,6 +79,14 @@ import {
   updateUploadRequestSchema,
   uploadRequestDetailSchema,
 } from '../schemas/requests.js';
+import {
+  storageMigrationResponseSchema,
+  storageMigrationStartRequestSchema,
+  storageSettingsResponseSchema,
+  storageTestRequestSchema,
+  storageTestResponseSchema,
+  storageUpdateRequestSchema,
+} from '../schemas/storage.js';
 import { tusUploadParamsSchema } from '../schemas/uploads.js';
 import {
   changePasswordRequestSchema,
@@ -239,6 +247,44 @@ export const endpoints: readonly EndpointDef[] = [
     ],
     notes:
       'The API token is used for this request only and is never stored or logged. The tunnel token is written to `SHARED_DIR/tunnel-token` for the cloudflared container. The step can be retried after an error. In local mode it answers 409 `NOT_APPLICABLE_IN_LOCAL_MODE` and the wizard skips it.',
+  }),
+  defineEndpoint({
+    id: 'setup.storage',
+    tag: 'setup',
+    method: 'GET',
+    path: '/api/setup/storage',
+    summary: 'Current file storage configuration',
+    auth: 'setup',
+    response: json(200, storageSettingsResponseSchema),
+    notes:
+      'Optional wizard step. The first start imports the S3 variables of the `.env` file, if any, otherwise the driver is `local`. The secret key is never returned (`hasSecret` only). `usage` is all zeros and `locked` is empty during the setup.',
+  }),
+  defineEndpoint({
+    id: 'setup.storageTest',
+    tag: 'setup',
+    method: 'POST',
+    path: '/api/setup/storage/test',
+    summary: 'Test an S3 configuration (write, read a range, delete a probe object)',
+    auth: 'setup',
+    rateLimit: 'storageTest',
+    body: storageTestRequestSchema,
+    response: json(200, storageTestResponseSchema),
+    errors: ['STORAGE_TEST_FAILED'],
+    notes:
+      'On success the exact settings are remembered as verified (30 minutes) until saved with `PUT /api/setup/storage`. `secretAccessKey` omitted = use the stored one. At most 10 per hour.',
+  }),
+  defineEndpoint({
+    id: 'setup.storageSave',
+    tag: 'setup',
+    method: 'PUT',
+    path: '/api/setup/storage',
+    summary: 'Save the file storage configuration',
+    auth: 'setup',
+    body: storageUpdateRequestSchema,
+    response: json(200, storageSettingsResponseSchema),
+    errors: ['STORAGE_NOT_VERIFIED'],
+    notes:
+      'Driver `local` needs no test. Driver `s3` fails with `STORAGE_NOT_VERIFIED` unless the same settings passed a test. The secret key is stored encrypted. Audited as `setup.storage_saved`. The step never blocks `POST /api/setup/complete` (it counts as done with the local driver).',
   }),
   defineEndpoint({
     id: 'setup.general',
@@ -1279,6 +1325,44 @@ export const endpoints: readonly EndpointDef[] = [
     errors: ['SMTP_TEST_FAILED'],
   }),
   defineEndpoint({
+    id: 'settings.storage',
+    tag: 'settings',
+    method: 'GET',
+    path: '/api/admin/settings/storage',
+    summary: 'File storage configuration, usage per driver and locked fields',
+    auth: 'admin',
+    response: json(200, storageSettingsResponseSchema),
+    notes:
+      'The secret key is never returned (`hasSecret` only). `source` says who wrote the configuration (`env`: imported from the `.env` file at the first start, `panel`: saved here or in the wizard); after the first start the database is the source of truth and `envDiffers` is true when the `.env` S3 variables no longer match it. `usage` counts the stored files per driver. `locked.fields` lists the S3 fields that cannot change while files live on S3.',
+  }),
+  defineEndpoint({
+    id: 'settings.storageTest',
+    tag: 'settings',
+    method: 'POST',
+    path: '/api/admin/settings/storage/test',
+    summary: 'Test an S3 configuration (write, read a range, delete a probe object)',
+    auth: 'admin',
+    rateLimit: 'storageTest',
+    body: storageTestRequestSchema,
+    response: json(200, storageTestResponseSchema),
+    errors: ['STORAGE_TEST_FAILED'],
+    notes:
+      'Writes, reads a byte range and deletes the object `<prefix>/.easysend-probe-<uuid>`. `STORAGE_TEST_FAILED` carries a safe `details.reason` (ACCESS_DENIED, NO_SUCH_BUCKET, SIGNATURE, TIMEOUT, NETWORK, ENDPOINT), never the provider message. On success the exact settings are remembered as verified for 30 minutes. `secretAccessKey` omitted = use the stored one. At most 10 per hour.',
+  }),
+  defineEndpoint({
+    id: 'settings.storageUpdate',
+    tag: 'settings',
+    method: 'PUT',
+    path: '/api/admin/settings/storage',
+    summary: 'Change the file storage driver or the S3 configuration',
+    auth: 'admin',
+    body: storageUpdateRequestSchema,
+    response: json(200, storageSettingsResponseSchema),
+    errors: ['STORAGE_NOT_VERIFIED', 'STORAGE_IN_USE'],
+    notes:
+      'Takes effect immediately for NEW files, without restart; existing files stay where they are and remain readable. Driver `s3` requires a successful test of the same settings (`STORAGE_NOT_VERIFIED`). While files are stored on S3, endpoint, bucket and prefix cannot change and the S3 configuration cannot be removed (`STORAGE_IN_USE`: migrate the files to the local disk first); access keys can always be rotated after a test. Audited as `settings.storage_updated`.',
+  }),
+  defineEndpoint({
     id: 'settings.appearanceUpdate',
     tag: 'settings',
     method: 'PUT',
@@ -1328,5 +1412,43 @@ export const endpoints: readonly EndpointDef[] = [
     params: brandingAssetParamsSchema,
     response: empty(204),
     notes: 'Idempotent: removing an image that is not set also answers 204.',
+  }),
+
+  // ---- storage migration ---------------------------------------------------
+  defineEndpoint({
+    id: 'storage.migration',
+    tag: 'storage',
+    method: 'GET',
+    path: '/api/admin/storage/migration',
+    summary: 'Status of the latest storage migration',
+    auth: 'admin',
+    response: json(200, storageMigrationResponseSchema),
+    notes:
+      '`migration` is null when no migration ever ran. Polled by the admin page while `running` or `cancelling`.',
+  }),
+  defineEndpoint({
+    id: 'storage.migrationStart',
+    tag: 'storage',
+    method: 'POST',
+    path: '/api/admin/storage/migration',
+    summary: 'Start moving the stored files to the target driver',
+    auth: 'admin',
+    body: storageMigrationStartRequestSchema,
+    response: json(202, storageMigrationResponseSchema),
+    errors: ['MIGRATION_RUNNING', 'INSUFFICIENT_DISK_SPACE', 'STORAGE_UNAVAILABLE', 'CONFLICT'],
+    notes:
+      'Background job, one file at a time: the encrypted bytes are copied as they are (no decryption, keys unchanged), the size is verified, the file row is switched to the target and the source object is deleted after a 1 hour grace period (downloads in progress). It resumes after an API restart. `target` `s3` needs a saved S3 configuration (`CONFLICT` otherwise); `target` `local` checks the free space first (`INSUFFICIENT_DISK_SPACE`) and again before each file. `MIGRATION_RUNNING` when one is already running (also when started from the CLI). Audited as `storage.migration_started` and `storage.migration_finished`.',
+  }),
+  defineEndpoint({
+    id: 'storage.migrationCancel',
+    tag: 'storage',
+    method: 'POST',
+    path: '/api/admin/storage/migration/cancel',
+    summary: 'Stop the running migration after the current file',
+    auth: 'admin',
+    response: json(200, storageMigrationResponseSchema),
+    errors: ['CONFLICT'],
+    notes:
+      'Sets the status to `cancelling`; the job stops between two files and becomes `cancelled`. Files already moved stay on the target. `CONFLICT` when no migration is running. Audited as `storage.migration_cancelled`.',
   }),
 ];
