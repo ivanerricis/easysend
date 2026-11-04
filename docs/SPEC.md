@@ -32,7 +32,7 @@ Documento di riferimento completo. Le regole di lavoro sono in `CLAUDE.md`, le f
   - onIncomingRequest: verifica sessione autenticata e CSRF.
   - onUploadCreate: valida i metadati con Zod, controlla quota utente e spazio disco, crea la riga in `uploads`.
   - onUploadFinish: calcola SHA-256, cifra il file nello storage definitivo (vedi sezione 4), cancella subito il file in chiaro, aggiorna il database.
-- Limite massimo: nessun limite fisso per file. Il limite è lo spazio libero su disco (fs.statfs) meno una riserva configurabile (default 1 GB). Siccome la cifratura richiede temporaneamente il doppio dello spazio, alla creazione dell'upload servono almeno 2 volte la dimensione del file più la riserva. Errore chiaro se non basta.
+- Limite massimo: nessun limite fisso per file. Il limite è lo spazio libero su disco (fs.statfs) meno una riserva configurabile (default 1 GB). Siccome la cifratura richiede temporaneamente il doppio dello spazio, alla creazione dell'upload servono almeno 2 volte la dimensione del file più la riserva. Errore chiaro se non basta. Con l'archiviazione S3 (sezione 4-bis) la copia cifrata esce dal server, quindi basta 1 volta la dimensione in `TMP_UPLOAD_DIR`.
 - Più file nello stesso trasferimento. Il destinatario può scaricare i singoli file o tutto come zip generato in streaming (decifratura e compressione al volo, niente zip su disco, RAM costante).
 - Download in streaming con supporto agli header Range, Content-Disposition corretto, nome file originale ripristinato.
 - Sui file in storage nomi casuali (UUID), mai il nome originale. Sanifica i nomi per evitare path traversal e caratteri pericolosi.
@@ -46,6 +46,16 @@ Documento di riferimento completo. Le regole di lavoro sono in `CLAUDE.md`, le f
 - Il file in chiaro esiste solo nella cartella temporanea di tus e solo fino al termine della cifratura. Dichiara questo compromesso nel README.
 - Rotazione della chiave master: deve richiedere solo di ricifrare le chiavi dati, non i file. Prevedi un comando CLI dedicato.
 - Test obbligatori: cifratura e decifratura complete, richieste Range a cavallo di segmenti, file vuoti, rilevamento di un segmento alterato.
+
+### 4-bis. Archiviazione dei file: disco locale o S3 (fase 9)
+I file cifrati stanno di default sul disco locale (`STORAGE_DIR`). In alternativa, e in modo facoltativo, su un servizio compatibile S3 (Cloudflare R2, MinIO, AWS S3, Backblaze B2, Wasabi...), da Impostazioni → Archiviazione o dal passo facoltativo "Dove salvare i file" del wizard (tra Cloudflare e Impostazioni generali).
+- Driver: interfaccia `StorageDriver` (`put`, `openReader` a intervalli, `delete`, `list`, `recover`, `capacity`) con due implementazioni, `local` e `s3`. S3 usa un client nostro su `aws4fetch` (SigV4, nessun `@aws-sdk`), path-style o virtual-hosted, PutObject fino a 16 MB e multipart oltre (parti da 16 MB, RAM costante). I driver vedono solo byte cifrati con nome UUID (`transfer_files.storage_name`): la cifratura (sezione 4) resta sopra di loro e il formato è identico su ogni driver.
+- Ogni file ricorda dove sta (`transfer_files.storage`, `local|s3`): cambiare driver vale per i nuovi file, quelli esistenti restano dove sono finché non si spostano. Il download passa sempre dall'API (letture a intervalli e decifratura al volo, zip incluso), mai da un redirect al bucket.
+- Configurazione: impostazione `storage` (`driver`, `s3`, `source`) nella tabella `settings`, cifrata per intero con la chiave HKDF `storage`; la secret key non esce mai dalle API. Le variabili `STORAGE_DRIVER`, `S3_*` e `S3_SECRET_ACCESS_KEY_FILE` si importano **solo al primo avvio**, poi la fonte di verità è il DB (la pagina avvisa se il `.env` non coincide più).
+- Prova prima di salvare: la prova scrive, legge a intervalli ed elimina un oggetto; il salvataggio di una configurazione S3 nuova o modificata richiede una prova riuscita con gli stessi valori nei 30 minuti precedenti (`STORAGE_NOT_VERIFIED`). Con file su S3, endpoint, bucket e prefisso non si possono cambiare (`STORAGE_IN_USE`).
+- Spazio: su disco locale servono 2 volte la dimensione (tus più copia cifrata); con S3 una volta, in `TMP_UPLOAD_DIR` (la copia cifrata esce dal server). Sul bucket non si controlla nulla. Restano in locale DB, `secrets/`, branding e i file temporanei tus.
+- Migrazione in entrambe le direzioni: job in background nel pannello (una sola alla volta, annullabile, avanzamento, riprende dopo un riavvio) e CLI `storage-migrate --to s3|local [--dry-run]`. Copia i byte cifrati così come sono (chiavi invariate), un file alla volta; la sorgente si elimina dopo 1 ora tramite la coda `storage_deletions`, così i download in corso finiscono.
+- Backup: `scripts/backup.sh` non include gli oggetti S3; il bucket si salva a parte. DB e chiave master dell'archivio bastano a decifrarli.
 
 ## 5. Condivisione
 Due modalità, entrambe con scadenza obbligatoria a scelta tra 3 giorni, 1 settimana, 1 mese:
@@ -69,7 +79,7 @@ Un utente crea una richiesta (`upload_requests`) e condivide il link pubblico `P
 - Job schedulato nel backend (node-cron, ogni ora) che elimina trasferimenti scaduti, link revocati e upload incompleti, sia su disco sia nel database.
 - Lo stesso job elimina le righe di download_logs e audit_log più vecchie di LOG_RETENTION_DAYS (default 90) e i token di reset password scaduti.
 - Il controllo di scadenza va fatto ANCHE a ogni richiesta di download.
-- Eliminazione sicura rispetto agli errori: se la cancellazione di un file fallisce, riprova al ciclo successivo e logga l'errore.
+- Eliminazione sicura rispetto agli errori: se la cancellazione di un file fallisce, riprova al ciclo successivo e logga l'errore. Un oggetto che non si riesce a cancellare (S3 irraggiungibile, errore del disco) finisce nella coda `storage_deletions`, che la pulizia riprova fino a 10 volte; la stessa coda tiene le sorgenti di una migrazione per 1 ora. La scansione degli orfani controlla ogni driver.
 
 ## 7. Utenti, ruoli e autenticazione
 - Nessuna registrazione pubblica: gli utenti li crea solo l'admin.
@@ -99,7 +109,8 @@ Al primo avvio l'app mostra un wizard, eseguibile una sola volta:
 2. Creazione dell'admin (email, password) con 2FA obbligatorio (QR code + verifica del primo codice + codici di recupero).
 3. SMTP (host, porta, TLS, utente, password, mittente) con "invia email di prova". Non si prosegue finché la prova non riesce.
 4. Dominio e Cloudflare: il wizard chiede il dominio e un API token Cloudflare con permessi minimi (Account > Cloudflare Tunnel: Edit, Zone > DNS: Edit, Zone > Zone: Read) e mostra come crearlo. Tramite API il backend crea il tunnel, configura l'ingress verso il container web e crea il record DNS CNAME proxied. Il dominio deve essere già gestito da Cloudflare. Il token API non viene salvato. Il token del tunnel viene scritto in SHARED_DIR, e l'entrypoint di cloudflared attende il file prima di avviarsi (niente Docker socket). Errori chiari (token non valido, zona non trovata, record già esistente) con possibilità di riprovare.
-5. Impostazioni generali: nome dell'istanza, riserva disco, dimensione dei chunk, lingua predefinita, tema predefinito.
+5. Archiviazione dei file (facoltativo, fase 9): disco locale (predefinito, si prosegue con un clic) oppure S3 (endpoint, regione, bucket, prefisso, path-style, chiavi), con prova di connessione obbligatoria prima di salvare. Si può cambiare più avanti in Impostazioni → Archiviazione.
+6. Impostazioni generali: nome dell'istanza, riserva disco, dimensione dei chunk, lingua predefinita, tema predefinito.
 Finché il setup non è completo, le altre rotte reindirizzano al wizard.
 
 Comportamento con APP_MODE=local:
@@ -129,6 +140,7 @@ Nell'ambiente vanno solo i parametri di avvio. Tutto ciò che si configura nel w
 - SESSION_SECRET: stesso meccanismo.
 - SETUP_CODE_TTL_MINUTES (60), PASSWORD_RESET_TTL_MINUTES (30), LOG_RETENTION_DAYS (90), INCOMPLETE_UPLOAD_TTL_HOURS (24), CLEANUP_CRON ("0 * * * *").
 - DEFAULT_DISK_RESERVE_MB (1024), DEFAULT_CHUNK_SIZE_MB (25): usati solo prima del wizard.
+- Archiviazione S3 (facoltativa, fase 9), importata solo al primo avvio nell'impostazione `storage` e poi ignorata: STORAGE_DRIVER (`local` o `s3`, vuoto = locale), S3_ENDPOINT, S3_REGION, S3_BUCKET, S3_PREFIX, S3_FORCE_PATH_STYLE, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY oppure S3_SECRET_ACCESS_KEY_FILE (percorso relativo a `secrets/`, preferibile).
 Il token API Cloudflare non è una variabile d'ambiente.
 
 ## 11-bis. Esecuzione in locale
@@ -152,7 +164,9 @@ Id testuali casuali, timestamp in secondi Unix, PRAGMA foreign_keys=ON, journal_
 - sessions: id (hash del token), user_id (FK cascade), expires_at, created_at, ip_hash, user_agent, mfa_verified.
 - transfers: id, owner_id (FK), token (unico), title, message, mode (link|email), expires_at, password_hash, max_downloads, download_count, total_bytes, status (uploading|active|revoked|expired|deleted), created_at, first_downloaded_at, notified_at, source (sent|received), upload_request_id (FK set null), sender_name, sender_email.
 - upload_requests: id, owner_id (FK restrict), token (unico), title, message, password_hash, max_total_bytes, max_submissions, require_name, require_email, expires_at, expires_in, status (active|revoked, `expired` derivato da expires_at), submission_count, received_bytes, created_at, updated_at. Indici su owner e (status, expires_at).
-- transfer_files: id, transfer_id (FK cascade), original_name, storage_name, size_bytes (in chiaro), stored_size_bytes, mime_type, sha256, enc_key_wrapped, enc_nonce_prefix, enc_segment_size, enc_version, created_at.
+- transfer_files: id, transfer_id (FK cascade), original_name, storage_name, storage (`local|s3`, default `local`: dove sta il file cifrato), size_bytes (in chiaro), stored_size_bytes, mime_type, sha256, enc_key_wrapped, enc_nonce_prefix, enc_segment_size, enc_version, created_at.
+- storage_migrations (fase 9): id, target (`local|s3`), status (running|cancelling|done|failed|cancelled), total_files, done_files, total_bytes, done_bytes, failed_files, error_code, started_by (FK, null per la CLI), started_at, updated_at, finished_at. Indice su status.
+- storage_deletions (fase 9): id, storage (`local|s3`), name (nome oggetto), delete_after (secondi Unix), attempts, created_at. Coda di cancellazioni differite o da riprovare. Indice su delete_after.
 - transfer_recipients: id, transfer_id (FK cascade), email, notified_at.
 - uploads: id (id dell'upload tus), owner_id (FK), transfer_id (FK, nullable fino al completamento), file_name, total_size, status (in_progress|completed|aborted), created_at, last_activity_at, expires_at.
 - download_logs: id, transfer_id (FK cascade), file_id, ip_hash, user_agent, bytes_sent, created_at.
@@ -219,7 +233,7 @@ Nella fase 0 proponimi le opzioni con pro e contro e fammi scegliere, poi implem
 A fine fase 6: verifica che l'intero flusso funzioni dall'inizio alla fine (pull request, CI verde, merge, pull request di release, tag, immagini su GHCR, deploy di prova) e prepara la release v0.1.0 lasciando a me il merge.
 
 ## 16. Backup e manutenzione
-- Cosa salvare: volume del DB, volume dei file, cartella secrets (chiave master), branding, configurazione. Backup consistente del DB con il comando .backup di SQLite, non copia a caldo.
+- Cosa salvare: volume del DB, volume dei file, cartella secrets (chiave master), branding, configurazione. Backup consistente del DB con il comando .backup di SQLite, non copia a caldo. I file salvati su S3 (sezione 4-bis) non sono nell'archivio: il bucket si salva a parte (versioning, replica, `rclone sync`); DB e chiave master dell'archivio servono a decifrarli.
 - Procedura di ripristino e di aggiornamento secondo il metodo di deploy scelto (sezione 15.7).
 - Endpoint /health.
 - Parametri dell'LXC per Docker (nesting, keyctl) e attenzioni sullo spazio disco.
