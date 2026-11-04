@@ -14,6 +14,6 @@ Closes #
 
 - [ ] Lint, typecheck and tests pass
 - [ ] CI is green
-- [ ] Docs and the "Decisioni" section of CLAUDE.md are updated if needed
+- [ ] Docs and CLAUDE.md or the matching `.claude/rules/` file are updated if needed
 - [ ] No secrets in code, logs or error messages
 - [ ] The PR title follows Conventional Commits
