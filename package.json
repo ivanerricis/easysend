@@ -23,6 +23,7 @@
     "db:migrate": "pnpm --filter @easysend/api run db:migrate",
     "user:create-admin": "pnpm --filter @easysend/api run user:create-admin --",
     "key:rotate": "pnpm --filter @easysend/api run key:rotate --",
+    "storage:migrate": "pnpm --filter @easysend/api run storage:migrate --",
     "mail:preview": "pnpm --filter @easysend/api run mail:preview",
     "db:check": "pnpm run db:generate && git diff --exit-code apps/api/drizzle",
     "api:docs": "pnpm --filter @easysend/shared run docs:generate",

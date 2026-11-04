@@ -9,6 +9,7 @@ import { maskLogUrl } from './http/log-url.js';
 import { requestId } from './http/request-id.js';
 import type { Logger } from './logger.js';
 import { adminTunnelRouter } from './routes/admin-tunnel.js';
+import { adminStorageRouter } from './routes/admin-storage.js';
 import { adminUpdatesRouter } from './routes/admin-updates.js';
 import { adminUsersRouter } from './routes/admin-users.js';
 import { authRouter } from './routes/auth.js';
@@ -116,6 +117,7 @@ export function createAppWithContext(deps: AppDeps): { app: Express; ctx: AppCon
     setupRouter(ctx),
     settingsRouter(ctx),
     adminTunnelRouter(ctx),
+    adminStorageRouter(ctx),
     adminUpdatesRouter(ctx),
   );
 

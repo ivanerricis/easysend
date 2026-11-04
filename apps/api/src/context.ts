@@ -17,6 +17,7 @@ import { statfsDiskSpace, type DiskSpace } from './storage/disk.js';
 import { createStorageRegistry, type StorageRegistry } from './storage/registry.js';
 import { createS3Driver, probeS3 } from './storage/s3/driver.js';
 import type { StorageDriver } from './storage/types.js';
+import { createStorageVerification, type StorageVerification } from './storage/verification.js';
 import { createSetupCodeService, type SetupCodeService } from './setup/code.js';
 import { createSetupLimiters, type SetupLimiters } from './setup/limiters.js';
 import { createUpdateLimiters, type UpdateLimiters } from './updates/policy.js';
@@ -70,6 +71,8 @@ export interface AppContext {
   mailer: Mailer;
   /** Remembers the last SMTP configuration that passed a test email (wizard and admin panel). */
   smtpVerification: SmtpVerification;
+  /** Remembers the last S3 configuration that passed a connection test (wizard and panel). */
+  storageVerification: StorageVerification;
   /** `fetch` for the Cloudflare API (injectable for tests). */
   cloudflareFetch: typeof fetch;
   /**
@@ -136,6 +139,7 @@ export function createContext(deps: AppDeps): AppContext {
     settings,
     mailer,
     smtpVerification: createSmtpVerification(clock),
+    storageVerification: createStorageVerification(clock),
     cloudflareFetch: deps.cloudflareFetch ?? globalThis.fetch,
     updates: createUpdateService({
       url: config.updateCheckUrl,

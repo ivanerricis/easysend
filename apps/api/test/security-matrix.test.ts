@@ -11,23 +11,7 @@ import {
 } from './helpers.js';
 import { loginAs } from './session-helpers.js';
 
-/**
- * Phase 9 (S3 storage) endpoints that are in the contract but have no route yet (they arrive with
- * the storage configuration work package). Remove each id from this list when its route is
- * mounted and add it to the covered lists below.
- */
-const PENDING_PHASE_9: ReadonlySet<string> = new Set([
-  'settings.storage',
-  'settings.storageTest',
-  'settings.storageUpdate',
-  'setup.storage',
-  'setup.storageTest',
-  'setup.storageSave',
-  'storage.migration',
-  'storage.migrationStart',
-  'storage.migrationCancel',
-]);
-const endpoints = registry.filter((e) => !PENDING_PHASE_9.has(e.id));
+const endpoints = registry;
 
 /**
  * Cross-cutting authorization and CSRF matrix, driven by the shared endpoint registry.
@@ -60,6 +44,9 @@ const COVERED_TAGS: ReadonlySet<string> = new Set([
 ]);
 const COVERED_IDS: ReadonlySet<string> = new Set([
   'admin.storage',
+  'storage.migration',
+  'storage.migrationCancel',
+  'storage.migrationStart',
   'admin.tunnelGet',
   'admin.tunnelSet',
   'admin.updateRun',
@@ -118,6 +105,12 @@ const EXPECTED_IDS = [
   'settings.public',
   'settings.smtpSave',
   'settings.smtpTest',
+  'settings.storage',
+  'settings.storageTest',
+  'settings.storageUpdate',
+  'storage.migration',
+  'storage.migrationCancel',
+  'storage.migrationStart',
   'submissions.cancel',
   'submissions.create',
   'submissions.finalize',
