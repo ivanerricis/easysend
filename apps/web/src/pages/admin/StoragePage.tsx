@@ -1,8 +1,9 @@
 import type { StorageResponse } from '@easysend/shared';
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCw } from 'lucide-react';
+import { BookOpen, ExternalLink, RefreshCw } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import { queryKeys } from '@/app/query';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/States';
@@ -107,6 +108,88 @@ export default function StoragePage() {
   );
 }
 
+/** Read-only card: where /data lives on the host (DATA_PATH) and how much room that disk has. */
+function DataLocation({ data, locale }: { data: StorageResponse; locale: string }) {
+  const { t } = useTranslation();
+  const hostPath = data.dataLocation.hostPath;
+  return (
+    <section aria-labelledby="storage-location" className="ring-foreground/10 space-y-3 p-4 ring-1">
+      <h2 id="storage-location" className="text-lg font-semibold">
+        {t('admin.storage.location.title')}
+      </h2>
+      <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-3">
+        <div className="space-y-0.5">
+          <dt className="text-muted-foreground text-sm">{t('admin.storage.location.where')}</dt>
+          <dd className="font-mono text-sm font-medium break-all">
+            {hostPath ?? t('admin.storage.location.dockerVolume')}
+          </dd>
+        </div>
+        <div className="space-y-0.5">
+          <dt className="text-muted-foreground text-sm">{t('admin.storage.location.free')}</dt>
+          <dd className="font-mono text-sm font-medium">
+            {formatBytes(data.disk.freeBytes, locale)}
+          </dd>
+        </div>
+        <div className="space-y-0.5">
+          <dt className="text-muted-foreground text-sm">{t('admin.storage.location.reserve')}</dt>
+          <dd className="font-mono text-sm font-medium">
+            {formatBytes(data.disk.reserveBytes, locale)}
+          </dd>
+        </div>
+      </dl>
+      <p className="text-muted-foreground text-xs">{t('admin.storage.location.help')}</p>
+      <a
+        href={t('admin.storage.location.docsUrl')}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex min-h-11 items-center gap-1.5 text-sm underline underline-offset-4"
+      >
+        <BookOpen aria-hidden="true" className="size-4" />
+        {t('admin.storage.location.docs')}
+        <ExternalLink aria-hidden="true" className="size-4" />
+        <span className="sr-only">{t('admin.storage.location.newTab')}</span>
+      </a>
+    </section>
+  );
+}
+
+/** Active storage driver and the files held by each driver; links to the settings. */
+function DriverCard({ data, locale }: { data: StorageResponse; locale: string }) {
+  const { t } = useTranslation();
+  return (
+    <section aria-labelledby="storage-driver" className="ring-foreground/10 space-y-3 p-4 ring-1">
+      <h2 id="storage-driver" className="text-lg font-semibold">
+        {t('admin.storage.driver.title')}
+      </h2>
+      <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-3">
+        <div className="space-y-0.5">
+          <dt className="text-muted-foreground text-sm">{t('admin.storage.driver.active')}</dt>
+          <dd className="text-sm font-medium">{t(`admin.storage.driver.${data.driver}`)}</dd>
+        </div>
+        {(['local', 's3'] as const).map((driver) => (
+          <div key={driver} className="space-y-0.5">
+            <dt className="text-muted-foreground text-sm">{t(`admin.storage.driver.${driver}`)}</dt>
+            <dd className="font-mono text-sm font-medium">
+              {t('admin.storage.driver.files', { count: data.usageByDriver[driver].files })}
+              {', '}
+              {formatBytes(data.usageByDriver[driver].bytes, locale)}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {data.driver === 's3' ? (
+        <p className="text-muted-foreground text-xs">{t('admin.storage.driver.s3Note')}</p>
+      ) : null}
+      <Link
+        to="/admin/settings/storage"
+        className="inline-flex min-h-11 items-center text-sm underline underline-offset-4"
+      >
+        {t('admin.storage.driver.manage')}
+      </Link>
+    </section>
+  );
+}
+
 function StorageContent({
   data,
   updatedAt,
@@ -133,6 +216,8 @@ function StorageContent({
   return (
     <div className="space-y-8">
       {children}
+      <DriverCard data={data} locale={locale} />
+      <DataLocation data={data} locale={locale} />
       <section aria-labelledby="storage-disk" className="space-y-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="storage-disk" className="text-lg font-semibold">

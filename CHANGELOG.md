@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.3.0](https://github.com/ivanerricis/easysend/compare/v0.2.0...v0.3.0) (2026-11-04)
+
+
+### Features
+
+* selectable S3-compatible storage (phase 9) ([#52](https://github.com/ivanerricis/easysend/issues/52)) ([d38d507](https://github.com/ivanerricis/easysend/commit/d38d5074b03869e434bfc1d93955efd3e0065ef3))
+
+## [0.2.0](https://github.com/ivanerricis/easysend/compare/v0.1.1...v0.2.0) (2026-11-04)
+
+
+### Features
+
+* configurable host folder for the data (DATA_PATH) ([#40](https://github.com/ivanerricis/easysend/issues/40)) ([6d61861](https://github.com/ivanerricis/easysend/commit/6d61861c91af876b14acea774ed67b22372e1890))
+* one-click update from the admin panel (phase 7) ([#26](https://github.com/ivanerricis/easysend/issues/26)) ([e24e7cd](https://github.com/ivanerricis/easysend/commit/e24e7cd949d2e0379ac70181dfa609815baf1eb8))
+* upload request links (phase 8) ([#49](https://github.com/ivanerricis/easysend/issues/49)) ([cd78716](https://github.com/ivanerricis/easysend/commit/cd78716b69160163d247de2819d457f1e2205bb3))
+* **web:** copy the share link from the transfers tables ([#46](https://github.com/ivanerricis/easysend/issues/46)) ([4f21652](https://github.com/ivanerricis/easysend/commit/4f216523a42fa8be6fe7b066d70d9ac9a141cc5e))
+
+
+### Bug Fixes
+
+* **api:** create the tus upload directory synchronously ([#48](https://github.com/ivanerricis/easysend/issues/48)) ([8e0f19c](https://github.com/ivanerricis/easysend/commit/8e0f19c3d592e582f02cc7999a77aac3d15d8dbf))
+* patch audited dependencies and restore the pointer cursor ([#38](https://github.com/ivanerricis/easysend/issues/38)) ([a387809](https://github.com/ivanerricis/easysend/commit/a387809af79f89c4efba588ca7fb60b2ba1615bf))
+* remove the old DNS record after a domain change and warn about a stale PUBLIC_URL ([#47](https://github.com/ivanerricis/easysend/issues/47)) ([200f35c](https://github.com/ivanerricis/easysend/commit/200f35cdde2266e9ad3801ea24b72c5f2ea4b84b))
+* **upload:** accept files whose type the browser does not know ([#24](https://github.com/ivanerricis/easysend/issues/24)) ([bc69949](https://github.com/ivanerricis/easysend/commit/bc699499328299d825b2c40b6436ac77cb9fbdce))
+* **web:** give every form field an id or name ([#25](https://github.com/ivanerricis/easysend/issues/25)) ([7386e44](https://github.com/ivanerricis/easysend/commit/7386e446891a2f94815be8c8b1be0da640dd8e51))
+
 ## [0.1.1](https://github.com/ivanerricis/easysend/compare/v0.1.0...v0.1.1) (2026-10-21)
 
 

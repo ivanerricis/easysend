@@ -15,16 +15,13 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { isApiError } from '@/lib/api/client';
-import {
-  deleteTransfer,
-  deleteTransferFile,
-  getTransfer,
-  resendTransfer,
-  revokeTransfer,
-} from '@/lib/api/transfers';
+import { displayPath } from '@/features/upload/folders';
+import { FileTree } from '@/components/files/FileTree';
+import { deleteTransferFile, getTransfer } from '@/lib/api/transfers';
 import { errorMessage } from '@/lib/errors';
 import { formatBytes, formatDateTime, formatRelative } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/toast';
+import { useTransferActions } from './actions/useTransferActions';
 import { DownloadLog } from './detail/DownloadLog';
 import { EditTransferDialog } from './detail/EditTransferDialog';
 import { downloadsText, transferTitle } from './list-utils';
@@ -58,7 +55,6 @@ export default function TransferDetailPage() {
   const [editing, setEditing] = useState(false);
   const [confirm, setConfirm] = useState<'revoke' | 'delete' | null>(null);
   const [fileToDelete, setFileToDelete] = useState<TransferDetail['files'][number] | null>(null);
-  const [resending, setResending] = useState(false);
   const locale = i18n.language;
 
   const query = useQuery({
@@ -68,10 +64,13 @@ export default function TransferDetailPage() {
     refetchInterval: (q) => (q.state.data?.status === 'uploading' ? 5000 : false),
   });
 
-  const refreshLists = () => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.transfers.all });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.me });
-  };
+  const {
+    revoke,
+    remove: removeTransfer,
+    resend,
+    resending,
+    refreshLists,
+  } = useTransferActions(id, { isDraft: query.data?.status === 'uploading' });
 
   if (query.isPending) {
     return (
@@ -108,33 +107,11 @@ export default function TransferDetailPage() {
   const transfer = query.data;
   const isDraft = transfer.status === 'uploading';
   const isActive = transfer.status === 'active';
+  const isReceived = transfer.source === 'received';
   const showOwner = isAdmin && user !== null && transfer.ownerId !== user.id;
 
-  const setDetail = (updated: TransferDetail) => {
-    queryClient.setQueryData(queryKeys.transfers.detail(id), updated);
-    refreshLists();
-  };
-
-  const revoke = async () => {
-    try {
-      setDetail(await revokeTransfer(id));
-      notifySuccess(t('transfers.detail.revoked'));
-    } catch (error) {
-      notifyError(errorMessage(t, error));
-      throw error;
-    }
-  };
-
   const remove = async () => {
-    try {
-      await deleteTransfer(id);
-    } catch (error) {
-      notifyError(errorMessage(t, error));
-      throw error;
-    }
-    queryClient.removeQueries({ queryKey: queryKeys.transfers.detail(id) });
-    refreshLists();
-    notifySuccess(t(isDraft ? 'transfers.detail.draftDeleted' : 'transfers.detail.deleted'));
+    await removeTransfer();
     void navigate('/transfers');
   };
 
@@ -149,18 +126,6 @@ export default function TransferDetailPage() {
     notifySuccess(t('transfers.detail.fileDeleted'));
     await queryClient.invalidateQueries({ queryKey: queryKeys.transfers.detail(id) });
     refreshLists();
-  };
-
-  const resend = async () => {
-    setResending(true);
-    try {
-      setDetail(await resendTransfer(id));
-      notifySuccess(t('transfers.detail.resent'));
-    } catch (error) {
-      notifyError(errorMessage(t, error));
-    } finally {
-      setResending(false);
-    }
   };
 
   const title = transferTitle(transfer, t('transfers.list.untitled'));
@@ -181,7 +146,7 @@ export default function TransferDetailPage() {
           {t('common.actions.edit')}
         </Button>
       ) : null}
-      {isActive && transfer.mode === 'email' ? (
+      {isActive && transfer.mode === 'email' && !isReceived ? (
         <Button type="button" variant="outline" disabled={resending} onClick={() => void resend()}>
           <Mail aria-hidden="true" />
           {resending ? t('common.actions.working') : t('transfers.detail.resend')}
@@ -213,6 +178,30 @@ export default function TransferDetailPage() {
 
         {isDraft ? (
           <p className="border-border border p-4 text-sm">{t('transfers.detail.draftNotice')}</p>
+        ) : null}
+
+        {isReceived ? (
+          <Section id="sender-heading" title={t('transfers.detail.sender')}>
+            <dl className="border-border grid gap-x-6 gap-y-4 border p-4 sm:grid-cols-2">
+              <Fact label={t('transfers.detail.senderName')}>
+                {transfer.senderName ?? t('transfers.detail.anonymousSender')}
+              </Fact>
+              <Fact label={t('transfers.detail.senderEmail')}>
+                {transfer.senderEmail ?? t('transfers.detail.anonymousSender')}
+              </Fact>
+            </dl>
+            {transfer.uploadRequestId ? (
+              <p className="text-sm">
+                {t('transfers.detail.receivedVia')}:{' '}
+                <Link
+                  to={`/requests/${transfer.uploadRequestId}`}
+                  className="underline underline-offset-4"
+                >
+                  {t('transfers.detail.openRequest')}
+                </Link>
+              </p>
+            ) : null}
+          </Section>
         ) : null}
 
         {isActive && transfer.shareUrl ? (
@@ -285,10 +274,14 @@ export default function TransferDetailPage() {
           {transfer.files.length === 0 ? (
             <p className="text-muted-foreground text-sm">{t('transfers.detail.noFiles')}</p>
           ) : (
-            <ul className="divide-border border-border divide-y border">
-              {transfer.files.map((file) => (
-                <li key={file.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2 pl-3">
-                  <span className="min-w-0 flex-1 basis-48 text-sm break-all">{file.name}</span>
+            <FileTree
+              files={transfer.files}
+              fileRowClassName="flex flex-wrap items-center gap-x-4 gap-y-1 py-2 pl-3"
+              renderFile={(file) => (
+                <>
+                  <span className="min-w-0 flex-1 basis-48 text-sm [overflow-wrap:anywhere]">
+                    {file.name}
+                  </span>
                   <span className="text-muted-foreground font-mono text-xs">
                     {formatBytes(file.sizeBytes, locale)}
                   </span>
@@ -320,9 +313,9 @@ export default function TransferDetailPage() {
                   ) : (
                     <span className="w-2" />
                   )}
-                </li>
-              ))}
-            </ul>
+                </>
+              )}
+            />
           )}
           {isDraft && transfer.uploads.length > 0 ? (
             <div className="space-y-2">
@@ -333,7 +326,9 @@ export default function TransferDetailPage() {
                     key={upload.id}
                     className="flex flex-wrap justify-between gap-2 px-3 py-2 text-sm"
                   >
-                    <span className="min-w-0 break-all">{upload.fileName}</span>
+                    <span className="min-w-0 break-all">
+                      {displayPath(upload.path, upload.fileName)}
+                    </span>
                     <span className="text-muted-foreground">
                       <span className="font-mono text-xs">
                         {formatBytes(upload.totalSize, locale)}
@@ -347,7 +342,7 @@ export default function TransferDetailPage() {
           ) : null}
         </Section>
 
-        {transfer.mode === 'email' ? (
+        {transfer.mode === 'email' && !isReceived ? (
           <Section id="recipients-heading" title={t('transfers.detail.recipients')}>
             {transfer.recipients.length === 0 ? (
               <p className="text-muted-foreground text-sm">{t('transfers.detail.noRecipients')}</p>

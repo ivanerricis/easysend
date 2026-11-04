@@ -45,7 +45,7 @@ Cosa fa e cosa no:
 
 ### Installare il runner
 
-Una volta, come root, sull'LXC (la cartella di installazione deve stare sotto `/opt`, non sotto `/home`):
+Una volta, come root, sull'LXC. La cartella di installazione deve stare sotto `/opt` (o `/srv`): il servizio gira con `ProtectHome=read-only` e `ProtectSystem=full`, quindi `/home`, `/root`, `/usr` ed `/etc` per lui sono in sola lettura. `install` rifiuta una cartella così e `deploy.sh` lo segnala con un avviso; vedi [Spostare l'installazione in /opt](#spostare-l-installazione-in-opt).
 
 ```sh
 cd /opt/easysend
@@ -93,7 +93,30 @@ Una richiesta che il runner non prende in carico entro 2 minuti viene mostrata c
 - **"Non risponde"**, o la richiesta non parte mai: `systemctl status easysend-update.path` deve risultare `active (waiting)`. Altrimenti lancia `sudo ./scripts/update-service.sh status` e di nuovo `install`.
 - **"L'utente non è nel gruppo docker"**: `sudo usermod -aG docker <utente>`, oppure passa `--user`.
 - **Il pannello dice che il runner non è installato**: manca `updates/runner.json`; lancia `install`.
-- **L'aggiornamento fallisce con errori di permessi sul file di stato**: probabilmente la cartella di installazione è sotto `/home`. Il servizio gira con `ProtectHome=read-only`; sposta l'installazione in `/opt/easysend`.
+- **"The install directory … is under /home"** (da `install`, o come avviso di `deploy.sh`): vedi sotto.
+
+### Spostare l'installazione in /opt
+
+I deploy manuali funzionano da qualsiasi cartella, ma l'aggiornamento con un clic richiede l'installazione sotto `/opt`. Spostarla non fa perdere dati: database e file stanno nei volumi Docker `easysend_easysend-data` ed `easysend_easysend-shared`, che prendono il nome dal progetto Compose, e il progetto resta `easysend` se anche la nuova cartella si chiama `easysend`. Se `.env` imposta `DATA_PATH` su una cartella dentro quella vecchia, sposta anche quella e aggiorna il percorso.
+
+Come root (esempio da `/home/easysend`):
+
+```sh
+cd /home/easysend
+./scripts/backup.sh /root            # contiene la chiave master: copialo fuori dal server
+docker compose down                  # mai -v: cancellerebbe i volumi
+mkdir -p /opt/easysend
+for f in docker-compose.yml docker-compose.override.yml .env .env.example scripts .deploy secrets updates backups; do
+  [ -e "$f" ] && mv "$f" /opt/easysend/
+done
+chown -R <utente>:<utente> /opt/easysend   # l'account che eseguirà gli aggiornamenti
+chmod 600 /opt/easysend/.env
+cd /opt/easysend
+docker compose up -d --wait
+docker compose exec web wget -qO- http://127.0.0.1:8080/health; echo
+```
+
+Si spostano solo i file del progetto, quindi funziona anche se la vecchia cartella è la home di un utente. Controlla che l'istanza mostri ancora i trasferimenti, poi [installa il runner](#installare-il-runner).
 
 ### Rimuoverlo
 

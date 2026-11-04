@@ -1,6 +1,6 @@
 import type { ErrorRequestHandler, RequestHandler, Response } from 'express';
 import { ZodError } from 'zod';
-import { ERROR_CODES, type ErrorCode, type ErrorResponse } from '@easysend/shared';
+import { httpStatusFor, type ErrorCode, type ErrorResponse } from '@easysend/shared';
 import type { Logger } from '../logger.js';
 import { AppError } from './errors.js';
 import { getRequestId } from './request-id.js';
@@ -15,7 +15,7 @@ function send(
   const body: ErrorResponse = {
     error: { code, message, requestId, ...(details ? { details } : {}) },
   };
-  res.status(ERROR_CODES[code]).json(body);
+  res.status(httpStatusFor(code)).json(body);
 }
 
 export const notFoundHandler: RequestHandler = (req, res) => {

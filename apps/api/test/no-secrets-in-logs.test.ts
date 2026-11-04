@@ -1,25 +1,10 @@
-import { Writable } from 'node:stream';
 import supertest from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import { generateTotpCode } from '../src/auth/totp.js';
 import { SESSION_COOKIE } from '../src/http/cookies.js';
-import { createLogger } from '../src/logger.js';
 import { csrfClient, giveRecoveryCodes, loginWithTotp, postLogin } from './auth-flow.js';
-import { bodyAs, createTestApp, type TestApp, type TestClient } from './helpers.js';
+import { bodyAs, createTestApp, memoryLogger, type TestApp, type TestClient } from './helpers.js';
 import { loginAs } from './session-helpers.js';
-
-/** Logger with the production redaction rules, writing every level to memory. */
-function memoryLogger() {
-  const lines: string[] = [];
-  const stream = new Writable({
-    write(chunk: Buffer, _enc, cb) {
-      lines.push(chunk.toString());
-      cb();
-    },
-  });
-  const logger = createLogger({ logLevel: 'trace', nodeEnv: 'test', logPretty: false }, {}, stream);
-  return { lines, logger };
-}
 
 const auditDump = (t: TestApp): string =>
   JSON.stringify(t.db.sqlite.prepare('SELECT * FROM audit_log').all());

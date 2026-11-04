@@ -1,8 +1,7 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
-import { createReadStream, createWriteStream } from 'node:fs';
-import { open, rm } from 'node:fs/promises';
 import { Readable, Transform, type TransformCallback } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+import type { StorageDriver, StorageReader } from '../storage/types.js';
 import { decryptSecret, encryptSecret } from './aead.js';
 
 /**
@@ -33,7 +32,7 @@ export class SegmentDecryptError extends Error {
   }
 }
 
-/** Thrown by `encryptFile` when the source does not have exactly the declared size. */
+/** Thrown by `encryptToDriver` when the source does not have exactly the declared size. */
 export class SourceSizeError extends Error {
   constructor() {
     super('Source file size differs from the declared size');
@@ -77,17 +76,18 @@ function parsePrefix(noncePrefix: string): Buffer {
   return prefix;
 }
 
-export interface EncryptFileInput {
-  srcPath: string;
-  /** Created exclusively (fails when it exists). The caller picks a temporary name and renames it. */
-  dstPath: string;
+export interface EncryptToDriverInput {
+  /** Plaintext source (for example a read stream of the tus file). Consumed and destroyed on error. */
+  source: Readable;
+  driver: StorageDriver;
+  /** Object name in the driver (`transfer_files.storage_name`). */
+  name: string;
   /** Exact plaintext size of the source. */
   size: number;
   /** The derived master `file` key that wraps the new data key. */
   fileKey: Uint8Array;
 }
-
-export interface EncryptFileResult {
+export interface EncryptResult {
   /** Hex SHA-256 of the plaintext. */
   sha256: string;
   storedSize: number;
@@ -157,53 +157,53 @@ class SegmentEncryptor extends Transform {
   }
 }
 
+const PREMATURE_CLOSE = 'ERR_STREAM_PREMATURE_CLOSE';
+
+/** The most informative of two failures: an error that is not just "the other side closed". */
+function rootCause(errors: unknown[]): unknown {
+  return (
+    errors.find((e) => (e as NodeJS.ErrnoException | undefined)?.code !== PREMATURE_CLOSE) ??
+    errors[0]
+  );
+}
+
 /**
- * Encrypts `srcPath` into `dstPath` in one streaming pass (read, SHA-256 of the plaintext,
- * encrypt, write), with memory bounded by a couple of segments. The destination is flushed to
- * disk before resolving. Errors (including a source of the wrong size) remove the partial
- * destination. Writing to a temporary name and renaming on success is the caller's job.
+ * Encrypts `source` into the storage driver in one streaming pass (read, SHA-256 of the
+ * plaintext, encrypt, `driver.put`), with memory bounded by a couple of segments plus whatever
+ * the driver buffers (one 16 MiB part on S3). Errors (including a source of the wrong size) make
+ * the driver discard the partial object. Returns the metadata to store with the file row.
  */
-export async function encryptFile(input: EncryptFileInput): Promise<EncryptFileResult> {
-  const { srcPath, dstPath, size, fileKey } = input;
+export async function encryptToDriver(input: EncryptToDriverInput): Promise<EncryptResult> {
+  const { source, driver, name, size, fileKey } = input;
   const segmentSize = SEGMENT_SIZE;
   const dataKey = randomBytes(DATA_KEY_BYTES);
   const prefix = randomBytes(NONCE_PREFIX_BYTES);
   const encryptor = new SegmentEncryptor(size, dataKey, prefix, segmentSize);
+  const storedSize = storedSizeOf(size, segmentSize);
 
-  try {
-    // Flag `wx`: exclusive creation, an existing destination is never overwritten.
-    await pipeline(
-      createReadStream(srcPath, { highWaterMark: segmentSize }),
-      encryptor,
-      createWriteStream(dstPath, { flags: 'wx' }),
-    );
-    const out = await open(dstPath, 'r+');
-    try {
-      await out.sync();
-    } finally {
-      await out.close();
-    }
-  } catch (error) {
-    // An existing destination is not ours: leave it alone. Anything else is a partial output.
-    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
-      await rm(dstPath, { force: true }).catch(() => undefined);
-    }
-    throw error;
-  }
+  const feeding = pipeline(source, encryptor);
+  const putting = driver.put(name, encryptor, storedSize);
+  const [fed, put] = await Promise.allSettled([feeding, putting]);
+  const failures = [fed, put]
+    .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+    .map((r) => r.reason as unknown);
+  if (failures.length > 0) throw rootCause(failures);
 
   return {
     sha256: encryptor.digest(),
-    storedSize: storedSizeOf(size, segmentSize),
+    storedSize,
     wrappedKey: wrapDataKey(fileKey, dataKey),
     noncePrefix: prefix.toString('base64url'),
     segmentSize,
     version: ENC_VERSION,
   };
 }
-
 export type DecryptStreamInput = {
-  /** Encrypted file on disk. */
-  path: string;
+  /**
+   * Opened reader of the encrypted object (`driver.openReader`). The stream closes it when it
+   * ends, fails or is destroyed; if the call throws synchronously it is closed here.
+   */
+  reader: StorageReader;
   /** Plaintext size (`transfer_files.size_bytes`). */
   size: number;
   /** Base64url, `transfer_files.enc_nonce_prefix`. */
@@ -222,7 +222,7 @@ async function* decryptRecords(
   prefix: Buffer,
   range: { start: number; end: number },
 ): AsyncGenerator<Buffer> {
-  const { path, size } = input;
+  const { reader, size } = input;
   const segmentSize = input.segmentSize ?? SEGMENT_SIZE;
   const total = segmentCount(size, segmentSize);
   const recordSize = segmentSize + TAG_BYTES;
@@ -230,19 +230,17 @@ async function* decryptRecords(
   const first = size === 0 ? 0 : Math.floor(range.start / segmentSize);
   const last = size === 0 ? 0 : Math.floor(range.end / segmentSize);
 
-  const handle = await open(path, 'r');
   try {
     // Catches truncation and trailing data even when the requested range does not reach them.
-    if ((await handle.stat()).size !== storedSize) {
+    if (reader.size !== storedSize) {
       throw new SegmentDecryptError('Stored size mismatch');
     }
-    const batch = Buffer.allocUnsafe(recordSize * READ_BATCH_RECORDS);
     for (let index = first; index <= last; index += READ_BATCH_RECORDS) {
       const count = Math.min(READ_BATCH_RECORDS, last - index + 1);
       const batchEnd = Math.min((index + count) * recordSize, storedSize);
       const bytes = batchEnd - index * recordSize;
-      const { bytesRead } = await handle.read(batch, 0, bytes, index * recordSize);
-      if (bytesRead !== bytes) throw new SegmentDecryptError('Unexpected end of file');
+      const batch = await reader.read(index * recordSize, bytes);
+      if (batch.length !== bytes) throw new SegmentDecryptError('Unexpected end of file');
 
       for (let i = 0; i < count; i += 1) {
         const segment = index + i;
@@ -272,7 +270,7 @@ async function* decryptRecords(
       }
     }
   } finally {
-    await handle.close();
+    await reader.close();
   }
 }
 
@@ -285,6 +283,15 @@ async function* decryptRecords(
  * Without a range the whole file is returned (an empty file yields no bytes but is verified).
  */
 export function createDecryptStream(input: DecryptStreamInput): Readable {
+  try {
+    return buildDecryptStream(input);
+  } catch (error) {
+    void input.reader.close().catch(() => undefined);
+    throw error;
+  }
+}
+
+function buildDecryptStream(input: DecryptStreamInput): Readable {
   const { size } = input;
   if (!Number.isSafeInteger(size) || size < 0) throw new RangeError('Invalid size');
   const whole = input.start === undefined && input.end === undefined;
@@ -301,7 +308,10 @@ export function createDecryptStream(input: DecryptStreamInput): Readable {
       ? Buffer.from(input.dataKey)
       : unwrapDataKey(input.fileKey, input.wrappedKey);
   const prefix = parsePrefix(input.noncePrefix);
-  return Readable.from(decryptRecords(input, dataKey, prefix, { start, end }), {
+  const stream = Readable.from(decryptRecords(input, dataKey, prefix, { start, end }), {
     objectMode: false,
   });
+  // A stream destroyed before it was first read never runs the generator: close the reader here.
+  stream.once('close', () => void input.reader.close().catch(() => undefined));
+  return stream;
 }

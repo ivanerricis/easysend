@@ -18,7 +18,8 @@ The steps:
 1. **Admin account**: email and password, then mandatory two-factor authentication (scan the QR code) and your recovery codes. Save the codes: they are shown once.
 2. **SMTP**: server, port, credentials and sender. The wizard sends a test email and does not let you continue until it succeeds.
 3. **Cloudflare**: your domain, the hostname for the app and an API token ([Cloudflare API token](./cloudflare)).
-4. **General settings**: instance name, disk space reserve, upload chunk size, default language and theme.
+4. **Where to save the files**: the local disk (default, just click Continue) or an S3-compatible service ([S3 storage](./s3-storage)). You can change your mind later in **Settings > File storage**.
+5. **General settings**: instance name, disk space reserve, upload chunk size, default language and theme.
 
 When the Cloudflare step ends, the `cloudflared` container starts by itself and the app answers at `https://<your hostname>`. From then on you can close the SSH tunnel and use the public address.
 

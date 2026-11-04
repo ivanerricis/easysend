@@ -40,6 +40,12 @@ export const ERROR_MEANINGS: Record<ErrorCode, string> = {
   TRANSFER_REVOKED: 'The transfer was revoked by its owner or an admin.',
   DOWNLOAD_LIMIT_REACHED: 'The maximum number of downloads was reached.',
   RANGE_NOT_SATISFIABLE: 'The `Range` header is outside the file size.',
+  REQUEST_NOT_FOUND:
+    'No such upload request, or not visible to the caller (existence is never revealed).',
+  REQUEST_EXPIRED: 'The upload request is expired.',
+  REQUEST_REVOKED: 'The upload request was revoked by its owner or an admin.',
+  REQUEST_FULL: 'The maximum number of submissions of the upload request was reached.',
+  REQUEST_SIZE_LIMIT: 'The upload would exceed the total size limit of the upload request.',
   SETUP_ALREADY_COMPLETED: 'The setup wizard was already completed.',
   SETUP_CODE_INVALID: 'Wrong setup code.',
   SETUP_CODE_EXPIRED: 'The setup code expired; restart the API to get a new one.',
@@ -55,6 +61,13 @@ export const ERROR_MEANINGS: Record<ErrorCode, string> = {
   UPDATE_IN_PROGRESS: 'An update was already requested or is running.',
   UPDATE_VERSION_NOT_AVAILABLE:
     'The requested version is not a published release newer than the running one.',
+  STORAGE_TEST_FAILED:
+    'The storage connection test failed (`details.reason` is one of ACCESS_DENIED, NO_SUCH_BUCKET, SIGNATURE, TIMEOUT, NETWORK, ENDPOINT).',
+  STORAGE_NOT_VERIFIED: 'The storage settings were not verified with a successful connection test.',
+  STORAGE_IN_USE:
+    'Endpoint, bucket or prefix cannot change (or the S3 configuration cannot be removed) while files are stored on S3: migrate them first.',
+  STORAGE_UNAVAILABLE: 'The configured file storage did not answer or refused the request.',
+  MIGRATION_RUNNING: 'A storage migration is already running.',
   INVALID_IMAGE: 'The file is not a valid PNG, JPEG or WebP image (magic bytes checked).',
 };
 

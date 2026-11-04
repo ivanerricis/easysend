@@ -41,8 +41,7 @@
       "currentRequired": "Inserisci la password attuale.",
       "tooShort": "La nuova password è troppo corta.",
       "tooLong": "La nuova password è troppo lunga.",
-      "confirmRequired": "Ripeti la nuova password.",
-      "mismatch": "Le due password non coincidono."
+      "confirmRequired": "Ripeti la nuova password."
     }
   },
   "twoFactor": {

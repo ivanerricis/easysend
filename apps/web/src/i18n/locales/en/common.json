@@ -1,5 +1,4 @@
 {
-  "appName": "EasySend",
   "skipToContent": "Skip to main content",
   "notifications": "Notifications",
   "toggleSidebar": "Toggle menu",
@@ -11,6 +10,7 @@
     "main": "Main navigation",
     "send": "Send",
     "transfers": "Transfers",
+    "requests": "Receive files",
     "admin": "Administration",
     "users": "Users",
     "allTransfers": "All transfers",
@@ -24,8 +24,7 @@
     "profile": "Profile",
     "theme": "Theme",
     "language": "Language",
-    "logout": "Sign out",
-    "loggingOut": "Signing out…"
+    "logout": "Sign out"
   },
   "theme": {
     "label": "Theme",
@@ -46,7 +45,6 @@
     "delete": "Delete",
     "edit": "Edit",
     "retry": "Retry",
-    "back": "Back",
     "next": "Next",
     "continue": "Continue",
     "copy": "Copy",
@@ -61,7 +59,6 @@
     "search": "Search",
     "clear": "Clear",
     "add": "Add",
-    "apply": "Apply",
     "reset": "Reset",
     "details": "Details",
     "open": "Open",
@@ -81,9 +78,7 @@
     "recipients_one": "{{count}} recipient",
     "recipients_other": "{{count}} recipients",
     "downloads_one": "{{count}} download",
-    "downloads_other": "{{count}} downloads",
-    "results_one": "{{count}} result",
-    "results_other": "{{count}} results"
+    "downloads_other": "{{count}} downloads"
   },
   "states": {
     "loading": "Loading…",
@@ -123,8 +118,7 @@
     "hide": "Hide password"
   },
   "otp": {
-    "label": "6-digit code",
-    "hint": "Enter the code from your authenticator app."
+    "label": "6-digit code"
   },
   "qr": {
     "label": "QR code to scan with your authenticator app"
@@ -141,9 +135,6 @@
   "confirmDialog": {
     "confirm": "Confirm",
     "cancel": "Cancel"
-  },
-  "route": {
-    "titleSuffix": "{{title}} · {{name}}"
   },
   "updateNotice": {
     "label": "Update available",

@@ -5,7 +5,7 @@
 ./scripts/uninstall.sh --purge    # cancella anche volumi, .env e .deploy/
 ```
 
-Il comando predefinito è reversibile: `./scripts/deploy.sh <versione>` riporta tutto com'era. `--purge` propone prima un backup e chiede di digitare `easysend`. La cartella `backups/` viene mantenuta.
+Il comando predefinito è reversibile: `./scripts/deploy.sh <versione>` riporta tutto com'era. `--purge` propone prima un backup e chiede di digitare `easysend`. La cartella `backups/` viene mantenuta. Se usi una cartella dati personalizzata (`DATA_PATH`, vedi [Posizione dei dati](./data-location)), `--purge` non la cancella mai: stampa il percorso e il comando per eliminarla a mano.
 
 Cloudflare non viene toccato, perché il token non è mai salvato. Pulisci a mano:
 

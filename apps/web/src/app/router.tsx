@@ -13,14 +13,21 @@ const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'));
 const WelcomePage = lazy(() => import('@/pages/auth/WelcomePage'));
 const DownloadPage = lazy(() => import('@/pages/download/DownloadPage'));
+const SubmitPage = lazy(() => import('@/pages/submit/SubmitPage'));
 const NewTransferPage = lazy(() => import('@/pages/transfers/NewTransferPage'));
 const TransfersPage = lazy(() => import('@/pages/transfers/TransfersPage'));
 const TransferDetailPage = lazy(() => import('@/pages/transfers/TransferDetailPage'));
+const RequestsPage = lazy(() => import('@/pages/requests/RequestsPage'));
+const RequestDetailPage = lazy(() => import('@/pages/requests/RequestDetailPage'));
 const ProfilePage = lazy(() => import('@/pages/profile/ProfilePage'));
 const UsersPage = lazy(() => import('@/pages/admin/UsersPage'));
 const AdminTransfersPage = lazy(() => import('@/pages/admin/AdminTransfersPage'));
 const StoragePage = lazy(() => import('@/pages/admin/StoragePage'));
-const SettingsPage = lazy(() => import('@/pages/admin/SettingsPage'));
+const GeneralSettingsPage = lazy(() => import('@/pages/admin/settings/GeneralSettingsPage'));
+const EmailSettingsPage = lazy(() => import('@/pages/admin/settings/EmailSettingsPage'));
+const CloudflareSettingsPage = lazy(() => import('@/pages/admin/settings/CloudflareSettingsPage'));
+const UpdatesSettingsPage = lazy(() => import('@/pages/admin/settings/UpdatesSettingsPage'));
+const StorageSettingsPage = lazy(() => import('@/pages/admin/settings/StorageSettingsPage'));
 const AppearancePage = lazy(() => import('@/pages/admin/AppearancePage'));
 
 /** Root element: API hooks, setup gate, the routed page and the toast region. */
@@ -64,6 +71,7 @@ export const appRoutes: RouteObject[] = [
           { path: 'reset-password', element: <ResetPasswordPage /> },
           { path: 'welcome', element: <WelcomePage /> },
           { path: 'd/:token', element: <DownloadPage /> },
+          { path: 'r/:token', element: <SubmitPage /> },
         ],
       },
       {
@@ -75,6 +83,8 @@ export const appRoutes: RouteObject[] = [
               { index: true, element: <NewTransferPage /> },
               { path: 'transfers', element: <TransfersPage /> },
               { path: 'transfers/:id', element: <TransferDetailPage /> },
+              { path: 'requests', element: <RequestsPage /> },
+              { path: 'requests/:id', element: <RequestDetailPage /> },
               { path: 'profile', element: <ProfilePage /> },
               {
                 element: <RequireAdmin />,
@@ -83,7 +93,15 @@ export const appRoutes: RouteObject[] = [
                   { path: 'admin/users', element: <UsersPage /> },
                   { path: 'admin/transfers', element: <AdminTransfersPage /> },
                   { path: 'admin/storage', element: <StoragePage /> },
-                  { path: 'admin/settings', element: <SettingsPage /> },
+                  {
+                    path: 'admin/settings',
+                    element: <Navigate to="/admin/settings/general" replace />,
+                  },
+                  { path: 'admin/settings/general', element: <GeneralSettingsPage /> },
+                  { path: 'admin/settings/email', element: <EmailSettingsPage /> },
+                  { path: 'admin/settings/cloudflare', element: <CloudflareSettingsPage /> },
+                  { path: 'admin/settings/updates', element: <UpdatesSettingsPage /> },
+                  { path: 'admin/settings/storage', element: <StorageSettingsPage /> },
                   { path: 'admin/appearance', element: <AppearancePage /> },
                 ],
               },

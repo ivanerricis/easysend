@@ -4,6 +4,9 @@ import { createRoot } from 'react-dom/client';
 import App from './app/App';
 import './i18n';
 import './index.css';
+import { installStaleChunkReload } from './lib/stale-chunk';
+
+installStaleChunkReload();
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Root element not found');

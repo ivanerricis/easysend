@@ -18,7 +18,8 @@ I passi:
 1. **Account admin**: email e password, poi autenticazione a due fattori obbligatoria (scansiona il QR) e codici di recupero. Salva i codici: si vedono una sola volta.
 2. **SMTP**: server, porta, credenziali e mittente. Il wizard invia un'email di prova e non ti lascia proseguire finché non riesce.
 3. **Cloudflare**: il tuo dominio, l'hostname per l'app e un token API ([Token API di Cloudflare](./cloudflare)).
-4. **Impostazioni generali**: nome dell'istanza, riserva di spazio su disco, dimensione dei chunk di upload, lingua e tema predefiniti.
+4. **Dove salvare i file**: il disco locale (predefinito, basta premere Continua) oppure un servizio compatibile S3 ([Archiviazione S3](./s3-storage)). Puoi cambiare idea più avanti in **Impostazioni > Archiviazione**.
+5. **Impostazioni generali**: nome dell'istanza, riserva di spazio su disco, dimensione dei chunk di upload, lingua e tema predefiniti.
 
 Quando il passo Cloudflare termina, il container `cloudflared` parte da solo e l'app risponde su `https://<il tuo hostname>`. Da lì puoi chiudere il tunnel SSH e usare l'indirizzo pubblico.
 

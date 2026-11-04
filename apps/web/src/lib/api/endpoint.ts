@@ -12,6 +12,7 @@ export interface CallInput {
   query?: Record<string, QueryValue>;
   body?: unknown;
   raw?: { body: Blob; contentType: string };
+  headers?: Record<string, string> | undefined;
   skipAuthRedirect?: boolean;
   signal?: AbortSignal | undefined;
 }

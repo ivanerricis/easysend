@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_APPEARANCE } from '@easysend/shared';
-import { firstDownloadEmail, formatBytes, transferLinkEmail } from '../src/mail/content.js';
+import { firstDownloadEmail, transferLinkEmail } from '../src/mail/content.js';
 import { createTestApp } from './helpers.js';
 
 const EXPIRES_AT = Date.UTC(2030, 0, 15, 22, 30) / 1000; // 23:30 in Europe/Rome
@@ -15,16 +15,6 @@ const notice = {
   totalBytes: 5 * 1024 * 1024 + 300_000,
 };
 
-describe('formatBytes', () => {
-  it('uses binary units and the locale decimal separator', () => {
-    expect(formatBytes(0, 'en')).toBe('0 B');
-    expect(formatBytes(1023, 'en')).toBe('1,023 B');
-    expect(formatBytes(1536, 'en')).toBe('1.5 KB');
-    expect(formatBytes(1536, 'it')).toBe('1,5 KB');
-    expect(formatBytes(5 * 1024 ** 3, 'en')).toBe('5 GB');
-  });
-});
-
 describe('transfer emails', () => {
   it('sends the link to a recipient in Italian (the instance default)', async () => {
     const app = await createTestApp();
@@ -37,7 +27,7 @@ describe('transfer emails', () => {
     expect(mail.subject).not.toMatch(/[\r\n]/);
     expect(mail.text).toContain('http://localhost:8080/d/tok_ABCdef-123');
     expect(mail.text).toContain('3 file');
-    expect(mail.text).toContain('5,3 MB');
+    expect(mail.text).toContain('5,3 MiB');
     expect(mail.text).toContain('See you soon!');
     expect(mail.text).toContain('15 gennaio 2030');
     expect(mail.text).toContain('23:30');
@@ -63,7 +53,7 @@ describe('transfer emails', () => {
 
     const mail = app.mailbox.last('r@example.com')!;
     expect(mail.subject).toBe('Acme Drop sent you files via Acme Drop');
-    expect(mail.text).toContain('sent you 1 file (5.3 MB)');
+    expect(mail.text).toContain('sent you 1 file (5.3 MiB)');
     expect(mail.text).toContain('January 15, 2030');
     expect(mail.text).not.toContain('Message:');
     expect(mail.text).not.toContain('Title:');

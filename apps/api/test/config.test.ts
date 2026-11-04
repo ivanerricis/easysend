@@ -33,6 +33,14 @@ describe('loadConfig', () => {
     expect(config.storageDir).toBe('/mnt/files');
   });
 
+  it('reads DATA_HOST_PATH for display only; empty means the Docker volume', () => {
+    expect(loadConfig({}).dataHostPath).toBeUndefined();
+    expect(loadConfig({ DATA_HOST_PATH: '' }).dataHostPath).toBeUndefined();
+    expect(loadConfig({ DATA_HOST_PATH: '/mnt/dati/easysend' }).dataHostPath).toBe(
+      '/mnt/dati/easysend',
+    );
+  });
+
   it('uses the Cloudflare API by default and normalizes CLOUDFLARE_API_BASE', () => {
     expect(loadConfig({}).cloudflareApiBase).toBe('https://api.cloudflare.com/client/v4');
     expect(

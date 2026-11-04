@@ -22,7 +22,7 @@ chmod 600 .env
 
 `deploy.sh` scrive `APP_VERSION` in `.env`, scarica le immagini e avvia lo stack. Per fork o registry privati si imposta `IMAGE_PREFIX` in `.env` (predefinito `ghcr.io/ivanerricis/easysend`).
 
-`.env.example` imposta già `COMPOSE_FILE=docker-compose.yml` e `COMPOSE_PROFILES=tunnel`. Tutto il resto, configurato nel wizard o nel pannello admin, è salvato nel database e non in `.env`.
+Per tenere i dati su un altro disco o in un'altra cartella imposta `DATA_PATH` prima del primo deploy ([Posizione dei dati](./data-location)). `.env.example` imposta già `COMPOSE_FILE=docker-compose.yml` e `COMPOSE_PROFILES=tunnel`. Tutto il resto, configurato nel wizard o nel pannello admin, è salvato nel database e non in `.env`.
 
 Per aggiornare dal pannello admin (release 0.2.0 o successive) scarica allo stesso modo anche `update-runner.sh` e `update-service.sh` in `scripts/` e lancia `sudo ./scripts/update-service.sh install`: vedi [Aggiornamento con un clic](./updates#aggiornamento-con-un-clic).
 

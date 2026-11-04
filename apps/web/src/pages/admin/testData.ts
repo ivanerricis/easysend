@@ -30,6 +30,12 @@ export function makeStorage(overrides: Partial<StorageResponse> = {}): StorageRe
       reserveBytes: 5 * gib,
       usableBytes: 55 * gib,
     },
+    dataLocation: { hostPath: null },
+    driver: 'local',
+    usageByDriver: {
+      local: { files: 42, bytes: 10 * gib },
+      s3: { files: 0, bytes: 0 },
+    },
     storedBytes: 10 * gib,
     activeTransfers: 7,
     totalFiles: 42,

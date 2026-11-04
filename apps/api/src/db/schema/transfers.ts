@@ -1,7 +1,53 @@
 import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
-import { TRANSFER_MODES, TRANSFER_STATUSES } from '@easysend/shared';
-import { createdAtColumn, idColumn } from './_helpers.js';
+import {
+  EXPIRY_KEYS,
+  STORAGE_DRIVERS,
+  TRANSFER_MODES,
+  TRANSFER_SOURCES,
+  TRANSFER_STATUSES,
+  UPLOAD_REQUEST_STATUSES,
+} from '@easysend/shared';
+import { createdAtColumn, idColumn, nowSeconds } from './_helpers.js';
 import { users } from './users.js';
+
+/** Link that lets anyone without an account send files to the owner. */
+export const uploadRequests = sqliteTable(
+  'upload_requests',
+  {
+    id: idColumn(),
+    /** Restrict: an admin reassigns or deletes requests explicitly before removing a user. */
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    token: text('token').notNull(),
+    title: text('title').notNull(),
+    /** Instructions shown to the people who upload. */
+    message: text('message'),
+    passwordHash: text('password_hash'),
+    maxTotalBytes: integer('max_total_bytes'),
+    maxSubmissions: integer('max_submissions'),
+    requireName: integer('require_name', { mode: 'boolean' }).notNull().default(false),
+    requireEmail: integer('require_email', { mode: 'boolean' }).notNull().default(false),
+    expiresAt: integer('expires_at').notNull(),
+    /** Duration chosen by the owner: validity of the link and lifetime of each received transfer. */
+    expiresIn: text('expires_in', { enum: EXPIRY_KEYS }).notNull(),
+    /** `expired` is derived from `expires_at`, never stored. */
+    status: text('status', { enum: UPLOAD_REQUEST_STATUSES }).notNull().default('active'),
+    /** Finalized submissions. */
+    submissionCount: integer('submission_count').notNull().default(0),
+    /** Plaintext bytes of the files received through finalized submissions. */
+    receivedBytes: integer('received_bytes').notNull().default(0),
+    createdAt: createdAtColumn(),
+    updatedAt: integer('updated_at')
+      .notNull()
+      .$defaultFn(() => nowSeconds()),
+  },
+  (table) => [
+    uniqueIndex('upload_requests_token_unique').on(table.token),
+    index('upload_requests_owner_id_idx').on(table.ownerId),
+    index('upload_requests_status_expires_at_idx').on(table.status, table.expiresAt),
+  ],
+);
 
 export const transfers = sqliteTable(
   'transfers',
@@ -24,11 +70,20 @@ export const transfers = sqliteTable(
     createdAt: createdAtColumn(),
     firstDownloadedAt: integer('first_downloaded_at'),
     notifiedAt: integer('notified_at'),
+    /** `received` when the files were uploaded by someone else through an upload request. */
+    source: text('source', { enum: TRANSFER_SOURCES }).notNull().default('sent'),
+    /** Set null when the request is deleted: received transfers outlive it. */
+    uploadRequestId: text('upload_request_id').references(() => uploadRequests.id, {
+      onDelete: 'set null',
+    }),
+    senderName: text('sender_name'),
+    senderEmail: text('sender_email'),
   },
   (table) => [
     uniqueIndex('transfers_token_unique').on(table.token),
     index('transfers_owner_id_idx').on(table.ownerId),
     index('transfers_status_expires_at_idx').on(table.status, table.expiresAt),
+    index('transfers_upload_request_id_idx').on(table.uploadRequestId),
   ],
 );
 
@@ -40,7 +95,11 @@ export const transferFiles = sqliteTable(
       .notNull()
       .references(() => transfers.id, { onDelete: 'cascade' }),
     originalName: text('original_name').notNull(),
+    /** Sanitised folder inside the transfer ('' = root), segments joined by '/'. */
+    path: text('path').notNull().default(''),
     storageName: text('storage_name').notNull(),
+    /** Where the encrypted file lives; the object name is storage_name on every driver. */
+    storage: text('storage', { enum: STORAGE_DRIVERS }).notNull().default('local'),
     /** Plaintext size in bytes. */
     sizeBytes: integer('size_bytes').notNull(),
     /** Size on disk after encryption. */

@@ -2,8 +2,15 @@
   "title": "Trasferimenti",
   "newTitle": "Invia file",
   "detailTitle": "Dettaglio trasferimento",
-  "mode": { "link": "Link", "email": "Email" },
-  "expiry": { "3d": "3 giorni", "1w": "1 settimana", "1m": "1 mese" },
+  "mode": {
+    "link": "Link",
+    "email": "Email"
+  },
+  "expiry": {
+    "3d": "3 giorni",
+    "1w": "1 settimana",
+    "1m": "1 mese"
+  },
   "new": {
     "description": "Scegli i file, imposta le opzioni e ottieni un link da condividere. I file sono cifrati sul server.",
     "filesHeading": "File",
@@ -11,12 +18,15 @@
     "protectionHeading": "Protezione",
     "summaryEmpty": "Nessun file selezionato",
     "quotaLabel": "Spazio usato",
-    "dropHint": "Trascina qui i file o scegli dal tuo dispositivo",
-    "dropActive": "Rilascia i file per aggiungerli",
+    "dropHint": "Trascina qui file o cartelle, oppure scegli dal tuo dispositivo",
+    "dropActive": "Rilascia file o cartelle per aggiungerli",
     "chooseFiles": "Scegli i file",
+    "chooseFolder": "Scegli cartella",
     "limits": "Fino a {{max}} file per trasferimento. I file vuoti sono ammessi.",
     "selectedFiles": "File selezionati",
     "removeFile": "Rimuovi {{name}}",
+    "removeFolder": "Rimuovi cartella {{name}}",
+    "folderRemoved": "Cartella {{name}} rimossa.",
     "filesAdded_one": "{{count}} file aggiunto.",
     "filesAdded_other": "{{count}} file aggiunti.",
     "duplicatesSkipped_one": "{{count}} duplicato ignorato.",
@@ -125,6 +135,7 @@
     "toSelect": "da selezionare di nuovo",
     "missing": "File non trovati tra quelli selezionati: {{files}}. Scegli gli stessi file (stesso nome e dimensione).",
     "selectAndResume": "Seleziona i file e riprendi",
+    "selectFolder": "Seleziona cartella",
     "resume": "Riprendi",
     "discard": "Scarta",
     "discardTitle": "Scartare il caricamento interrotto?",
@@ -141,6 +152,8 @@
     "allStatuses": "Tutti gli stati",
     "mode": "Modalità",
     "allModes": "Tutte le modalità",
+    "origin": "Origine",
+    "allOrigins": "Inviati e ricevuti",
     "untitled": "Trasferimento senza titolo",
     "emptyTitle": "Nessun trasferimento",
     "emptyDescription": "Invia i tuoi primi file per vederli qui.",
@@ -155,10 +168,25 @@
       "files": "File",
       "downloads": "Download",
       "created": "Creato",
-      "expires": "Scade"
+      "expires": "Scade",
+      "actions": "Azioni"
     }
   },
+  "origin": {
+    "sent": "Inviati",
+    "received": "Ricevuti"
+  },
+  "received": {
+    "from": "Ricevuto da {{who}}",
+    "anonymous": "anonimo"
+  },
   "detail": {
+    "sender": "Mittente",
+    "senderName": "Nome",
+    "senderEmail": "Email",
+    "anonymousSender": "Anonimo",
+    "receivedVia": "Ricevuto tramite una richiesta",
+    "openRequest": "Apri la richiesta",
     "backToList": "Tutti i trasferimenti",
     "notFoundTitle": "Trasferimento non trovato",
     "draftNotice": "Questo trasferimento non è mai stato completato: non ha ancora un link. Riprendi il caricamento dalla pagina Invia oppure eliminalo.",
@@ -211,7 +239,12 @@
     "downloadLog": "Registro dei download",
     "noDownloads": "Nessuno ha ancora scaricato questo trasferimento.",
     "zipArchive": "Archivio ZIP",
-    "log": { "date": "Data", "target": "File", "bytes": "Inviati", "userAgent": "Browser" }
+    "log": {
+      "date": "Data",
+      "target": "File",
+      "bytes": "Inviati",
+      "userAgent": "Browser"
+    }
   },
   "edit": {
     "title": "Modifica trasferimento",
@@ -228,5 +261,11 @@
     "password_set_replace": "Sostituisci la password",
     "password_remove": "Rimuovi la password",
     "newPassword": "Nuova password"
+  },
+  "actions": {
+    "menu": "Azioni per {{title}}",
+    "linkCopied": "Link copiato",
+    "copyLinkOf": "Copia il link di {{title}}",
+    "open": "Apri i dettagli"
   }
 }

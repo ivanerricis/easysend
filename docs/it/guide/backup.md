@@ -2,13 +2,15 @@
 
 Cosa conservare:
 
-| Cosa                            | Dove                               |
-| ------------------------------- | ---------------------------------- |
-| Database                        | volume `easysend-data`             |
-| File cifrati                    | volume `easysend-data`             |
-| Loghi, favicon, sfondo          | volume `easysend-data`             |
-| Chiave master, segreto sessioni | volume `easysend-data`, `secrets/` |
-| Configurazione                  | `.env`, `docker-compose.yml`       |
+| Cosa                            | Dove                                  |
+| ------------------------------- | ------------------------------------- |
+| Database                        | volume `easysend-data`                |
+| File cifrati                    | volume `easysend-data` (disco locale) |
+| Loghi, favicon, sfondo          | volume `easysend-data`                |
+| Chiave master, segreto sessioni | volume `easysend-data`, `secrets/`    |
+| Configurazione                  | `.env`, `docker-compose.yml`          |
+
+Se hai impostato `DATA_PATH` in `.env` ([Posizione dei dati](./data-location)), leggi "volume `easysend-data`" qui sopra come quella cartella dell'host: lo script e i passi di ripristino qui sotto usano la cartella al posto del volume.
 
 ## Backup
 
@@ -21,6 +23,10 @@ Crea un backup coerente del database tramite la CLI di backup dell'api (mai una 
 
 ::: warning L'archivio contiene la chiave master
 Chi ha l'archivio può decifrare tutti i file. Conservalo cifrato oppure offline, e copialo fuori dall'LXC. Senza la chiave master (`APP_SECRET_KEY` o `/data/secrets/app.key`) i file, i segreti TOTP e la password SMTP sono illeggibili, anche se il resto dei dati è intatto.
+:::
+
+::: warning I file su S3 non sono nell'archivio
+Se salvi i file su un servizio compatibile S3 ([Archiviazione S3](./s3-storage)), l'archivio contiene solo i file ancora sul disco locale. Fai il backup del bucket a parte: versioning o replica del provider, oppure un `rclone sync` periodico verso un altro bucket. L'archivio contiene comunque ciò che serve per decifrare quei file: il backup del database (la chiave avvolta di ogni file e le impostazioni S3 cifrate) e la chiave master. Senza il bucket, o senza la chiave master, i file sono persi.
 :::
 
 ## Ripristino

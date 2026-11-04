@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { endpoints, SAFE_METHODS, type EndpointDef } from '@easysend/shared/contract';
+import { endpoints as registry, SAFE_METHODS, type EndpointDef } from '@easysend/shared/contract';
 import { csrfClient } from './auth-flow.js';
 import {
   createTestApp,
@@ -10,6 +10,8 @@ import {
   type TestResponse,
 } from './helpers.js';
 import { loginAs } from './session-helpers.js';
+
+const endpoints = registry;
 
 /**
  * Cross-cutting authorization and CSRF matrix, driven by the shared endpoint registry.
@@ -36,10 +38,15 @@ const COVERED_TAGS: ReadonlySet<string> = new Set([
   'transfers',
   'uploads',
   'downloads',
+  'requests',
+  'submissions',
   'settings',
 ]);
 const COVERED_IDS: ReadonlySet<string> = new Set([
   'admin.storage',
+  'storage.migration',
+  'storage.migrationCancel',
+  'storage.migrationStart',
   'admin.tunnelGet',
   'admin.tunnelSet',
   'admin.updateRun',
@@ -82,6 +89,12 @@ const EXPECTED_IDS = [
   'me.password',
   'me.recoveryCodes',
   'me.update',
+  'requests.create',
+  'requests.delete',
+  'requests.get',
+  'requests.list',
+  'requests.revoke',
+  'requests.update',
   'settings.adminGet',
   'settings.adminUpdate',
   'settings.appearanceReset',
@@ -92,6 +105,18 @@ const EXPECTED_IDS = [
   'settings.public',
   'settings.smtpSave',
   'settings.smtpTest',
+  'settings.storage',
+  'settings.storageTest',
+  'settings.storageUpdate',
+  'storage.migration',
+  'storage.migrationCancel',
+  'storage.migrationStart',
+  'submissions.cancel',
+  'submissions.create',
+  'submissions.finalize',
+  'submissions.get',
+  'submissions.info',
+  'submissions.unlock',
   'transfers.adminList',
   'transfers.create',
   'transfers.delete',

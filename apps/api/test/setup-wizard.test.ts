@@ -1,11 +1,16 @@
-import { Writable } from 'node:stream';
 import { describe, expect, it } from 'vitest';
 import { generateTotpCode } from '../src/auth/totp.js';
 import { SETUP_COOKIE } from '../src/http/cookies.js';
-import { createLogger } from '../src/logger.js';
 import { csrfClient, errorCode, loginWithTotp } from './auth-flow.js';
 import { FakeCloudflare } from './fake-cloudflare.js';
-import { bodyAs, createTestApp, makeTempDir, type TestApp, type TestClient } from './helpers.js';
+import {
+  bodyAs,
+  createTestApp,
+  makeTempDir,
+  memoryLogger,
+  type TestApp,
+  type TestClient,
+} from './helpers.js';
 
 const ADMIN = {
   email: 'Boss@Example.com',
@@ -108,6 +113,7 @@ describe('setup wizard: happy path (local mode)', () => {
       chunkSizeMb: 25,
       defaultLocale: 'en',
       updateCheck: true,
+      maxFilesPerTransfer: 1000,
     });
 
     status = bodyAs(await client.get('/api/setup/status'));
@@ -297,18 +303,7 @@ describe('setup code', () => {
   });
 
   it('expires, and an attempt after expiry issues and logs a new code', async () => {
-    const lines: string[] = [];
-    const stream = new Writable({
-      write(chunk: Buffer, _enc, cb) {
-        lines.push(chunk.toString());
-        cb();
-      },
-    });
-    const logger = createLogger(
-      { logLevel: 'trace', nodeEnv: 'test', logPretty: false },
-      {},
-      stream,
-    );
+    const { lines, logger } = memoryLogger();
     const t = await createTestApp({ setupCompleted: false, logger });
     const old = t.ctx.setupCode.issue();
     t.clock.advance(61 * 60);

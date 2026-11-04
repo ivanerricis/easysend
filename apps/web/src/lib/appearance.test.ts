@@ -1,6 +1,6 @@
 import { DEFAULT_APPEARANCE } from '@easysend/shared';
 import { describe, expect, it } from 'vitest';
-import { appearanceCssVars, applyCssVars, contrastWarnings } from './appearance';
+import { appearanceCssVars, applyCssVars } from './appearance';
 
 const base = DEFAULT_APPEARANCE;
 
@@ -39,21 +39,6 @@ describe('appearanceCssVars', () => {
     const vars = appearanceCssVars({ ...base, radius: 0.5, font: 'system' }, 'light');
     expect(vars['--radius']).toBe('0.5rem');
     expect(vars['--app-font-sans']).toContain('system-ui');
-  });
-});
-
-describe('contrastWarnings', () => {
-  it('has no accessibility failure for the defaults', () => {
-    expect(contrastWarnings(base).map((w) => w.id)).toEqual([]);
-  });
-
-  it('flags a light accent and the dark fallback', () => {
-    const ids = contrastWarnings({ ...base, accentColor: '#fde047' }).map((w) => w.id);
-    expect(ids).toContain('accentOnLight');
-    expect(ids).toContain('accentAsText');
-    expect(ids).not.toContain('darkAccentFallback');
-    const dark = contrastWarnings({ ...base, primaryColor: '#111111' }).map((w) => w.id);
-    expect(dark).toContain('darkPrimaryFallback');
   });
 });
 

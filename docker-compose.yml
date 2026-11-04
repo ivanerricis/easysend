@@ -34,6 +34,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       TRUST_PROXY: ${TRUST_PROXY:-2}
       DATA_DIR: /data
+      # Display only (admin Storage page): the host folder behind /data, empty for the Docker volume.
+      DATA_HOST_PATH: ${DATA_PATH:-}
       DB_PATH: ${DB_PATH:-/data/db/app.sqlite}
       STORAGE_DIR: ${STORAGE_DIR:-/data/storage}
       TMP_UPLOAD_DIR: ${TMP_UPLOAD_DIR:-/data/tmp}
@@ -43,6 +45,16 @@ services:
       UPDATE_DIR: /updates
       APP_SECRET_KEY: ${APP_SECRET_KEY:-}
       SESSION_SECRET: ${SESSION_SECRET:-}
+      # Read only at the first start, to seed the file storage setting (then the database wins).
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_REGION: ${S3_REGION:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_PREFIX: ${S3_PREFIX:-}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_SECRET_ACCESS_KEY_FILE: ${S3_SECRET_ACCESS_KEY_FILE:-}
       SETUP_CODE_TTL_MINUTES: ${SETUP_CODE_TTL_MINUTES:-60}
       PASSWORD_RESET_TTL_MINUTES: ${PASSWORD_RESET_TTL_MINUTES:-30}
       LOG_RETENTION_DAYS: ${LOG_RETENTION_DAYS:-90}
@@ -52,7 +64,8 @@ services:
       DEFAULT_CHUNK_SIZE_MB: ${DEFAULT_CHUNK_SIZE_MB:-25}
       NODE_OPTIONS: --max-old-space-size=384
     volumes:
-      - easysend-data:/data
+      # DATA_PATH (absolute host folder owned by uid/gid 1000) replaces the named volume; see .env.example.
+      - ${DATA_PATH:-easysend-data}:/data
       - easysend-shared:/shared
       - ./updates:/updates
     healthcheck:

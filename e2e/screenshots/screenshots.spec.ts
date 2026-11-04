@@ -2,8 +2,8 @@
 // app on a fresh stack: setup wizard, admin, transfer, public download. Every page is captured in
 // light and dark and checked with axe-core; serious/critical violations and CSP violations fail it.
 import { type BrowserContextOptions, type Page } from '@playwright/test';
-import { mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { analyzeA11y, type A11yFinding } from '../support/a11y.ts';
 import { readSetupCode } from '../support/compose.ts';
 import { expect, test } from '../support/fixtures.ts';
@@ -18,6 +18,27 @@ const ADMIN_PASSWORD = 'Correct-Horse-Battery-42';
 const USER_EMAIL = 'marco@example.com';
 const USER_PASSWORD = 'Another-Strong-Passphrase-7';
 const LINK_PASSWORD = 'segreta-12345';
+
+const FOLDER_NAME = 'Vacanza 2026';
+
+/** Writes the sample folder picked in the screenshots (5 files in 3 levels) and returns its path. */
+function makeFolder(): string {
+  const root = join(repoRoot, 'e2e', '.output', 'shot-folder');
+  rmSync(root, { recursive: true, force: true });
+  const files: [string, number][] = [
+    ['mappa-del-percorso.pdf', 90_000],
+    ['foto/agosto/tramonto-sulla-spiaggia-di-cala-goloritze-con-nome-molto-lungo.jpg', 210_000],
+    ['foto/agosto/colazione.jpg', 120_000],
+    ['foto/settembre/rientro.jpg', 80_000],
+    ['note.txt', 600],
+  ];
+  for (const [rel, size] of files) {
+    const path = join(root, FOLDER_NAME, rel);
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, Buffer.alloc(size, 5));
+  }
+  return join(root, FOLDER_NAME);
+}
 
 type Theme = 'light' | 'dark';
 const DESKTOP = { width: 1280, height: 800 };
@@ -132,6 +153,11 @@ test('screenshots and accessibility', async ({ newSession }) => {
   // Cloudflare is skipped in local mode.
   await expect(w.getByText('Saltato in modalità locale')).toBeVisible();
   await w.getByRole('button', { name: 'Continua' }).click();
+  // File storage (optional step): local disk by default, S3 fields appear on demand.
+  await expect(w.getByRole('heading', { name: 'Dove salvare i file' })).toBeVisible();
+  await settle(w);
+  await capture(w, '22-setup-storage');
+  await w.getByRole('button', { name: 'Continua' }).click();
   await expect(w.getByLabel("Nome dell'istanza")).toBeVisible();
   await w.getByRole('button', { name: 'Continua' }).click();
   await w.getByRole('button', { name: 'Concludi la configurazione' }).click();
@@ -177,6 +203,12 @@ test('screenshots and accessibility', async ({ newSession }) => {
     { name: 'note.txt', mimeType: 'text/plain', buffer: Buffer.from('Ciao, ecco i file.\n') },
   ]);
   await expect(a.getByText('relazione-annuale.pdf').first()).toBeVisible();
+  // A folder with subfolders and a long name, to show the grouped selection and the tree.
+  await a.getByTestId('folder-input').setInputFiles(makeFolder());
+  await expect(
+    a.getByRole('button', { name: new RegExp(`^${FOLDER_NAME} .*5 file`) }),
+  ).toBeVisible();
+  await a.getByRole('button', { name: new RegExp(`^${FOLDER_NAME} `) }).click();
   await a.getByLabel('Titolo').fill('Documenti della vacanza');
   await a
     .getByLabel('Messaggio')
@@ -224,7 +256,7 @@ test('screenshots and accessibility', async ({ newSession }) => {
     ['/profile', '12-profile', 'Profilo', true],
     ['/admin/users', '13-admin-users', 'Utenti', false],
     ['/admin/storage', '14-admin-storage', 'Spazio', true],
-    ['/admin/settings', '15-admin-settings', 'Impostazioni', true],
+    ['/admin/settings/general', '15-admin-settings', 'Generali', true],
     ['/admin/appearance', '16-admin-appearance', 'Aspetto', true],
   ] as const) {
     await a.goto(path);
@@ -232,6 +264,44 @@ test('screenshots and accessibility', async ({ newSession }) => {
     await settle(a);
     await capture(a, name, { full });
   }
+
+  // ---------------------------------------------------------------- file storage settings
+  await a.goto('/admin/settings/storage');
+  await expect(
+    a.getByRole('heading', { name: 'Archiviazione dei file', exact: true }),
+  ).toBeVisible();
+  await a.getByRole('radio', { name: /Archiviazione compatibile S3/ }).click();
+  await a.getByLabel(/^Endpoint/).fill('https://abc123.r2.cloudflarestorage.com');
+  await a.getByLabel(/^Regione/).fill('auto');
+  await a.getByLabel(/^Bucket/).fill('easysend-files');
+  await a.getByLabel(/^Access key ID/).fill('0123456789abcdef');
+  await settle(a);
+  await capture(a, '23-admin-settings-storage', { full: true });
+
+  // ---------------------------------------------------------------- file requests
+  await a.goto('/requests');
+  await expect(a.getByRole('heading', { name: 'Ricevi file' })).toBeVisible();
+  await a.getByRole('button', { name: 'Nuova richiesta' }).first().click();
+  const requestDialog = a.getByRole('dialog');
+  await requestDialog.getByLabel(/^Titolo/).fill('Documenti per la dichiarazione');
+  await requestDialog
+    .getByLabel(/^Istruzioni/)
+    .fill('Carica qui le fatture e le ricevute del 2025. Puoi inviare più file insieme.');
+  await requestDialog.getByRole('button', { name: 'Crea', exact: true }).click();
+  const requestLink = a.getByLabel('Link di invio');
+  await expect(requestLink).toBeVisible();
+  const requestUrl = await requestLink.inputValue();
+  expect(requestUrl).toContain('/r/');
+  await settle(a);
+  await capture(a, '20-requests', { full: true });
+
+  const uploader = await newContext();
+  const u = uploader.page;
+  await u.goto(requestUrl);
+  await expect(u.getByText('Carica qui le fatture')).toBeVisible();
+  await settle(u);
+  await capture(u, '21-submit', { full: true });
+  await uploader.context.close();
 
   // ---------------------------------------------------------------- mobile (375x812)
   const storageState = await admin.context.storageState();
@@ -258,6 +328,8 @@ test('screenshots and accessibility', async ({ newSession }) => {
       { name: 'relazione-annuale.pdf', mimeType: 'application/pdf', buffer: Buffer.alloc(1000, 7) },
     ]);
   await expect(phone.page.getByText('relazione-annuale.pdf').first()).toBeVisible();
+  await phone.page.getByTestId('folder-input').setInputFiles(makeFolder());
+  await phone.page.getByRole('button', { name: new RegExp(`^${FOLDER_NAME} `) }).click();
   await settle(phone.page);
   await capture(phone.page, '18-new-transfer-mobile', { full: true });
   await phone.context.close();

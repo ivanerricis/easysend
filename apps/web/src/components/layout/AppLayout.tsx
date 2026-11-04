@@ -1,7 +1,9 @@
 import {
+  ChevronRight,
   ChevronsUpDown,
   ArrowUpCircle,
   HardDrive,
+  Inbox,
   LogOut,
   Palette,
   Send,
@@ -12,13 +14,14 @@ import {
   Library,
   type LucideIcon,
 } from 'lucide-react';
-import { Suspense, useEffect, type ReactNode } from 'react';
+import { Suspense, useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import { useAppearance } from '@/app/providers/AppearanceProvider';
 import { useSession } from '@/app/providers/SessionProvider';
 import { MyQuotaMeter } from '@/components/common/QuotaMeter';
 import { LoadingState } from '@/components/common/States';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { SkipLink } from '@/components/layout/PublicLayout';
 import {
@@ -26,8 +29,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
@@ -44,15 +45,18 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarProvider,
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
 import { useUpdateStatus } from '@/hooks/use-update-status';
-import { SUPPORTED_LOCALES, type Locale } from '@/i18n';
-import { useLocale } from '@/i18n/LocaleProvider';
 import { notifyError } from '@/lib/toast';
-import { useTheme, type ThemePreference } from '@/theme/theme-context';
+import { LocaleRadioGroup } from '@/components/LocaleRadioGroup';
+import { ThemeRadioGroup } from '@/components/ThemeRadioGroup';
+import { useTheme } from '@/theme/theme-context';
 
 interface NavItem {
   to: string;
@@ -63,23 +67,38 @@ interface NavItem {
 const MAIN_NAV: NavItem[] = [
   { to: '/', labelKey: 'common.nav.send', icon: Send },
   { to: '/transfers', labelKey: 'common.nav.transfers', icon: Share2 },
+  { to: '/requests', labelKey: 'common.nav.requests', icon: Inbox },
 ];
 
 const ADMIN_NAV: NavItem[] = [
   { to: '/admin/users', labelKey: 'common.nav.users', icon: Users },
   { to: '/admin/transfers', labelKey: 'common.nav.allTransfers', icon: Library },
   { to: '/admin/storage', labelKey: 'common.nav.storage', icon: HardDrive },
-  { to: '/admin/settings', labelKey: 'common.nav.settings', icon: Settings },
   { to: '/admin/appearance', labelKey: 'common.nav.appearance', icon: Palette },
 ];
 
-const LOCALE_NAMES: Record<Locale, string> = { it: 'Italiano', en: 'English' };
+const SETTINGS_PATH = '/admin/settings';
+const SETTINGS_NAV: Omit<NavItem, 'icon'>[] = [
+  { to: `${SETTINGS_PATH}/general`, labelKey: 'admin.settings.nav.general' },
+  { to: `${SETTINGS_PATH}/email`, labelKey: 'admin.settings.nav.email' },
+  { to: `${SETTINGS_PATH}/cloudflare`, labelKey: 'admin.settings.nav.cloudflare' },
+  { to: `${SETTINGS_PATH}/updates`, labelKey: 'admin.settings.nav.updates' },
+  { to: `${SETTINGS_PATH}/storage`, labelKey: 'admin.settings.nav.storage' },
+];
 
 function isActivePath(current: string, to: string): boolean {
   return to === '/' ? current === '/' : current === to || current.startsWith(`${to}/`);
 }
 
-function NavGroup({ label, items }: { label?: string; items: NavItem[] }) {
+function NavGroup({
+  label,
+  items,
+  after,
+}: {
+  label?: string;
+  items: NavItem[];
+  after?: ReactNode;
+}) {
   const { t } = useTranslation();
   const { pathname } = useLocation();
   return (
@@ -100,8 +119,91 @@ function NavGroup({ label, items }: { label?: string; items: NavItem[] }) {
             </SidebarMenuItem>
           );
         })}
+        {after}
       </SidebarMenu>
     </SidebarGroup>
+  );
+}
+
+/**
+ * "Settings" entry of the admin menu with its four sub-pages: a collapsible submenu in the
+ * expanded sidebar and the mobile sheet, a dropdown menu next to the icon when the desktop
+ * sidebar is collapsed to icons.
+ */
+function SettingsNav() {
+  const { t } = useTranslation();
+  const { pathname } = useLocation();
+  const { state, isMobile } = useSidebar();
+  const active = isActivePath(pathname, SETTINGS_PATH);
+  const [open, setOpen] = useState(active);
+  const text = t('common.nav.settings');
+
+  // Arriving in the settings from elsewhere (e.g. the update notice) opens the submenu.
+  const [wasActive, setWasActive] = useState(active);
+  if (active !== wasActive) {
+    setWasActive(active);
+    if (active) setOpen(true);
+  }
+
+  if (state === 'collapsed' && !isMobile) {
+    return (
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton isActive={active} tooltip={text} aria-label={text}>
+              <Settings aria-hidden="true" />
+              <span>{text}</span>
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="right" align="start" className="min-w-48">
+            <DropdownMenuLabel>{text}</DropdownMenuLabel>
+            {SETTINGS_NAV.map((item) => (
+              <DropdownMenuItem key={item.to} asChild>
+                <Link
+                  to={item.to}
+                  aria-current={isActivePath(pathname, item.to) ? 'page' : undefined}
+                >
+                  {t(item.labelKey)}
+                </Link>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    );
+  }
+
+  return (
+    <Collapsible asChild open={open} onOpenChange={setOpen} className="group/collapsible">
+      <SidebarMenuItem>
+        <CollapsibleTrigger asChild>
+          <SidebarMenuButton tooltip={text}>
+            <Settings aria-hidden="true" />
+            <span>{text}</span>
+            <ChevronRight
+              aria-hidden="true"
+              className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90 motion-reduce:transition-none"
+            />
+          </SidebarMenuButton>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarMenuSub>
+            {SETTINGS_NAV.map((item) => {
+              const itemActive = isActivePath(pathname, item.to);
+              return (
+                <SidebarMenuSubItem key={item.to}>
+                  <SidebarMenuSubButton asChild isActive={itemActive}>
+                    <Link to={item.to} aria-current={itemActive ? 'page' : undefined}>
+                      <span>{t(item.labelKey)}</span>
+                    </Link>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+              );
+            })}
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </SidebarMenuItem>
+    </Collapsible>
   );
 }
 
@@ -109,13 +211,10 @@ function UserMenu() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, logout } = useSession();
-  const { theme, source, setTheme } = useTheme();
-  const { locale, changeLocale } = useLocale();
   const { isMobile } = useSidebar();
   if (!user) return null;
 
   const name = user.displayName ?? user.email;
-  const themeChoice = source === 'instance' ? 'instance' : theme;
 
   const onLogout = async () => {
     try {
@@ -151,36 +250,13 @@ function UserMenu() {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>{t('common.userMenu.theme')}</DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
-            <DropdownMenuRadioGroup
-              value={themeChoice}
-              onValueChange={(value) =>
-                setTheme(value === 'instance' ? null : (value as ThemePreference))
-              }
-            >
-              <DropdownMenuRadioItem value="light">{t('common.theme.light')}</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="dark">{t('common.theme.dark')}</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="system">
-                {t('common.theme.system')}
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="instance">
-                {t('common.theme.instance')}
-              </DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
+            <ThemeRadioGroup />
           </DropdownMenuSubContent>
         </DropdownMenuSub>
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>{t('common.userMenu.language')}</DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
-            <DropdownMenuRadioGroup
-              value={locale}
-              onValueChange={(value) => changeLocale(value === 'it' ? 'it' : 'en')}
-            >
-              {SUPPORTED_LOCALES.map((option) => (
-                <DropdownMenuRadioItem key={option} value={option} lang={option}>
-                  {LOCALE_NAMES[option]}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
+            <LocaleRadioGroup />
           </DropdownMenuSubContent>
         </DropdownMenuSub>
         <DropdownMenuSeparator />
@@ -205,7 +281,7 @@ function UpdateNotice() {
       <SidebarMenuItem>
         <SidebarMenuButton asChild tooltip={`${text}: ${data.latestVersion}`}>
           <Link
-            to="/admin/settings#settings-updates"
+            to="/admin/settings/updates"
             aria-label={t('common.updateNotice.aria', { version: data.latestVersion })}
           >
             <ArrowUpCircle aria-hidden="true" />
@@ -253,7 +329,9 @@ function AppSidebar() {
       <SidebarContent>
         <nav aria-label={t('common.nav.main')}>
           <NavGroup items={MAIN_NAV} />
-          {isAdmin ? <NavGroup label={t('common.nav.admin')} items={ADMIN_NAV} /> : null}
+          {isAdmin ? (
+            <NavGroup label={t('common.nav.admin')} items={ADMIN_NAV} after={<SettingsNav />} />
+          ) : null}
         </nav>
       </SidebarContent>
       <SidebarFooter>

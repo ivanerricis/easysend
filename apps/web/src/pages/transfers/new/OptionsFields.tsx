@@ -24,12 +24,6 @@ interface OptionsFieldsProps {
   disabled?: boolean;
 }
 
-const EXPIRY_LABEL = {
-  '3d': 'transfers.expiry.3d',
-  '1w': 'transfers.expiry.1w',
-  '1m': 'transfers.expiry.1m',
-} as const;
-
 /** Adds the text typed in the recipients input to the list; returns false when it is invalid. */
 export function commitRecipientInput(
   form: UseFormReturn<TransferFormValues>,
@@ -228,7 +222,7 @@ export function OptionsFields({ form, config, disabled }: OptionsFieldsProps) {
                   className="border-border has-data-checked:border-primary has-data-checked:bg-primary/5 flex min-h-11 cursor-pointer flex-col items-start justify-center gap-1.5 border px-3 py-2 text-sm sm:flex-row sm:items-center sm:gap-2 sm:px-2 sm:whitespace-nowrap xl:gap-3 xl:px-3"
                 >
                   <RadioGroupItem value={option.key} id={`expiry-${option.key}`} />
-                  {t(EXPIRY_LABEL[option.key])}
+                  {t(`transfers.expiry.${option.key}`)}
                 </label>
               ))}
             </RadioGroup>

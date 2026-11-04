@@ -1,22 +1,11 @@
 /** Locale-aware formatters. Timestamps are Unix seconds, as everywhere in the API. */
 
-const BYTE_UNITS = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'] as const;
+import { formatBytes } from '@easysend/shared';
+
+export { formatBytes };
 
 function number(value: number, locale: string, maximumFractionDigits: number): string {
   return new Intl.NumberFormat(locale, { maximumFractionDigits }).format(value);
-}
-
-/** Binary units (1 KiB = 1024 B); one decimal below 100 of a unit, none above. */
-export function formatBytes(bytes: number, locale: string): string {
-  if (!Number.isFinite(bytes) || bytes < 0) return '—';
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < BYTE_UNITS.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  const digits = unit === 0 ? 0 : value < 100 ? 1 : 0;
-  return `${number(value, locale, digits)} ${BYTE_UNITS[unit]}`;
 }
 
 export function formatDate(unixSeconds: number, locale: string): string {

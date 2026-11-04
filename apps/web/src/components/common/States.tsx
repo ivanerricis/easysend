@@ -1,6 +1,7 @@
 import { AlertCircle, Inbox, Loader2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { RequestId } from '@/components/common/RequestId';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { isApiError } from '@/lib/api/client';
@@ -53,11 +54,7 @@ export function ErrorState({ error, onRetry, title, className }: ErrorStateProps
       <AlertCircle aria-hidden="true" className="text-destructive size-8" />
       <p className="font-medium">{title ?? t('common.states.errorTitle')}</p>
       <p className="text-muted-foreground max-w-prose text-sm">{errorMessage(t, error)}</p>
-      {requestId ? (
-        <p className="text-muted-foreground text-xs">
-          {t('common.states.requestId')}: <code className="font-mono">{requestId}</code>
-        </p>
-      ) : null}
+      <RequestId requestId={requestId} />
       {onRetry ? (
         <Button type="button" variant="outline" onClick={onRetry}>
           {t('common.actions.retry')}
