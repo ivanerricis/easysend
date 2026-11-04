@@ -24,6 +24,7 @@ describe('admin general settings', () => {
         chunkSizeMb: t.config.defaultChunkSizeMb,
         defaultLocale: 'it',
         updateCheck: true,
+        maxFilesPerTransfer: 1000,
       },
       smtp: null,
     });
@@ -37,6 +38,7 @@ describe('admin general settings', () => {
       chunkSizeMb: 10,
       defaultLocale: 'en',
       updateCheck: true,
+      maxFilesPerTransfer: 1000,
     });
     await admin.patch('/api/admin/settings', { body: { diskReserveMb: 0 } });
     expect(t.ctx.settings.get('general')).toEqual({
@@ -44,6 +46,7 @@ describe('admin general settings', () => {
       chunkSizeMb: 10,
       defaultLocale: 'en',
       updateCheck: true,
+      maxFilesPerTransfer: 1000,
     });
     const rows = t.db.sqlite
       .prepare(
@@ -56,9 +59,31 @@ describe('admin general settings', () => {
     ]);
   });
 
+  it('keeps maxFilesPerTransfer on unrelated updates and changes it on request', async () => {
+    const { t, admin } = await brandingApp();
+    const set = await admin.patch('/api/admin/settings', { body: { maxFilesPerTransfer: 2500 } });
+    expect(
+      bodyAs<{ general: { maxFilesPerTransfer: number } }>(set).general.maxFilesPerTransfer,
+    ).toBe(2500);
+    await admin.patch('/api/admin/settings', { body: { chunkSizeMb: 12 } });
+    expect(t.ctx.settings.get('general')?.maxFilesPerTransfer).toBe(2500);
+    const get = await admin.get('/api/admin/settings');
+    expect(
+      bodyAs<{ general: { maxFilesPerTransfer: number } }>(get).general.maxFilesPerTransfer,
+    ).toBe(2500);
+  });
+
   it('validates the update', async () => {
     const { admin } = await brandingApp();
-    for (const body of [{}, { chunkSizeMb: 51 }, { chunkSizeMb: 0 }, { defaultLocale: 'fr' }]) {
+    const bodies = [
+      {},
+      { chunkSizeMb: 51 },
+      { chunkSizeMb: 0 },
+      { defaultLocale: 'fr' },
+      { maxFilesPerTransfer: 0 },
+      { maxFilesPerTransfer: 5001 },
+    ];
+    for (const body of bodies) {
       expect((await admin.patch('/api/admin/settings', { body })).status).toBe(400);
     }
   });

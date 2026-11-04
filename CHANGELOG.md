@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/ivanerricis/easysend/compare/v0.2.0...v0.3.0) (2026-11-04)
+
+
+### Features
+
+* selectable S3-compatible storage (phase 9) ([#52](https://github.com/ivanerricis/easysend/issues/52)) ([d38d507](https://github.com/ivanerricis/easysend/commit/d38d5074b03869e434bfc1d93955efd3e0065ef3))
+
 ## [0.2.0](https://github.com/ivanerricis/easysend/compare/v0.1.1...v0.2.0) (2026-11-04)
 
 

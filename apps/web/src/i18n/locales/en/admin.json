@@ -201,11 +201,14 @@
       "diskReserveHelp": "Free space that uploads never use. 0 disables the reserve.",
       "chunkSize": "Upload chunk size (MB)",
       "chunkSizeHelp": "From 1 to {{max}} MB. Behind Cloudflare no request may exceed 100 MB, so the default of 25 MB is a safe choice.",
+      "maxFiles": "Max files per transfer",
+      "maxFilesHelp": "From 1 to {{max}}. A folder counts every file inside it, so raise this limit to allow large folders.",
       "defaultLocale": "Default language",
       "defaultLocaleHelp": "Used for emails to recipients and for visitors without a preference.",
       "errors": {
         "reserve": "Enter a whole number of MB, from 0 to 10485760.",
-        "chunk": "Enter a whole number of MB, from 1 to 50."
+        "chunk": "Enter a whole number of MB, from 1 to 50.",
+        "maxFiles": "Enter a whole number from 1 to 5000."
       },
       "updateCheck": "Check for updates",
       "updateCheckHelp": "Once a day the server asks GitHub for the latest published version. No data about the instance is sent."

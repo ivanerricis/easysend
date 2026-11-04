@@ -17,6 +17,7 @@ import {
   atLeastOneField,
   byteSizeSchema,
   emailSchema,
+  filePathSchema,
   idSchema,
   paginatedSchema,
   paginationQuerySchema,
@@ -116,6 +117,8 @@ export const listDownloadLogsQuerySchema = paginationQuerySchema;
 export const transferFileSchema = z.object({
   id: idSchema,
   name: z.string().min(1).max(FILENAME_MAX_LENGTH),
+  /** Folder inside the transfer ("" for the root). */
+  path: filePathSchema,
   sizeBytes: byteSizeSchema,
   mimeType: z.string().max(255).nullable(),
   sha256: z.string().regex(/^[0-9a-f]{64}$/),
@@ -135,6 +138,7 @@ export const transferRecipientSchema = z.object({
 export const transferUploadSchema = z.object({
   id: idSchema,
   fileName: z.string().max(FILENAME_MAX_LENGTH),
+  path: filePathSchema,
   totalSize: byteSizeSchema,
   status: z.enum(UPLOAD_STATUSES),
   expiresAt: unixSecondsSchema,

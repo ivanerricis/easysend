@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { FILENAME_MAX_LENGTH } from '../constants.js';
+import { FILE_PATH_MAX_LENGTH, FILENAME_MAX_LENGTH } from '../constants.js';
 import { idSchema } from './common.js';
 
 /**
@@ -11,6 +11,8 @@ export const tusUploadMetadataSchema = z.object({
   transferId: idSchema,
   /** Original file name. The server sanitises it and never uses it as a storage path. */
   filename: z.string().min(1).max(FILENAME_MAX_LENGTH),
+  /** Folder of the file inside the transfer (from the dropped folder); sanitised by the server. */
+  relativePath: z.string().max(FILE_PATH_MAX_LENGTH).optional(),
   /** Optional MIME type reported by the browser. Informational only. */
   filetype: z.string().max(255).optional(),
 });

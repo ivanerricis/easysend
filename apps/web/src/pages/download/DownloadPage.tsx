@@ -11,10 +11,12 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { LoadingState } from '@/components/common/States';
 import { UnlockCard } from '@/components/common/UnlockCard';
 import { PublicCard } from '@/components/layout/PublicLayout';
+import { FileTree } from '@/components/files/FileTree';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { displayPath } from '@/features/upload/folders';
 import { isApiError } from '@/lib/api/client';
 import {
   downloadFileUrl,
@@ -195,43 +197,47 @@ function TransferView({ token, info, onDownloadStarted }: TransferViewProps) {
           </div>
         </div>
 
-        <ul className="divide-border border-border divide-y border">
-          {files.map((file) => {
+        <FileTree
+          files={files}
+          fileRowClassName="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 sm:flex-nowrap"
+          renderFile={(file) => {
             const checkId = `download-file-${file.id}`;
             const size = formatBytes(file.sizeBytes, locale);
             return (
-              <li
-                key={file.id}
-                className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 sm:flex-nowrap"
-              >
+              <>
                 <Checkbox
                   id={checkId}
                   checked={selected.has(file.id)}
                   onCheckedChange={(checked) => toggle(file.id, checked === true)}
-                  aria-label={t('download.files.selectFile', { name: file.name })}
+                  aria-label={t('download.files.selectFile', {
+                    name: displayPath(file.path, file.name),
+                  })}
                 />
                 <Label
                   htmlFor={checkId}
                   className="block min-h-11 min-w-0 flex-1 basis-40 py-2 text-sm leading-snug font-normal"
                   aria-hidden="true"
                 >
-                  <span className="block break-all">{file.name}</span>
+                  <span className="block [overflow-wrap:anywhere]">{file.name}</span>
                   <span className="text-muted-foreground block font-mono text-xs">{size}</span>
                 </Label>
                 <Button asChild variant="outline" onClick={started}>
                   <a
                     href={downloadFileUrl(token, file.id)}
                     download
-                    aria-label={t('download.files.downloadNamed', { name: file.name, size })}
+                    aria-label={t('download.files.downloadNamed', {
+                      name: displayPath(file.path, file.name),
+                      size,
+                    })}
                   >
                     <Download aria-hidden="true" />
                     {t('download.files.download')}
                   </a>
                 </Button>
-              </li>
+              </>
             );
-          })}
-        </ul>
+          }}
+        />
 
         <p className="text-muted-foreground text-sm" aria-live="polite">
           {selectedIds.length > 0

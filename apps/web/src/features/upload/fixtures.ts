@@ -28,6 +28,7 @@ export function makeTransferDetail(overrides: Partial<TransferDetail> = {}): Tra
       {
         id: 'f1',
         name: 'photo.jpg',
+        path: '',
         sizeBytes: 2048,
         mimeType: 'image/jpeg',
         sha256: 'a'.repeat(64),

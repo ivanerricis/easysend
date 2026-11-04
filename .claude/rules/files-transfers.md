@@ -23,6 +23,12 @@ paths:
 - Id degli upload tus validati con lo schema Zod prima di ogni accesso al DB. Non si usa `cleanUpExpiredUploads` di tus (cancellerebbe upload in elaborazione).
 - Migrazioni all'avvio: backup `sqlite.backup()` prima di ogni migrazione su DB non vuoto (ultimi 5).
 
+## Cartelle (fase 10)
+
+- `transfer_files.path` (migrazione 0004): cartella relativa del file, "" per la radice, segmenti separati da `/`, massimo 32 livelli e 1024 caratteri (`FILE_PATH_MAX_DEPTH`, `FILE_PATH_MAX_LENGTH`). Arriva nel metadato tus `relativePath` (e `path` negli schemi), ripulito da `sanitizeRelativeDir` (`storage/filenames.ts`): divide su `/` e `\`, toglie segmenti vuoti e `.`, rifiuta `..` con `VALIDATION_ERROR`, ripulisce ogni segmento come un nome di file. È solo metadato: lo storage usa sempre nomi UUID, mai il percorso.
+- Zip: `dedupeZipEntries` costruisce `path/nome` unici senza distinguere maiuscole (numera la foglia prima dell'estensione) e mai uguali a una cartella di un'altra voce (file `a` accanto a `a/b.txt` diventa `a (1)`). Il download del singolo file usa il solo nome foglia.
+- Limite file per trasferimento: impostazione admin `general.maxFilesPerTransfer` (1..5000, predefinito 1000, `MAX_FILES_PER_TRANSFER_DEFAULT`/`_CAP`), letta a runtime; tus rifiuta oltre il limite con `VALIDATION_ERROR` e `details.limit`; `GET /api/config` espone `limits.maxFilesPerTransfer` al form.
+
 ## Download
 
 - Pagina pubblica `PUBLIC_URL/d/<token>`, token 32 byte base64url. Sblocco password: cookie `es_dl` = `exp.HMAC(transferId:exp:impronta password_hash)`, `Path=/api/downloads/<token>`, 1 ora; cambiare o togliere la password lo invalida.

@@ -19,7 +19,7 @@ const draft: DraftRecord = {
     expiresIn: '1w',
     maxDownloads: '',
   },
-  files: [{ name: 'a.txt', size: 3, lastModified: 1 }],
+  files: [{ name: 'a.txt', size: 3, lastModified: 1, path: '' }],
   createdAt: 1,
 };
 
@@ -44,6 +44,17 @@ describe('draft storage', () => {
   });
 });
 
+describe('draft files without a path', () => {
+  it('reads an old draft as root files', () => {
+    window.localStorage.setItem(
+      DRAFT_STORAGE_KEY,
+      JSON.stringify({ ...draft, files: [{ name: 'a.txt', size: 3, lastModified: 1 }] }),
+    );
+    expect(loadDraft()?.files).toEqual([{ name: 'a.txt', size: 3, lastModified: 1, path: '' }]);
+    clearDraft();
+  });
+});
+
 describe('splitDraftFiles', () => {
   it('uses each server file once', () => {
     const rows = splitDraftFiles(
@@ -56,12 +67,23 @@ describe('splitDraftFiles', () => {
     );
     expect(rows.map((r) => r.done)).toEqual([true, false, false]);
   });
+
+  it('tells apart the same name in different folders', () => {
+    const rows = splitDraftFiles(
+      [
+        { name: 'a.txt', size: 1, path: 'x' },
+        { name: 'a.txt', size: 1, path: 'y' },
+      ],
+      [{ name: 'a.txt', size: 1, path: 'y' }],
+    );
+    expect(rows.map((r) => r.done)).toEqual([false, true]);
+  });
 });
 
 describe('matchPickedFiles', () => {
-  it('matches by name and size and lists what is missing', () => {
-    const a = new File(['abc'], 'a.txt');
-    const other = new File(['xx'], 'a.txt');
+  it('matches by path, name and size and lists what is missing', () => {
+    const a = { file: new File(['abc'], 'a.txt'), path: '' };
+    const other = { file: new File(['xx'], 'a.txt'), path: '' };
     const { matches, missing } = matchPickedFiles(
       [
         { name: 'a.txt', size: 3 },
@@ -72,5 +94,15 @@ describe('matchPickedFiles', () => {
     expect(matches[0]).toBe(a);
     expect(matches[1]).toBeNull();
     expect(missing).toEqual([{ name: 'b.txt', size: 1 }]);
+  });
+
+  it('does not match a file picked from another folder', () => {
+    const elsewhere = { file: new File(['abc'], 'a.txt'), path: 'other' };
+    const inside = { file: new File(['abc'], 'a.txt'), path: 'photos/2030' };
+    const { matches } = matchPickedFiles(
+      [{ name: 'a.txt', size: 3, path: 'photos/2030' }],
+      [elsewhere, inside],
+    );
+    expect(matches[0]).toBe(inside);
   });
 });

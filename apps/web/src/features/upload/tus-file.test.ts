@@ -86,6 +86,27 @@ describe('createFileUpload', () => {
     expect(options.removeFingerprintOnSuccess).toBe(true);
   });
 
+  it('sends the folder as relativePath and binds the fingerprint to it', async () => {
+    const photo = new File(['x'], 'a.txt', { lastModified: 1 });
+    createFileUpload({
+      file: photo,
+      path: 'photos/2030',
+      transferId: 'tr1',
+      chunkSize: 1,
+      onProgress: vi.fn(),
+    });
+    const withPath = tus.instances[tus.instances.length - 1]!.options as Options;
+    expect(withPath.metadata).toEqual({
+      transferId: 'tr1',
+      filename: 'a.txt',
+      relativePath: 'photos/2030',
+    });
+    createFileUpload({ file: photo, transferId: 'tr1', chunkSize: 1, onProgress: vi.fn() });
+    const without = tus.instances[tus.instances.length - 1]!.options as Options;
+    expect(without.metadata).not.toHaveProperty('relativePath');
+    expect(await withPath.fingerprint(photo)).not.toBe(await without.fingerprint(photo));
+  });
+
   it('omits the file type when the browser does not know it', () => {
     const iso = new File(['x'], 'disk.iso', { type: '', lastModified: 123 });
     createFileUpload({ file: iso, transferId: 'tr1', chunkSize: 1, onProgress: vi.fn() });

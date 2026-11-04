@@ -126,6 +126,7 @@ describe('TransferDetailPage', () => {
           {
             id: 'u1',
             fileName: 'big.iso',
+            path: '',
             totalSize: 99,
             status: 'processing',
             expiresAt: 4_100_000_000,
