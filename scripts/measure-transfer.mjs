@@ -66,9 +66,16 @@ if (!Number.isSafeInteger(SIZE) || SIZE <= 0) throw new Error('Invalid --size-gb
 // ---- docker helpers ---------------------------------------------------------------------------
 const PROJECT = ['compose', '-p', args.project];
 
+/** Command line for error messages, with the value after a secret flag (`--password`) hidden. */
+function maskSecrets(argv) {
+  return argv
+    .map((arg, i) => (/^--(password|secret)/.test(argv[i - 1] ?? '') ? '***' : arg))
+    .join(' ');
+}
+
 function dockerSync(argv) {
   const result = spawnSync('docker', argv, { cwd: root, encoding: 'utf8' });
-  if (result.status !== 0) throw new Error(`docker ${argv.join(' ')} failed: ${result.stderr}`);
+  if (result.status !== 0) throw new Error(`docker ${maskSecrets(argv)} failed: ${result.stderr}`);
   return result.stdout.trim();
 }
 
