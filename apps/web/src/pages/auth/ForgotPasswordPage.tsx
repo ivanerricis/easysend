@@ -80,7 +80,7 @@ export default function ForgotPasswordPage() {
         <Button type="submit" className="w-full" disabled={formState.isSubmitting}>
           {formState.isSubmitting ? t('common.actions.working') : t('auth.forgotSubmit')}
         </Button>
-        <p className="text-center">
+        <p>
           <Link to="/login" className={linkClass}>
             {t('auth.backToLogin')}
           </Link>

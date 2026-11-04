@@ -45,7 +45,7 @@ export function DataHeadCell({ className, ...props }: ComponentProps<'th'>) {
       role="columnheader"
       scope="col"
       className={cn(
-        'text-muted-foreground h-auto px-3 py-2 text-xs font-medium tracking-wide whitespace-normal uppercase',
+        'text-muted-foreground h-auto px-3 py-2 text-xs font-medium whitespace-normal',
         className,
       )}
       {...props}
