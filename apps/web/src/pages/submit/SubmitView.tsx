@@ -24,6 +24,7 @@ import { PublicCard } from '@/components/layout/PublicLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { pickedKey, topFolder } from '@/features/upload/folders';
 import type { UploadItem } from '@/features/upload/runner';
 import {
   clearSubmissionDraft,
@@ -32,7 +33,7 @@ import {
   saveSubmissionDraft,
   type SubmissionDraft,
 } from '@/features/upload/submission';
-import type { RunnerEvent } from '@/features/upload/types';
+import type { PickedFile, RunnerEvent } from '@/features/upload/types';
 import { useUploadSession } from '@/features/upload/useUploadSession';
 import { isApiError } from '@/lib/api/client';
 import { cancelSubmission, getSubmission } from '@/lib/api/submissions';
@@ -51,7 +52,6 @@ interface SubmitFormValues {
 }
 
 const CHOOSE_BUTTON_ID = 'submit-choose-files';
-const FILE_KEY = (file: File) => `${file.name}\u0000${file.size}\u0000${file.lastModified}`;
 
 /** Errors that replace the whole page (the link is not usable any more). */
 const PAGE_LEVEL_CODES = new Set([
@@ -119,11 +119,11 @@ export function SubmitView({ token, info }: SubmitViewProps) {
   const queryClient = useQueryClient();
   const locale = i18n.language;
 
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<PickedFile[]>([]);
   const [filesError, setFilesError] = useState<string | null>(null);
   const [fileNotice, setFileNotice] = useState('');
   const [draft, setDraft] = useState<SubmissionDraft | null>(() => loadSubmissionDraft(token));
-  const filesRef = useRef<File[]>(files);
+  const filesRef = useRef<PickedFile[]>(files);
   useEffect(() => {
     filesRef.current = files;
   }, [files]);
@@ -148,10 +148,11 @@ export function SubmitView({ token, info }: SubmitViewProps) {
       if (stored?.transferId !== event.transferId) {
         saveSubmissionDraft(token, {
           ...tokenRef.current,
-          files: filesRef.current.map((file) => ({
+          files: filesRef.current.map(({ file, path }) => ({
             name: file.name,
             size: file.size,
             lastModified: file.lastModified,
+            path,
           })),
           createdAt: Date.now(),
         });
@@ -175,23 +176,24 @@ export function SubmitView({ token, info }: SubmitViewProps) {
   const { state } = session;
   const idle = state.phase === 'idle';
 
-  const total = files.reduce((sum, file) => sum + file.size, 0);
+  const total = files.reduce((sum, picked) => sum + picked.file.size, 0);
   const remaining = info.remainingBytes;
   const overLimit = remaining !== null && total > remaining;
 
-  const addFiles = (incoming: File[]) => {
-    const known = new Set(files.map(FILE_KEY));
-    const accepted: File[] = [];
+  const addFiles = (incoming: PickedFile[]) => {
+    const known = new Set(files.map(pickedKey));
+    const accepted: PickedFile[] = [];
     let duplicates = 0;
     let tooLong = 0;
     let tooMany = 0;
-    for (const file of incoming) {
-      if (known.has(FILE_KEY(file))) duplicates += 1;
+    for (const picked of incoming) {
+      const { file } = picked;
+      if (known.has(pickedKey(picked))) duplicates += 1;
       else if (file.name.length > FILENAME_MAX_LENGTH) tooLong += 1;
       else if (files.length + accepted.length >= info.maxFilesPerTransfer) tooMany += 1;
       else {
-        known.add(FILE_KEY(file));
-        accepted.push(file);
+        known.add(pickedKey(picked));
+        accepted.push(picked);
       }
     }
     if (accepted.length > 0) setFiles([...files, ...accepted]);
@@ -208,9 +210,15 @@ export function SubmitView({ token, info }: SubmitViewProps) {
   };
 
   const removeFile = (index: number) => {
-    const name = files[index]?.name ?? '';
+    const name = files[index]?.file.name ?? '';
     setFiles(files.filter((_, i) => i !== index));
     setFileNotice(t('transfers.new.fileRemoved', { name }));
+    setFilesError(null);
+  };
+
+  const removeFolder = (folder: string) => {
+    setFiles(files.filter((picked) => topFolder(picked.path) !== folder));
+    setFileNotice(t('transfers.new.folderRemoved', { name: folder }));
     setFilesError(null);
   };
 
@@ -239,7 +247,12 @@ export function SubmitView({ token, info }: SubmitViewProps) {
     setFilesError(null);
     session.start({
       create: toSubmissionRequest(values),
-      files: files.map<UploadItem>((file) => ({ name: file.name, size: file.size, file })),
+      files: files.map<UploadItem>(({ file, path }) => ({
+        name: file.name,
+        size: file.size,
+        path,
+        file,
+      })),
       chunkSize: info.chunkSizeBytes,
     });
   });
@@ -388,7 +401,7 @@ export function SubmitView({ token, info }: SubmitViewProps) {
               <p role="status" aria-live="polite" className="sr-only">
                 {fileNotice}
               </p>
-              <SelectedFiles files={files} onRemove={removeFile} />
+              <SelectedFiles files={files} onRemove={removeFile} onRemoveFolder={removeFolder} />
               {overLimit ? (
                 <Alert variant="destructive" role="alert">
                   <AlertTriangle aria-hidden="true" />

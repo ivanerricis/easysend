@@ -66,6 +66,29 @@ describe('NewTransferPage form', () => {
     expect(screen.queryByRole('list', { name: 'Selected files' })).not.toBeInTheDocument();
   });
 
+  it('groups a picked folder, tells same-named files apart by folder and removes the folder', async () => {
+    await renderPage();
+    const inFolder = (path: string, name: string) => {
+      const file = new File(['hello'], name);
+      Object.defineProperty(file, 'webkitRelativePath', { value: `${path}/${name}` });
+      return file;
+    };
+    const pickFolder = (files: File[]) =>
+      fireEvent.change(screen.getByTestId('folder-input'), { target: { files } });
+    pickFolder([inFolder('a', 'x.txt'), inFolder('b', 'x.txt')]);
+    expect(await screen.findByText('2 files added.')).toBeInTheDocument();
+    // Same name and size at the root is a different file from the ones in the folders.
+    pickFiles([new File(['hello'], 'x.txt')]);
+    expect(await screen.findByText('1 file added.')).toBeInTheDocument();
+    // Picking the same folder again adds nothing.
+    pickFolder([inFolder('a', 'x.txt')]);
+    expect(await screen.findByText('0 files added. 1 duplicate skipped.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove folder a' }));
+    expect(screen.getByText('Folder a removed.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove folder a' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove folder b' })).toBeInTheDocument();
+  });
+
   it('shows recipients only in email mode and requires at least one', async () => {
     const { api } = await renderPage();
     expect(screen.queryByLabelText('Recipients')).not.toBeInTheDocument();
@@ -155,7 +178,11 @@ describe('NewTransferPage upload flow', () => {
     const [create] = api.callsTo('POST /api/transfers');
     expect(create?.body).toEqual({ mode: 'link', expiresIn: '1w', title: 'Holiday' });
     expect(uploads.calls).toHaveLength(1);
-    expect(uploads.calls[0]).toMatchObject({ transferId: 'draft1', chunkSize: 5_000_000 });
+    expect(uploads.calls[0]).toMatchObject({
+      transferId: 'draft1',
+      chunkSize: 5_000_000,
+      path: '',
+    });
     expect(polls).toBeGreaterThanOrEqual(1);
     expect(api.callsTo('POST /api/transfers/draft1/finalize')).toHaveLength(1);
     expect(window.localStorage.getItem(DRAFT_STORAGE_KEY)).toBeNull();
@@ -235,8 +262,8 @@ describe('NewTransferPage interrupted upload', () => {
       maxDownloads: '',
     },
     files: [
-      { name: 'done.txt', size: 4, lastModified: 1 },
-      { name: 'photo.jpg', size: 11, lastModified: 1 },
+      { name: 'done.txt', size: 4, lastModified: 1, path: '' },
+      { name: 'photo.jpg', size: 11, lastModified: 1, path: '' },
     ],
     createdAt: 1,
   };

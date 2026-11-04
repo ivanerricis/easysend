@@ -201,11 +201,14 @@
       "diskReserveHelp": "Spazio libero che gli upload non usano mai. 0 disattiva la riserva.",
       "chunkSize": "Dimensione dei blocchi di upload (MB)",
       "chunkSizeHelp": "Da 1 a {{max}} MB. Dietro Cloudflare nessuna richiesta può superare 100 MB, quindi il valore predefinito di 25 MB è una scelta sicura.",
+      "maxFiles": "File massimi per trasferimento",
+      "maxFilesHelp": "Da 1 a {{max}}. Una cartella conta tutti i file che contiene: alza il limite per permettere cartelle grandi.",
       "defaultLocale": "Lingua predefinita",
       "defaultLocaleHelp": "Usata per le email ai destinatari e per chi non ha una preferenza.",
       "errors": {
         "reserve": "Inserisci un numero intero di MB, da 0 a 10485760.",
-        "chunk": "Inserisci un numero intero di MB, da 1 a 50."
+        "chunk": "Inserisci un numero intero di MB, da 1 a 50.",
+        "maxFiles": "Inserisci un numero intero da 1 a 5000."
       },
       "updateCheck": "Controlla gli aggiornamenti",
       "updateCheckHelp": "Una volta al giorno il server chiede a GitHub l'ultima versione pubblicata. Nessun dato dell'istanza viene inviato."

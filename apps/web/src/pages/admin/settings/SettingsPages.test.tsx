@@ -6,7 +6,13 @@ import EmailSettingsPage from './EmailSettingsPage';
 import GeneralSettingsPage from './GeneralSettingsPage';
 import UpdatesSettingsPage from './UpdatesSettingsPage';
 
-const general = { diskReserveMb: 1024, chunkSizeMb: 25, defaultLocale: 'en', updateCheck: true };
+const general = {
+  diskReserveMb: 1024,
+  chunkSizeMb: 25,
+  maxFilesPerTransfer: 1000,
+  defaultLocale: 'en',
+  updateCheck: true,
+};
 
 const updateStatus = (overrides: Record<string, unknown> = {}) => ({
   enabled: true,
@@ -231,8 +237,32 @@ describe('Settings pages', () => {
     expect(api.callsTo('PATCH /api/admin/settings')[0]?.body).toEqual({
       diskReserveMb: 1024,
       chunkSizeMb: 40,
+      maxFilesPerTransfer: 1000,
       defaultLocale: 'en',
       updateCheck: true,
+    });
+  });
+
+  it('saves the files-per-transfer limit and rejects values over the cap', async () => {
+    const { api } = renderPage('general', {
+      'PATCH /api/admin/settings': {
+        general: { ...general, maxFilesPerTransfer: 2500 },
+        smtp: null,
+      },
+    });
+    const field = await screen.findByLabelText('Max files per transfer');
+    expect(field).toHaveValue('1000');
+    fireEvent.change(field, { target: { value: '5001' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save' })[0]!);
+    expect(
+      (await screen.findAllByText('Enter a whole number from 1 to 5000.')).length,
+    ).toBeGreaterThan(0);
+    expect(api.callsTo('PATCH /api/admin/settings')).toHaveLength(0);
+    fireEvent.change(field, { target: { value: '2500' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save' })[0]!);
+    await waitFor(() => expect(api.callsTo('PATCH /api/admin/settings')).toHaveLength(1));
+    expect(api.callsTo('PATCH /api/admin/settings')[0]?.body).toMatchObject({
+      maxFilesPerTransfer: 2500,
     });
   });
 
