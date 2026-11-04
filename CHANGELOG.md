@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.0](https://github.com/ivanerricis/easysend/compare/v0.3.0...v0.4.0) (2026-11-04)
+
+
+### Features
+
+* folders in transfers (phase 10) ([#60](https://github.com/ivanerricis/easysend/issues/60)) ([c2ba29c](https://github.com/ivanerricis/easysend/commit/c2ba29c09847bd2c34b16e428ce97b79b8592c2b))
+
+
+### Bug Fixes
+
+* address open CodeQL and Dependabot alerts ([#59](https://github.com/ivanerricis/easysend/issues/59)) ([4ab5906](https://github.com/ivanerricis/easysend/commit/4ab5906a4be25d4472c0644a97d09875cefc68bf))
+* **scripts:** refuse the one-click update runner in a protected install directory ([#54](https://github.com/ivanerricis/easysend/issues/54)) ([f4a69c2](https://github.com/ivanerricis/easysend/commit/f4a69c25da0c706d76bea7ef2d106732ccbf4675))
+* **web:** keep dialog buttons inside the dialog and fail E2E on overflowing dialogs ([#58](https://github.com/ivanerricis/easysend/issues/58)) ([d5792cb](https://github.com/ivanerricis/easysend/commit/d5792cba72a2e810dbd13a7ea2e9d92076b7ffbc))
+* **web:** keep the visible text in the accessible name of the copy-link and update-notice links ([#61](https://github.com/ivanerricis/easysend/issues/61)) ([f2022d8](https://github.com/ivanerricis/easysend/commit/f2022d80918fc8254d5b8109c613aca38b8eb3c0))
+* **web:** reload on stale chunks after an update and stop the layout shift on open menus ([#55](https://github.com/ivanerricis/easysend/issues/55)) ([d0eab44](https://github.com/ivanerricis/easysend/commit/d0eab44122384708d76e25931205a49047e67ece))
+
 ## [0.3.0](https://github.com/ivanerricis/easysend/compare/v0.2.0...v0.3.0) (2026-11-04)
 
 
