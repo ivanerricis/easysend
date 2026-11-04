@@ -125,6 +125,21 @@ test('the public page shows the tree; one file and the zip are byte-identical', 
   }
 });
 
+test('the tree and the selection fit a 320 px screen', async ({ newSession }) => {
+  const page = await newSession({ viewport: { width: 320, height: 800 } });
+  await page.goto(requireValue('shareFolder'));
+  await expect(page.getByTestId('folder-row')).toHaveCount(3);
+  const overflow = () =>
+    page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+  expect(await overflow()).toBeLessThanOrEqual(0);
+  const targets = await page
+    .getByTestId('folder-row')
+    .evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect().height));
+  for (const height of targets) expect(height).toBeGreaterThanOrEqual(44);
+});
+
 test('the admin limit on files per transfer blocks a larger selection', async ({ page }) => {
   await setMaxFiles(page, '2');
   try {
