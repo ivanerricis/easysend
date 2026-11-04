@@ -32,6 +32,7 @@
     "@types/supertest": "catalog:",
     "@types/yauzl": "catalog:",
     "@types/yazl": "catalog:",
+    "aws4fetch": "catalog:",
     "cookie": "catalog:",
     "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
