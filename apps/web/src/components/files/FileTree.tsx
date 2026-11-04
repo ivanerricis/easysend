@@ -35,8 +35,10 @@ export function FileTree<T extends TreeFile & { id: string }>({
   const renderNodes = (nodes: TreeNode<T>[], nested: boolean): ReactNode => (
     <ul
       className={cn(
-        'divide-border divide-y',
-        nested ? 'border-border ml-2 border-t border-l sm:ml-4' : 'border-border border',
+        // Only the top level is boxed; subfolders get a single guide line, no nested boxes.
+        nested
+          ? 'border-border mb-1 ml-5 border-l sm:ml-6'
+          : 'divide-border border-border divide-y border',
         className && !nested ? className : '',
       )}
     >
