@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { FILENAME_MAX_LENGTH } from '../constants.js';
-import { byteSizeSchema, currentPasswordSchema, idSchema, unixSecondsSchema } from './common.js';
+import {
+  byteSizeSchema,
+  currentPasswordSchema,
+  filePathSchema,
+  idSchema,
+  unixSecondsSchema,
+} from './common.js';
 import { maxDownloadsSchema } from './transfers.js';
 import { displayNameSchema } from './users.js';
 
@@ -16,6 +22,8 @@ export const downloadFileParamsSchema = z.object({
 export const downloadFileSchema = z.object({
   id: idSchema,
   name: z.string().min(1).max(FILENAME_MAX_LENGTH),
+  /** Folder inside the transfer ("" for the root). */
+  path: filePathSchema,
   sizeBytes: byteSizeSchema,
 });
 export type DownloadFile = z.infer<typeof downloadFileSchema>;

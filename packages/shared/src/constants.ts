@@ -62,7 +62,12 @@ export const INSTANCE_NAME_MAX_LENGTH = 60;
 export const DISPLAY_NAME_MAX_LENGTH = 80;
 export const FOOTER_MAX_LENGTH = 200;
 export const MAX_RECIPIENTS = 20;
-export const MAX_FILES_PER_TRANSFER = 100;
+/** Default and hard cap of the admin-configurable limit of files per transfer. */
+export const MAX_FILES_PER_TRANSFER_DEFAULT = 1000;
+export const MAX_FILES_PER_TRANSFER_CAP = 5000;
+/** Relative folder of a file inside a transfer: segments joined by "/", "" for the root. */
+export const FILE_PATH_MAX_LENGTH = 1024;
+export const FILE_PATH_MAX_DEPTH = 32;
 export const MAX_DOWNLOADS_LIMIT = 100_000;
 /** Maximum value of the optional submission limit of an upload request. */
 export const MAX_SUBMISSIONS_LIMIT = 1000;

@@ -8,7 +8,7 @@ import {
   FILENAME_MAX_LENGTH,
   LOCALES,
   MAX_DOWNLOADS_LIMIT,
-  MAX_FILES_PER_TRANSFER,
+  MAX_FILES_PER_TRANSFER_DEFAULT,
   MAX_RECIPIENTS,
   MESSAGE_MAX_LENGTH,
   PASSWORD_MAX_LENGTH,
@@ -127,13 +127,16 @@ export const configResponseSchema = z.object({
 });
 export type ConfigResponse = z.infer<typeof configResponseSchema>;
 
-/** Values for the static parts of `GET /api/config`, taken from the shared constants. */
+/**
+ * Values for the static parts of `GET /api/config`, taken from the shared constants.
+ * `limits.maxFilesPerTransfer` is only the default: the API overrides it with the general setting.
+ */
 export const staticConfig = {
   maxChunkSizeBytes: CHUNK_SIZE_MB.max * BYTES_PER_MB,
   expiryOptions: EXPIRY_KEYS.map((key) => ({ key, seconds: EXPIRY_OPTIONS[key] })),
   limits: {
     maxRecipients: MAX_RECIPIENTS,
-    maxFilesPerTransfer: MAX_FILES_PER_TRANSFER,
+    maxFilesPerTransfer: MAX_FILES_PER_TRANSFER_DEFAULT,
     maxTitleLength: TITLE_MAX_LENGTH,
     maxMessageLength: MESSAGE_MAX_LENGTH,
     maxFilenameLength: FILENAME_MAX_LENGTH,
