@@ -53,4 +53,4 @@ paths:
 
 ## Misure
 
-- Vedi il riepilogo della fase 9 nella pull request per RAM e tempi di upload, download e zip di un file da 1 GB su MinIO (confronto con il disco locale: RSS massimo 156 MB, container 482 MB).
+- File da 1 GB su MinIO (stack locale, `scripts/measure-transfer.mjs --storage s3`, SHA-256 verificato su upload, download e zip), stessa macchina del confronto col disco locale. S3: RSS massimo del processo node 287 MB (durante la cifratura, che ora include l'invio a parti da 16 MB), container massimo 315 MB (cgroup senza page cache); upload 29 MB/s, cifratura+invio 15 MB/s, download 16 MB/s, zip 17 MB/s. Disco locale: RSS massimo 213 MB, container massimo 376 MB (la page cache del disco pesa nello zip); 27, 26, 30 e 26 MB/s. L'uso di RAM resta costante rispetto alla dimensione: i picchi dipendono dalle parti da 16 MB tenute in memoria e dal baseline di Node, non dal file. Il download da S3 è più lento (un GET a intervalli per blocco verso il bucket). Nelle misure della fase 6 sul disco locale: RSS 156 MB, container 482 MB.
