@@ -3,6 +3,20 @@
 //
 //   node scripts/measure-transfer.mjs [--size-gb 5] [--base-url http://localhost:8080]
 //
+// With `--storage s3` the throw-away admin first saves an S3 configuration through the API (after
+// the connection test) so the file goes to the bucket, and switches back to the local disk at the
+// end. The S3 service must be reachable from the api container, for example MinIO on the compose
+// network (default project network `<project>_default`):
+//
+//   docker run -d --name easysend-bench-minio --network easysend-local_default \
+//     -e MINIO_ROOT_USER=bench-key -e MINIO_ROOT_PASSWORD=bench-secret-0123456789 \
+//     -e MINIO_DEFAULT_BUCKETS=easysend bitnamilegacy/minio:2025.7.23-debian-12-r5
+//   node scripts/measure-transfer.mjs --storage s3 --s3-endpoint http://easysend-bench-minio:9000 \
+//     --s3-access-key bench-key --s3-secret bench-secret-0123456789 --s3-path-style
+//   docker rm -f -v easysend-bench-minio
+//
+// Other options: --s3-bucket (easysend), --s3-region (us-east-1), --s3-prefix (bench).
+//
 // It creates a throw-away admin with the local-only CLI inside the api container, enrols 2FA,
 // uploads pseudo-random data generated on the fly (nothing is read from or written to the PC's
 // disk), verifies the SHA-256 of both downloads and samples the api container every second:
@@ -31,8 +45,20 @@ const { values: args } = parseArgs({
     'size-gb': { type: 'string', default: '5' },
     'base-url': { type: 'string', default: `http://localhost:${localWebPort()}` },
     project: { type: 'string', default: 'easysend-local' },
+    storage: { type: 'string', default: 'local' },
+    's3-endpoint': { type: 'string' },
+    's3-region': { type: 'string', default: 'us-east-1' },
+    's3-bucket': { type: 'string', default: 'easysend' },
+    's3-prefix': { type: 'string', default: 'bench' },
+    's3-access-key': { type: 'string' },
+    's3-secret': { type: 'string' },
+    's3-path-style': { type: 'boolean', default: false },
   },
 });
+if (!['local', 's3'].includes(args.storage)) throw new Error('--storage must be local or s3');
+if (args.storage === 's3' && !(args['s3-endpoint'] && args['s3-access-key'] && args['s3-secret'])) {
+  throw new Error('--storage s3 needs --s3-endpoint, --s3-access-key and --s3-secret');
+}
 const SIZE = Math.round(Number(args['size-gb']) * 1024 * MB);
 const BASE = args['base-url'].replace(/\/$/, '');
 if (!Number.isSafeInteger(SIZE) || SIZE <= 0) throw new Error('Invalid --size-gb');
@@ -191,6 +217,31 @@ async function login() {
   csrf = verified.csrfToken;
 }
 
+/** Tests and saves the S3 configuration given on the command line (admin session required). */
+async function useS3() {
+  const s3 = {
+    endpoint: args['s3-endpoint'],
+    region: args['s3-region'],
+    bucket: args['s3-bucket'],
+    prefix: args['s3-prefix'],
+    forcePathStyle: args['s3-path-style'],
+    accessKeyId: args['s3-access-key'],
+    secretAccessKey: args['s3-secret'],
+  };
+  await expectJson(await http('POST', '/api/admin/settings/storage/test', { json: { s3 } }), 200);
+  await expectJson(
+    await http('PUT', '/api/admin/settings/storage', { json: { driver: 's3', s3 } }),
+    200,
+  );
+}
+
+async function useLocal() {
+  await expectJson(
+    await http('PUT', '/api/admin/settings/storage', { json: { driver: 'local' } }),
+    200,
+  );
+}
+
 async function upload(transferId) {
   const b64 = (s) => Buffer.from(s).toString('base64');
   const created = await http('POST', '/api/uploads', {
@@ -274,6 +325,7 @@ async function main() {
   await new Promise((r) => setTimeout(r, 5000)); // idle baseline
 
   await login();
+  if (args.storage === 's3') await useS3();
   const transfer = await expectJson(
     await http('POST', '/api/transfers', {
       json: { mode: 'link', expiresIn: '3d', title: 'bench' },
@@ -289,6 +341,7 @@ async function main() {
   );
   const token = new URL(finalized.shareUrl).pathname.split('/').pop();
 
+  if (args.storage === 's3') await useLocal();
   jar.clear(); // downloads are anonymous
   csrf = '';
   const single = await timed('download', async () =>
