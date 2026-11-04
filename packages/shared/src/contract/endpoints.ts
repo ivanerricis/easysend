@@ -65,6 +65,20 @@ import {
   transferFileParamsSchema,
   updateTransferRequestSchema,
 } from '../schemas/transfers.js';
+import {
+  createSubmissionRequestSchema,
+  createSubmissionResponseSchema,
+  createUploadRequestSchema,
+  finalizeSubmissionResponseSchema,
+  listUploadRequestsQuerySchema,
+  listUploadRequestsResponseSchema,
+  requestInfoResponseSchema,
+  requestTokenParamsSchema,
+  submissionParamsSchema,
+  submissionStatusResponseSchema,
+  updateUploadRequestSchema,
+  uploadRequestDetailSchema,
+} from '../schemas/requests.js';
 import { tusUploadParamsSchema } from '../schemas/uploads.js';
 import {
   changePasswordRequestSchema,
@@ -98,6 +112,9 @@ const empty = (status: number, headers?: Record<string, string>) => ({
 
 const OWNER_NOTE =
   'Available to the owner and to admins; any other user receives 404 `TRANSFER_NOT_FOUND`.';
+
+const REQUEST_OWNER_NOTE =
+  'Available to the owner only; any other user (admins included) receives 404 `REQUEST_NOT_FOUND`.';
 
 /** The whole API, in documentation order. */
 export const endpoints: readonly EndpointDef[] = [
@@ -690,6 +707,199 @@ export const endpoints: readonly EndpointDef[] = [
     response: json(200, listTransfersResponseSchema),
     notes:
       'Admins manage a transfer of another user with the regular `/api/transfers/:id` endpoints (edit expiry, revoke, delete).',
+  }),
+
+  // ---- upload requests (owner) ---------------------------------------------
+  defineEndpoint({
+    id: 'requests.list',
+    tag: 'requests',
+    method: 'GET',
+    path: '/api/requests',
+    summary: 'List your upload requests',
+    auth: 'session',
+    query: listUploadRequestsQuerySchema,
+    response: json(200, listUploadRequestsResponseSchema),
+    notes:
+      'Newest first. `q` matches the title. An `active` request whose expiry has passed is reported as `expired` even before the cleanup job runs.',
+  }),
+  defineEndpoint({
+    id: 'requests.create',
+    tag: 'requests',
+    method: 'POST',
+    path: '/api/requests',
+    summary: 'Create an upload request',
+    auth: 'session',
+    rateLimit: 'requestCreate',
+    body: createUploadRequestSchema,
+    response: json(201, uploadRequestDetailSchema),
+    notes:
+      'Returns the link `shareUrl` (`<PUBLIC_URL>/r/<token>`), through which anyone can send files to the owner without an account. `expiresIn` (`3d`, `1w`, `1m`) is the validity of the link and also the lifetime of each received transfer, counted from the moment its submission is finalized. `maxTotalBytes` and `maxSubmissions` are optional limits (`null` or omitted for none). `requireName` and `requireEmail` default to false. The password is stored only as a strong hash.',
+  }),
+  defineEndpoint({
+    id: 'requests.get',
+    tag: 'requests',
+    method: 'GET',
+    path: '/api/requests/:id',
+    summary: 'Upload request details with the received transfers',
+    auth: 'session',
+    params: idParamsSchema,
+    response: json(200, uploadRequestDetailSchema),
+    errors: ['REQUEST_NOT_FOUND'],
+    notes: REQUEST_OWNER_NOTE,
+  }),
+  defineEndpoint({
+    id: 'requests.update',
+    tag: 'requests',
+    method: 'PATCH',
+    path: '/api/requests/:id',
+    summary: 'Edit title, instructions, expiry, password, limits or required fields',
+    auth: 'session',
+    params: idParamsSchema,
+    body: updateUploadRequestSchema,
+    response: json(200, uploadRequestDetailSchema),
+    errors: ['REQUEST_NOT_FOUND', 'REQUEST_EXPIRED', 'REQUEST_REVOKED'],
+    notes: `\`expiresIn\` is counted from now. \`password\` sets or replaces the password, \`removePassword: true\` removes it (mutually exclusive). \`maxTotalBytes\` and \`maxSubmissions\` accept \`null\` to remove the limit. At least one field is required. ${REQUEST_OWNER_NOTE}`,
+  }),
+  defineEndpoint({
+    id: 'requests.revoke',
+    tag: 'requests',
+    method: 'POST',
+    path: '/api/requests/:id/revoke',
+    summary: 'Revoke the link',
+    auth: 'session',
+    params: idParamsSchema,
+    response: json(200, uploadRequestDetailSchema),
+    errors: ['REQUEST_NOT_FOUND'],
+    notes: `The link stops accepting uploads immediately; submissions in progress are refused with \`REQUEST_REVOKED\`. Transfers already received are kept. Idempotent. ${REQUEST_OWNER_NOTE}`,
+  }),
+  defineEndpoint({
+    id: 'requests.delete',
+    tag: 'requests',
+    method: 'DELETE',
+    path: '/api/requests/:id',
+    summary: 'Delete an upload request',
+    auth: 'session',
+    params: idParamsSchema,
+    response: empty(204),
+    errors: ['REQUEST_NOT_FOUND'],
+    notes: `Transfers already received are kept (their \`uploadRequestId\` becomes null); drafts of submissions in progress are removed. ${REQUEST_OWNER_NOTE}`,
+  }),
+
+  // ---- submissions (public, token based) -----------------------------------
+  defineEndpoint({
+    id: 'submissions.info',
+    tag: 'submissions',
+    method: 'GET',
+    path: '/api/r/:token',
+    summary: 'Public information of an upload request',
+    auth: 'public',
+    rateLimit: 'requestView',
+    params: requestTokenParamsSchema,
+    response: json(200, requestInfoResponseSchema),
+    errors: ['REQUEST_NOT_FOUND', 'REQUEST_EXPIRED', 'REQUEST_REVOKED', 'REQUEST_FULL'],
+    notes:
+      'No account is needed. Password-protected requests answer `{ locked: true }` (no title or instructions) until unlocked with a valid `es_ru` cookie. When `ownerName` is null the client shows the instance name (from `GET /api/public/settings`). The owner email is never exposed. `remainingBytes` is null when the request has no total limit.',
+  }),
+  defineEndpoint({
+    id: 'submissions.unlock',
+    tag: 'submissions',
+    method: 'POST',
+    path: '/api/r/:token/unlock',
+    summary: 'Unlock a password-protected upload request',
+    auth: 'public',
+    csrf: true,
+    rateLimit: 'requestPassword',
+    params: requestTokenParamsSchema,
+    body: unlockRequestSchema,
+    response: empty(204, {
+      'Set-Cookie':
+        'es_ru=<signed>; Path=/api/r/<token>; HttpOnly; Secure; SameSite=Strict; Max-Age=3600',
+    }),
+    errors: [
+      'PASSWORD_INCORRECT',
+      'REQUEST_NOT_FOUND',
+      'REQUEST_EXPIRED',
+      'REQUEST_REVOKED',
+      'REQUEST_FULL',
+    ],
+    notes:
+      'Wrong attempts are rate limited per request and IP. On a request without password it answers 204 without a cookie. Needs the pre-login CSRF token (`GET /api/auth/csrf`).',
+  }),
+  defineEndpoint({
+    id: 'submissions.create',
+    tag: 'submissions',
+    method: 'POST',
+    path: '/api/r/:token/submissions',
+    summary: 'Start a submission (creates a draft transfer for the owner)',
+    auth: 'public',
+    csrf: true,
+    rateLimit: 'submissionCreate',
+    params: requestTokenParamsSchema,
+    body: createSubmissionRequestSchema,
+    response: json(201, createSubmissionResponseSchema),
+    errors: [
+      'PASSWORD_REQUIRED',
+      'VALIDATION_ERROR',
+      'REQUEST_NOT_FOUND',
+      'REQUEST_EXPIRED',
+      'REQUEST_REVOKED',
+      'REQUEST_FULL',
+    ],
+    notes:
+      '`name` and `email` are mandatory when the request says so (`VALIDATION_ERROR` otherwise). Counts toward `maxSubmissions` only when finalized, but is refused with `REQUEST_FULL` once the limit is reached. The draft belongs to the request owner (quota, cleanup). Next: upload the files with tus passing `transferId` in the metadata and the `X-Submission-Token` header (no session needed), then call `finalize`. Needs the pre-login CSRF token.',
+  }),
+  defineEndpoint({
+    id: 'submissions.get',
+    tag: 'submissions',
+    method: 'GET',
+    path: '/api/r/:token/submissions/:id',
+    summary: 'State of a submission (polled while files are processed)',
+    auth: 'public',
+    params: submissionParamsSchema,
+    requestHeaders: { 'X-Submission-Token': 'Token returned by `submissions.create`.' },
+    response: json(200, submissionStatusResponseSchema),
+    errors: ['REQUEST_NOT_FOUND', 'REQUEST_REVOKED', 'REQUEST_EXPIRED', 'TRANSFER_NOT_FOUND'],
+    notes:
+      'Authorized by the `X-Submission-Token` header, which must belong to this transfer and request; anything else answers 404.',
+  }),
+  defineEndpoint({
+    id: 'submissions.finalize',
+    tag: 'submissions',
+    method: 'POST',
+    path: '/api/r/:token/submissions/:id/finalize',
+    summary: 'Complete the submission and notify the owner',
+    auth: 'public',
+    csrf: true,
+    params: submissionParamsSchema,
+    requestHeaders: { 'X-Submission-Token': 'Token returned by `submissions.create`.' },
+    response: json(200, finalizeSubmissionResponseSchema),
+    errors: [
+      'REQUEST_NOT_FOUND',
+      'REQUEST_EXPIRED',
+      'REQUEST_REVOKED',
+      'REQUEST_FULL',
+      'TRANSFER_NOT_FOUND',
+      'TRANSFER_NOT_UPLOADABLE',
+      'TRANSFER_EMPTY',
+      'UPLOAD_INCOMPLETE',
+    ],
+    notes:
+      'Needs at least one completed file and no upload in progress. Activates the received transfer (its expiry is the request duration counted from now), updates the request counters and emails the owner. Needs the pre-login CSRF token.',
+  }),
+  defineEndpoint({
+    id: 'submissions.cancel',
+    tag: 'submissions',
+    method: 'DELETE',
+    path: '/api/r/:token/submissions/:id',
+    summary: 'Cancel a submission that is not finalized',
+    auth: 'public',
+    csrf: true,
+    params: submissionParamsSchema,
+    requestHeaders: { 'X-Submission-Token': 'Token returned by `submissions.create`.' },
+    response: empty(204),
+    errors: ['REQUEST_NOT_FOUND', 'TRANSFER_NOT_FOUND', 'TRANSFER_NOT_UPLOADABLE'],
+    notes:
+      'Removes the draft and its uploads. A finalized submission cannot be cancelled by the uploader (`TRANSFER_NOT_UPLOADABLE`). Needs the pre-login CSRF token.',
   }),
 
   // ---- uploads (tus) -------------------------------------------------------

@@ -3,6 +3,7 @@ import {
   ChevronsUpDown,
   ArrowUpCircle,
   HardDrive,
+  Inbox,
   LogOut,
   Palette,
   Send,
@@ -66,6 +67,7 @@ interface NavItem {
 const MAIN_NAV: NavItem[] = [
   { to: '/', labelKey: 'common.nav.send', icon: Send },
   { to: '/transfers', labelKey: 'common.nav.transfers', icon: Share2 },
+  { to: '/requests', labelKey: 'common.nav.requests', icon: Inbox },
 ];
 
 const ADMIN_NAV: NavItem[] = [

@@ -15,6 +15,7 @@ const TABLES = [
   'transfer_files',
   'transfer_recipients',
   'transfers',
+  'upload_requests',
   'uploads',
   'users',
 ];
@@ -30,6 +31,10 @@ const INDEXES = [
   'transfers_token_unique',
   'transfers_owner_id_idx',
   'transfers_status_expires_at_idx',
+  'transfers_upload_request_id_idx',
+  'upload_requests_token_unique',
+  'upload_requests_owner_id_idx',
+  'upload_requests_status_expires_at_idx',
   'transfer_files_transfer_id_idx',
   'transfer_recipients_transfer_id_idx',
   'uploads_owner_id_idx',
@@ -79,7 +84,7 @@ describe('migrations', () => {
     };
 
     const first = await runMigrations(sqlite, options);
-    expect(first.applied).toEqual(['0000_init', '0001_auth_sessions']);
+    expect(first.applied).toEqual(['0000_init', '0001_auth_sessions', '0002_upload_requests']);
     expect(first.backupPath).toBeUndefined();
 
     const second = await runMigrations(sqlite, options);
@@ -193,7 +198,7 @@ describe('migrations', () => {
       logger: silentLogger,
     });
 
-    expect(result.applied).toEqual(['0001_auth_sessions']);
+    expect(result.applied).toEqual(['0001_auth_sessions', '0002_upload_requests']);
     expect(sqlite.prepare('SELECT last_seen_at, absolute_expires_at FROM sessions').get()).toEqual({
       last_seen_at: 0,
       absolute_expires_at: 0,
@@ -225,5 +230,58 @@ describe('migrations', () => {
 
     sqlite.prepare("DELETE FROM transfers WHERE id = 't1'").run();
     expect(sqlite.prepare('SELECT COUNT(*) AS n FROM transfer_files').get()).toEqual({ n: 0 });
+  });
+
+  it('applies 0002 keeping existing transfers as sent, and nulls the request on delete', async () => {
+    const dir = makeTempDir();
+    const backupDir = path.join(dir, 'backups');
+    const { sqlite } = trackDb(openDatabase(path.join(dir, 'app.sqlite')));
+    const full = resolveMigrationsFolder();
+
+    // A folder holding 0000 and 0001: the state of a database before phase 8.
+    const before = path.join(dir, 'drizzle-0001');
+    cpSync(full, before, { recursive: true });
+    const journalFile = path.join(before, 'meta', '_journal.json');
+    const journal = JSON.parse(readFileSync(journalFile, 'utf8')) as { entries: unknown[] };
+    journal.entries = journal.entries.slice(0, 2);
+    writeFileSync(journalFile, JSON.stringify(journal));
+    await runMigrations(sqlite, { migrationsFolder: before, backupDir, logger: silentLogger });
+
+    sqlite
+      .prepare(
+        "INSERT INTO users (id, email, password_hash, role, created_at) VALUES ('u1', 'a@b.c', 'h', 'admin', 1)",
+      )
+      .run();
+    sqlite
+      .prepare(
+        "INSERT INTO transfers (id, owner_id, token, mode, expires_at, status, created_at) VALUES ('t1', 'u1', 'tok', 'link', 100, 'active', 1)",
+      )
+      .run();
+
+    const result = await runMigrations(sqlite, {
+      migrationsFolder: full,
+      backupDir,
+      logger: silentLogger,
+    });
+    expect(result.applied).toEqual(['0002_upload_requests']);
+    expect(
+      sqlite
+        .prepare('SELECT source, upload_request_id, sender_name, sender_email FROM transfers')
+        .get(),
+    ).toEqual({ source: 'sent', upload_request_id: null, sender_name: null, sender_email: null });
+
+    sqlite
+      .prepare(
+        "INSERT INTO upload_requests (id, owner_id, token, title, expires_at, expires_in, created_at, updated_at) VALUES ('r1', 'u1', 'rtok', 'Docs', 100, '1w', 1, 1)",
+      )
+      .run();
+    sqlite
+      .prepare("UPDATE transfers SET source = 'received', upload_request_id = 'r1' WHERE id = 't1'")
+      .run();
+    expect(() => sqlite.prepare("DELETE FROM users WHERE id = 'u1'").run()).toThrow(/FOREIGN KEY/);
+    sqlite.prepare("DELETE FROM upload_requests WHERE id = 'r1'").run();
+    expect(sqlite.prepare('SELECT upload_request_id FROM transfers').get()).toEqual({
+      upload_request_id: null,
+    });
   });
 });

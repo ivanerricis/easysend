@@ -327,6 +327,83 @@ export function firstDownloadEmail(input: FirstDownloadInput) {
   return build(copy, brand);
 }
 
+// ---- Submission received -----------------------------------------------------------------
+
+export interface SubmissionReceivedInput extends BaseInput {
+  /** Title of the upload request. */
+  requestTitle: string;
+  /** Free text typed by the person who uploaded (optional): one line, never trusted. */
+  submitterName: string | null;
+  submitterEmail: string | null;
+  fileCount: number;
+  totalBytes: number;
+  /** Link to the owner's page of the received transfer: `PUBLIC_URL/transfers/<id>`. */
+  link: string;
+}
+
+/** Notice to the owner that someone sent files through an upload request. */
+export function submissionReceivedEmail(input: SubmissionReceivedInput) {
+  const brand = brandOf(input);
+  const { locale, link } = input;
+  const name = nameOf(input.appearance);
+  const title = oneLine(input.requestTitle);
+  const submitterName = oneLine(input.submitterName ?? '');
+  const submitterEmail = oneLine(input.submitterEmail ?? '');
+  const who =
+    submitterName && submitterEmail
+      ? `${submitterName} <${submitterEmail}>`
+      : submitterName || submitterEmail;
+  const size = formatBytes(input.totalBytes, locale);
+
+  const copy: EmailCopy =
+    locale === 'en'
+      ? {
+          subject: `${name}: new files received for "${title}"`,
+          preheader: `${input.fileCount === 1 ? '1 file' : `${input.fileCount} files`} (${size}) received.`,
+          heading: 'You received new files',
+          greeting: 'Hello,',
+          lead: [
+            `${who || 'Someone'} sent you ${input.fileCount === 1 ? '1 file' : `${input.fileCount} files`} (${size}) through your request "${title}".`,
+          ],
+          details: [
+            { label: 'Request', value: title },
+            ...(who ? [{ label: 'From', value: who }] : []),
+            { label: 'Files', value: String(input.fileCount) },
+            { label: 'Total size', value: size },
+          ],
+          cta: {
+            intro: 'See the files here:',
+            label: 'View transfer',
+            url: link,
+            fallback: 'If the button does not work, copy this link into your browser:',
+          },
+          after: [],
+        }
+      : {
+          subject: `${name}: nuovi file ricevuti per "${title}"`,
+          preheader: `${input.fileCount === 1 ? '1 file ricevuto' : `${input.fileCount} file ricevuti`} (${size}).`,
+          heading: 'Hai ricevuto dei nuovi file',
+          greeting: 'Ciao,',
+          lead: [
+            `${who || 'Qualcuno'} ti ha inviato ${input.fileCount === 1 ? '1 file' : `${input.fileCount} file`} (${size}) tramite la tua richiesta "${title}".`,
+          ],
+          details: [
+            { label: 'Richiesta', value: title },
+            ...(who ? [{ label: 'Da', value: who }] : []),
+            { label: 'File', value: String(input.fileCount) },
+            { label: 'Dimensione totale', value: size },
+          ],
+          cta: {
+            intro: 'Vedi i file qui:',
+            label: 'Apri il trasferimento',
+            url: link,
+            fallback: 'Se il pulsante non funziona, copia questo link nel browser:',
+          },
+          after: [],
+        };
+  return build(copy, brand);
+}
+
 // ---- SMTP test ---------------------------------------------------------------------------
 
 /** Test message of the admin settings: no link, it only proves the SMTP settings work. */

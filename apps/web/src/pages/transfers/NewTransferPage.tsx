@@ -15,7 +15,7 @@ import { useUploadSession } from '@/features/upload/useUploadSession';
 import { isApiError } from '@/lib/api/client';
 import { getConfig } from '@/lib/api/me';
 import { useMe } from '@/hooks/use-me';
-import { deleteTransfer } from '@/lib/api/transfers';
+import { deleteTransfer, getTransfer } from '@/lib/api/transfers';
 import { formatBytes } from '@/lib/format';
 import { notifySuccess } from '@/lib/toast';
 import { Dropzone } from './new/Dropzone';
@@ -229,7 +229,7 @@ export default function NewTransferPage() {
         description={idle ? t('transfers.new.description') : undefined}
       />
 
-      {state.phase === 'done' && state.result ? (
+      {state.phase === 'done' && state.result && 'recipients' in state.result ? (
         <div className="max-w-3xl">
           <SuccessPanel transfer={state.result} onNew={resetAll} />
         </div>
@@ -249,6 +249,10 @@ export default function NewTransferPage() {
           {draft ? (
             <ResumeBanner
               draft={draft}
+              queryKey={queryKeys.transfers.detail(draft.transferId)}
+              load={() => getTransfer(draft.transferId)}
+              remove={() => deleteTransfer(draft.transferId)}
+              onForget={clearDraft}
               onGone={() => setDraft(null)}
               onDiscarded={() => setDraft(null)}
               onResume={handleResume}

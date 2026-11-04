@@ -15,6 +15,7 @@ import {
   passwordResetTokens,
   transferFiles,
   transfers,
+  uploadRequests,
   uploads,
   users,
 } from '../db/schema/index.js';
@@ -259,6 +260,10 @@ export function adminUsersRouter(ctx: AppContext): Router {
           }
           findUser(newOwnerId); // USER_NOT_FOUND when it does not exist
           tx.update(transfers).set({ ownerId: newOwnerId }).where(eq(transfers.ownerId, id)).run();
+          tx.update(uploadRequests)
+            .set({ ownerId: newOwnerId })
+            .where(eq(uploadRequests.ownerId, id))
+            .run();
           tx.update(uploads).set({ ownerId: newOwnerId }).where(eq(uploads.ownerId, id)).run();
           tx.update(users)
             .set({ usedBytes: sql`${users.usedBytes} + ${target.usedBytes}` })
@@ -287,6 +292,7 @@ export function adminUsersRouter(ctx: AppContext): Router {
           }
           tx.delete(uploads).where(eq(uploads.ownerId, id)).run();
           tx.delete(transfers).where(eq(transfers.ownerId, id)).run();
+          tx.delete(uploadRequests).where(eq(uploadRequests.ownerId, id)).run();
         }
 
         // Sessions, recovery codes and reset tokens go with the user (ON DELETE CASCADE).

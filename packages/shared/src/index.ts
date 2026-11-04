@@ -8,6 +8,7 @@ export * from './schemas/users.js';
 export * from './schemas/auth.js';
 export * from './schemas/transfers.js';
 export * from './schemas/uploads.js';
+export * from './schemas/requests.js';
 export * from './schemas/downloads.js';
 export * from './schemas/settings.js';
 export * from './schemas/setup.js';

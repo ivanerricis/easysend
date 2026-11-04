@@ -233,6 +233,31 @@ test('screenshots and accessibility', async ({ newSession }) => {
     await capture(a, name, { full });
   }
 
+  // ---------------------------------------------------------------- file requests
+  await a.goto('/requests');
+  await expect(a.getByRole('heading', { name: 'Ricevi file' })).toBeVisible();
+  await a.getByRole('button', { name: 'Nuova richiesta' }).first().click();
+  const requestDialog = a.getByRole('dialog');
+  await requestDialog.getByLabel(/^Titolo/).fill('Documenti per la dichiarazione');
+  await requestDialog
+    .getByLabel(/^Istruzioni/)
+    .fill('Carica qui le fatture e le ricevute del 2025. Puoi inviare più file insieme.');
+  await requestDialog.getByRole('button', { name: 'Crea', exact: true }).click();
+  const requestLink = a.getByLabel('Link di invio');
+  await expect(requestLink).toBeVisible();
+  const requestUrl = await requestLink.inputValue();
+  expect(requestUrl).toContain('/r/');
+  await settle(a);
+  await capture(a, '20-requests', { full: true });
+
+  const uploader = await newContext();
+  const u = uploader.page;
+  await u.goto(requestUrl);
+  await expect(u.getByText('Carica qui le fatture')).toBeVisible();
+  await settle(u);
+  await capture(u, '21-submit', { full: true });
+  await uploader.context.close();
+
   // ---------------------------------------------------------------- mobile (375x812)
   const storageState = await admin.context.storageState();
   const guest = await newContext({ viewport: MOBILE });

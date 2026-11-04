@@ -111,6 +111,27 @@ describe('createFileUpload', () => {
     expect(setHeader).toHaveBeenCalledWith('X-CSRF-Token', 'csrf-1');
   });
 
+  it('adds the extra headers (submission token) on every request, and none by default', async () => {
+    const plain = start().options;
+    const plainHeader = vi.fn();
+    await plain.onBeforeRequest({ setHeader: plainHeader });
+    expect(plainHeader).toHaveBeenCalledTimes(1);
+
+    const handle = createFileUpload({
+      file,
+      transferId: 'tr1',
+      chunkSize: 5_000_000,
+      headers: { 'X-Submission-Token': 'sub-token' },
+      onProgress: vi.fn(),
+    });
+    void handle;
+    const options = tus.instances[tus.instances.length - 1]!.options as Options;
+    const setHeader = vi.fn();
+    await options.onBeforeRequest({ setHeader });
+    expect(setHeader).toHaveBeenCalledWith('X-CSRF-Token', 'csrf-1');
+    expect(setHeader).toHaveBeenCalledWith('X-Submission-Token', 'sub-token');
+  });
+
   it('retries once on CSRF_INVALID after dropping the token', () => {
     const { options } = start();
     expect(options.onShouldRetry(tusError(403, 'CSRF_INVALID'), 0)).toBe(true);

@@ -4,12 +4,19 @@ import { hasErrorCode } from '@/lib/errors';
 import { UploadCancelledError, isCancelled } from './errors';
 import { SpeedTracker } from './metrics';
 import type { FileUploadHandle, FileUploadOptions } from './tus-file';
-import type { RunnerEvent } from './types';
+import type { RunnerEvent, RunResult } from './types';
 
-export interface RunnerDeps {
-  createTransfer: (body: CreateTransferInput) => Promise<TransferDetail>;
-  getTransfer: (id: string) => Promise<TransferDetail>;
-  finalizeTransfer: (id: string) => Promise<TransferDetail>;
+/**
+ * Operations the runner needs. `C` is the body that creates the draft: a transfer for signed-in
+ * users, a submission for people who upload through a request link (see `submission-deps.ts`).
+ */
+export interface RunnerDeps<C = CreateTransferInput> {
+  createTransfer: (body: C) => Promise<Pick<TransferDetail, 'id'>>;
+  /** Only the uploads are read: the runner waits until none is `in_progress` or `processing`. */
+  getTransfer: (
+    id: string,
+  ) => Promise<{ uploads: Pick<TransferDetail['uploads'][number], 'status'>[] }>;
+  finalizeTransfer: (id: string) => Promise<RunResult>;
   deleteTransfer: (id: string) => Promise<void>;
   createUpload: (options: FileUploadOptions) => FileUploadHandle;
   now?: () => number;
@@ -26,10 +33,10 @@ export interface UploadItem {
   file: File | null;
 }
 
-export interface RunParams {
+export interface RunParams<C = CreateTransferInput> {
   /** Draft to continue; when missing a new draft is created with `create`. */
   transferId?: string | undefined;
-  create?: CreateTransferInput | undefined;
+  create?: C | undefined;
   /** Every file of the transfer, in order; items with `file: null` are skipped. */
   files: UploadItem[];
   chunkSize: number;
@@ -37,7 +44,7 @@ export interface RunParams {
 
 const MAX_FINALIZE_ATTEMPTS = 20;
 
-function isBusy(detail: TransferDetail): boolean {
+function isBusy(detail: { uploads: { status: string }[] }): boolean {
   return detail.uploads.some((u) => u.status === 'in_progress' || u.status === 'processing');
 }
 
@@ -46,17 +53,17 @@ function isBusy(detail: TransferDetail): boolean {
  * server finished encrypting, finalize. Emits `RunnerEvent`s consumed by `sessionReducer`.
  * Framework independent so it can be unit tested with fake dependencies.
  */
-export class TransferRunner {
+export class TransferRunner<C = CreateTransferInput> {
   private current: FileUploadHandle | null = null;
   private paused = false;
   private cancelled = false;
   private gate: { promise: Promise<void>; open: () => void } | null = null;
   private transferId: string | null = null;
   private readonly tracker = new SpeedTracker();
-  private readonly deps: RunnerDeps;
+  private readonly deps: RunnerDeps<C>;
   private readonly emit: (event: RunnerEvent) => void;
 
-  constructor(deps: RunnerDeps, emit: (event: RunnerEvent) => void) {
+  constructor(deps: RunnerDeps<C>, emit: (event: RunnerEvent) => void) {
     this.deps = deps;
     this.emit = emit;
   }
@@ -106,7 +113,7 @@ export class TransferRunner {
     }
   }
 
-  async run(params: RunParams): Promise<void> {
+  async run(params: RunParams<C>): Promise<void> {
     try {
       await this.execute(params);
     } catch (error) {
@@ -128,7 +135,7 @@ export class TransferRunner {
     }
   }
 
-  private async execute(params: RunParams): Promise<void> {
+  private async execute(params: RunParams<C>): Promise<void> {
     const { files, chunkSize } = params;
     this.emit({
       type: 'files',

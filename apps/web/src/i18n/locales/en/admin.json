@@ -121,6 +121,8 @@
       "allStatuses": "All statuses",
       "mode": "Type",
       "allModes": "All types",
+      "origin": "Origin",
+      "allOrigins": "Sent and received",
       "owner": "Owner",
       "allOwners": "All users",
       "clear": "Clear filters"

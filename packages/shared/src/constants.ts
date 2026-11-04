@@ -29,6 +29,14 @@ export type TransferStatus = (typeof TRANSFER_STATUSES)[number];
 export const TRANSFER_MODES = ['link', 'email'] as const;
 export type TransferMode = (typeof TRANSFER_MODES)[number];
 
+/** Where a transfer comes from: sent by its owner, or received through an upload request link. */
+export const TRANSFER_SOURCES = ['sent', 'received'] as const;
+export type TransferSource = (typeof TRANSFER_SOURCES)[number];
+
+/** Stored status of an upload request; `expired` is derived from `expires_at`, never stored. */
+export const UPLOAD_REQUEST_STATUSES = ['active', 'revoked'] as const;
+export type UploadRequestStatus = (typeof UPLOAD_REQUEST_STATUSES)[number];
+
 export const UPLOAD_STATUSES = ['in_progress', 'processing', 'completed', 'aborted'] as const;
 export type UploadStatus = (typeof UPLOAD_STATUSES)[number];
 
@@ -48,6 +56,7 @@ export const TOTP_CODE_LENGTH = 6;
 export const EMAIL_MAX_LENGTH = 254;
 export const TITLE_MAX_LENGTH = 120;
 export const MESSAGE_MAX_LENGTH = 2000;
+export const SENDER_NAME_MAX_LENGTH = 80;
 export const FILENAME_MAX_LENGTH = 255;
 export const INSTANCE_NAME_MAX_LENGTH = 60;
 export const DISPLAY_NAME_MAX_LENGTH = 80;
@@ -55,6 +64,8 @@ export const FOOTER_MAX_LENGTH = 200;
 export const MAX_RECIPIENTS = 20;
 export const MAX_FILES_PER_TRANSFER = 100;
 export const MAX_DOWNLOADS_LIMIT = 100_000;
+/** Maximum value of the optional submission limit of an upload request. */
+export const MAX_SUBMISSIONS_LIMIT = 1000;
 /** Free disk space (MB) that can be reserved: 10 TiB. */
 export const DISK_RESERVE_MAX_MB = 10_485_760;
 

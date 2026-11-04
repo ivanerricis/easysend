@@ -148,6 +148,8 @@
     "allStatuses": "Tutti gli stati",
     "mode": "Modalità",
     "allModes": "Tutte le modalità",
+    "origin": "Origine",
+    "allOrigins": "Inviati e ricevuti",
     "untitled": "Trasferimento senza titolo",
     "emptyTitle": "Nessun trasferimento",
     "emptyDescription": "Invia i tuoi primi file per vederli qui.",
@@ -166,7 +168,21 @@
       "actions": "Azioni"
     }
   },
+  "origin": {
+    "sent": "Inviati",
+    "received": "Ricevuti"
+  },
+  "received": {
+    "from": "Ricevuto da {{who}}",
+    "anonymous": "anonimo"
+  },
   "detail": {
+    "sender": "Mittente",
+    "senderName": "Nome",
+    "senderEmail": "Email",
+    "anonymousSender": "Anonimo",
+    "receivedVia": "Ricevuto tramite una richiesta",
+    "openRequest": "Apri la richiesta",
     "backToList": "Tutti i trasferimenti",
     "notFoundTitle": "Trasferimento non trovato",
     "draftNotice": "Questo trasferimento non è mai stato completato: non ha ancora un link. Riprendi il caricamento dalla pagina Invia oppure eliminalo.",

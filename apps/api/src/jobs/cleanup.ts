@@ -10,6 +10,7 @@ import {
   passwordResetTokens,
   transferFiles,
   transfers,
+  uploadRequests,
   uploads,
 } from '../db/schema/index.js';
 import { isStorageName, isStorageEntry, PART_SUFFIX } from '../storage/paths.js';
@@ -20,6 +21,8 @@ import { deleteTransfer, recomputeUsedBytes } from '../transfers/service.js';
 export interface CleanupReport {
   /** Expired, revoked and abandoned-draft transfers removed (rows and files). */
   deletedTransfers: number;
+  /** Expired and revoked upload requests removed (their received transfers stay). */
+  deletedRequests: number;
   /** `in_progress` uploads past their expiry and old `aborted` uploads removed. */
   abortedUploads: number;
   /** Files in `TMP_UPLOAD_DIR` with no `uploads` row, removed. */
@@ -213,6 +216,7 @@ export async function runCleanup(ctx: AppContext): Promise<CleanupReport> {
   const now = nowSeconds(ctx.clock);
   const report: CleanupReport = {
     deletedTransfers: 0,
+    deletedRequests: 0,
     abortedUploads: 0,
     orphanTmpFiles: 0,
     orphanFiles: 0,
@@ -233,6 +237,18 @@ export async function runCleanup(ctx: AppContext): Promise<CleanupReport> {
 
   await step('transfers', async () => {
     report.deletedTransfers = await cleanTransfers(ctx, now);
+  });
+  await step('requests', () => {
+    // Received transfers keep existing: their `upload_request_id` becomes NULL (FK set null).
+    report.deletedRequests = ctx.db
+      .delete(uploadRequests)
+      .where(
+        or(
+          eq(uploadRequests.status, 'revoked'),
+          and(eq(uploadRequests.status, 'active'), lte(uploadRequests.expiresAt, now)),
+        ),
+      )
+      .run().changes;
   });
   await step('uploads', async () => {
     report.abortedUploads = await cleanUploads(ctx, now);

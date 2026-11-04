@@ -62,3 +62,10 @@ Endpoint `admin.updateRun` (stato) e `admin.updateStart` (avvio): solo admin, CS
 Codici di uscita di `deploy.sh`: 75 occupato, 20 compose, 21 backup, 30 ripristinato, 31 rollback fallito. Test degli script in `scripts/tests/run.sh` (passo "Update scripts" del job `test` della CI), test API e frontend, E2E dove possibile.
 Documenta la funzione nel sito (aggiornamenti e sicurezza, IT/EN), compresa la nota per chi parte dalla 0.1.x: il vecchio `deploy.sh` non scarica i due nuovi script, che vanno presi una volta a mano.
 Apri la pull request collegata all'issue della fase.
+
+## Fase 8 — Link per ricevere file (completata)
+Controlla le skill disponibili e usa quelle pertinenti. Lavora sul branch `feat/fase-8-upload-requests` (issue #35).
+Permetti a un utente di creare una richiesta ("Ricevi file") e di condividerne il link pubblico `/r/<token>`: chi lo apre carica file senza account, con lo stesso upload tus (a chunk, ripristinabile) e la stessa cifratura dei trasferimenti normali. Opzioni: titolo, istruzioni, scadenza, password, dimensione massima totale, numero massimo di invii, nome ed email di chi carica obbligatori; modifica, revoca ed eliminazione dal proprietario. I file arrivano come trasferimenti ricevuti (`source = received`), visibili in Trasferimenti con il filtro Inviati/Ricevuti, con mittente e messaggio, senza reinvio né notifica di primo download; il proprietario riceve un'email a ogni invio completato.
+Dati: tabella `upload_requests` e colonne `source`, `upload_request_id`, `sender_name`, `sender_email` in `transfers`. Sicurezza: cookie `es_ru` per la password, token di invio in `X-Submission-Token` su tus e finalize, CSRF, limiti di frequenza, token mascherati nei log. Endpoint `requests.*` (proprietario) e `submissions.*` (pubblico).
+Test API (Supertest), frontend (Vitest) ed E2E (`70-upload-request.spec.ts`: creazione, sblocco anonimo, invio di due file, email, zip con SHA-256, limite di dimensione, revoca, axe). Documenta la funzione nel sito (Ricevere file, IT/EN), in SPEC e nel README.
+Apri la pull request collegata all'issue della fase.

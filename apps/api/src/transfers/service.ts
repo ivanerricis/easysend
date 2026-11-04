@@ -1,7 +1,8 @@
-import { and, asc, count, desc, eq, gt, inArray, lte, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, inArray, lte, ne, or, sql, type SQL } from 'drizzle-orm';
 import type {
   TransferDetail,
   TransferMode,
+  TransferSource,
   TransferStatus,
   TransferSummary,
   UserRole,
@@ -93,6 +94,10 @@ export function summaryFrom(
     downloadCount: row.downloadCount,
     maxDownloads: row.maxDownloads,
     hasPassword: row.passwordHash !== null,
+    source: row.source,
+    uploadRequestId: row.uploadRequestId,
+    senderName: row.senderName,
+    senderEmail: row.senderEmail,
     shareUrl: shareUrlOf(row, extra.publicUrl),
   };
 }
@@ -368,6 +373,9 @@ export interface TransferListFilter {
   /** Effective status: `expired` also matches `active` rows past their expiry. */
   status?: TransferStatus | undefined;
   mode?: TransferMode | undefined;
+  source?: TransferSource | undefined;
+  /** Only the transfers received through this upload request. */
+  uploadRequestId?: string | undefined;
   /** Substring of the title or of a recipient email. */
   q?: string | undefined;
   page: number;
@@ -396,6 +404,10 @@ export function listTransfersPage(
     filter.ownerId ? eq(transfers.ownerId, filter.ownerId) : undefined,
     filter.status ? statusCondition(filter.status, nowSec) : undefined,
     filter.mode ? eq(transfers.mode, filter.mode) : undefined,
+    filter.source ? eq(transfers.source, filter.source) : undefined,
+    filter.uploadRequestId ? eq(transfers.uploadRequestId, filter.uploadRequestId) : undefined,
+    // Drafts of people still uploading through a request are not the owner's to see yet.
+    or(ne(transfers.source, 'received'), ne(transfers.status, 'uploading')),
     pattern
       ? or(
           sql`${transfers.title} LIKE ${pattern} ESCAPE '\\'`,
@@ -434,6 +446,31 @@ export function listTransfersPage(
     ),
     total,
   };
+}
+
+/**
+ * Number of completed files of a draft that is ready to finalize. Throws `UPLOAD_INCOMPLETE`
+ * while an upload is still running and `TRANSFER_EMPTY` when there is no file at all.
+ */
+export function finalizableFileCount(db: Db, transferId: string): number {
+  const pending = db
+    .select({ n: count() })
+    .from(uploads)
+    .where(
+      and(
+        eq(uploads.transferId, transferId),
+        inArray(uploads.status, ['in_progress', 'processing']),
+      ),
+    )
+    .get()!.n;
+  if (pending > 0) throw new AppError('UPLOAD_INCOMPLETE', 'Some uploads are not finished yet');
+  const fileCount = db
+    .select({ n: count() })
+    .from(transferFiles)
+    .where(eq(transferFiles.transferId, transferId))
+    .get()!.n;
+  if (fileCount === 0) throw new AppError('TRANSFER_EMPTY', 'The transfer has no files');
+  return fileCount;
 }
 
 /**

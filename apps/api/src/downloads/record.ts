@@ -88,7 +88,8 @@ export function claimDownload(ctx: AppContext, transfer: TransferRow): void {
     const current = ctx.db.select().from(transfers).where(eq(transfers.id, transfer.id)).get();
     throw (current && unavailableError(current, nowSec)) ?? new AppError('TRANSFER_NOT_FOUND');
   }
-  if (updated.notifiedAt === null) {
+  // A received transfer is the owner's own inbox: nobody to notify about its downloads.
+  if (updated.notifiedAt === null && transfer.source === 'sent') {
     notifyOwner(ctx, transfer, updated.firstDownloadedAt ?? nowSec, nowSec).catch(
       (error: unknown) => {
         ctx.logger.warn({ transferId: transfer.id, err: error }, 'first download notice failed');

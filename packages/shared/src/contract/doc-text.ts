@@ -40,6 +40,12 @@ export const ERROR_MEANINGS: Record<ErrorCode, string> = {
   TRANSFER_REVOKED: 'The transfer was revoked by its owner or an admin.',
   DOWNLOAD_LIMIT_REACHED: 'The maximum number of downloads was reached.',
   RANGE_NOT_SATISFIABLE: 'The `Range` header is outside the file size.',
+  REQUEST_NOT_FOUND:
+    'No such upload request, or not visible to the caller (existence is never revealed).',
+  REQUEST_EXPIRED: 'The upload request is expired.',
+  REQUEST_REVOKED: 'The upload request was revoked by its owner or an admin.',
+  REQUEST_FULL: 'The maximum number of submissions of the upload request was reached.',
+  REQUEST_SIZE_LIMIT: 'The upload would exceed the total size limit of the upload request.',
   SETUP_ALREADY_COMPLETED: 'The setup wizard was already completed.',
   SETUP_CODE_INVALID: 'Wrong setup code.',
   SETUP_CODE_EXPIRED: 'The setup code expired; restart the API to get a new one.',
