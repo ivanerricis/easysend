@@ -84,10 +84,14 @@ export default function SubmitPage() {
       <UnlockCard
         title={t('submit.locked.title')}
         description={t('submit.locked.description')}
-        expiresLabel={t('submit.expires', {
-          date: formatDateTime(expiresAt, i18n.language),
-          relative: formatRelative(expiresAt, i18n.language),
-        })}
+        expiresLabel={
+          expiresAt === null
+            ? t('submit.expiresNever')
+            : t('submit.expires', {
+                date: formatDateTime(expiresAt, i18n.language),
+                relative: formatRelative(expiresAt, i18n.language),
+              })
+        }
         unlock={(password) => unlockRequest(token, { password })}
         onUnlocked={refetch}
       />

@@ -319,6 +319,32 @@ describe('listing', () => {
     expect(detail(await later.get(`/api/transfers/${active.id}`)).status).toBe('expired');
   });
 
+  it('never expires a transfer created without expiry and reports expiresAt as null', async () => {
+    const t = await createUploadApp();
+    const { user, client } = await userWithClient(t);
+    const forever = await transferWithFile(t, client, {
+      body: { expiresIn: 'never' },
+      finalize: true,
+    });
+    expect(forever.expiresAt).toBeNull();
+
+    t.clock.advance(20 * 365 * 86_400);
+    const later = loginAs(t, user);
+    const active = bodyAs<ListTransfersResponse>(await later.get('/api/transfers?status=active'));
+    expect(active.items.map((i) => [i.id, i.expiresAt])).toEqual([[forever.id, null]]);
+    expect(detail(await later.get(`/api/transfers/${forever.id}`)).status).toBe('active');
+
+    // Switching to a duration and back both work on an active transfer.
+    const limited = await later.patch(`/api/transfers/${forever.id}`, {
+      body: { expiresIn: '3d' },
+    });
+    expect(detail(limited).expiresAt).toBe(nowSeconds(t.clock) + EXPIRY_OPTIONS['3d']);
+    const unlimited = await later.patch(`/api/transfers/${forever.id}`, {
+      body: { expiresIn: 'never' },
+    });
+    expect(detail(unlimited).expiresAt).toBeNull();
+  });
+
   it('adminList shows every user and filters by owner; users cannot call it', async () => {
     const t = await createUploadApp();
     const { user: u1, client: c1 } = await userWithClient(t);

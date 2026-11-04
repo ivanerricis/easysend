@@ -92,7 +92,8 @@ export const uploadRequestSummarySchema = z.object({
   status: uploadRequestEffectiveStatusSchema,
   createdAt: unixSecondsSchema,
   updatedAt: unixSecondsSchema,
-  expiresAt: unixSecondsSchema,
+  /** `null`: the request never expires. */
+  expiresAt: unixSecondsSchema.nullable(),
   /** Duration chosen for the link and for the received transfers. */
   expiresIn: expiryKeySchema,
   hasPassword: z.boolean(),
@@ -130,7 +131,7 @@ export const submissionParamsSchema = z.object({ token: downloadTokenSchema, id:
 export const requestInfoResponseSchema = z.discriminatedUnion('locked', [
   z.object({
     locked: z.literal(true),
-    expiresAt: unixSecondsSchema,
+    expiresAt: unixSecondsSchema.nullable(),
   }),
   z.object({
     locked: z.literal(false),
@@ -143,7 +144,7 @@ export const requestInfoResponseSchema = z.discriminatedUnion('locked', [
     requireEmail: z.boolean(),
     /** Bytes that can still be uploaded; `null` when the request has no total limit. */
     remainingBytes: byteSizeSchema.nullable(),
-    expiresAt: unixSecondsSchema,
+    expiresAt: unixSecondsSchema.nullable(),
     /** tus chunk size of this instance (the public page cannot read `GET /api/config`). */
     chunkSizeBytes: z.number().int().positive(),
     /** Files per submission (general setting of the instance). */

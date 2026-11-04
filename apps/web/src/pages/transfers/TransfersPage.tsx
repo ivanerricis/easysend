@@ -56,8 +56,9 @@ function ModeLabel({
 }
 
 function Expires({ transfer }: { transfer: TransferSummary }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   if (transfer.status === 'uploading') return <span aria-hidden="true">â€”</span>;
+  if (transfer.expiresAt === null) return <span>{t('common.neverExpires')}</span>;
   const iso = new Date(transfer.expiresAt * 1000).toISOString();
   return (
     <HintText content={formatDateTime(transfer.expiresAt, i18n.language)}>

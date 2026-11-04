@@ -154,12 +154,18 @@ export default function RequestDetailPage() {
               {formatDateTime(request.createdAt, locale)}
             </Fact>
             <Fact label={t('requests.detail.expires')}>
-              <time dateTime={new Date(request.expiresAt * 1000).toISOString()}>
-                {formatDateTime(request.expiresAt, locale)}
-              </time>{' '}
-              <span className="text-muted-foreground">
-                ({formatRelative(request.expiresAt, locale)})
-              </span>
+              {request.expiresAt === null ? (
+                t('common.neverExpires')
+              ) : (
+                <>
+                  <time dateTime={new Date(request.expiresAt * 1000).toISOString()}>
+                    {formatDateTime(request.expiresAt, locale)}
+                  </time>{' '}
+                  <span className="text-muted-foreground">
+                    ({formatRelative(request.expiresAt, locale)})
+                  </span>
+                </>
+              )}
             </Fact>
             <Fact label={t('requests.detail.password')}>
               {request.hasPassword

@@ -2,7 +2,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import { Router, type Response } from 'express';
 import { pipeline, type Readable, type Transform } from 'node:stream';
 import { ZipFile } from 'yazl';
-import type { DownloadInfoResponse, ZipQuery } from '@easysend/shared';
+import { publicExpiresAt, type DownloadInfoResponse, type ZipQuery } from '@easysend/shared';
 import type { AppContext } from '../context.js';
 import { sha256Hex } from '../crypto/hash.js';
 import { createDecryptStream } from '../crypto/segments.js';
@@ -103,7 +103,10 @@ export function downloadsRouter(ctx: AppContext): Router {
       const { token } = validParams<{ token: string }>(req);
       const { transfer, nowSec } = await resolveTransfer(ctx, req, res, token);
       if (!isUnlocked(ctx, req, transfer, nowSec)) {
-        sendJson(res, 'downloads.info', 200, { locked: true, expiresAt: transfer.expiresAt });
+        sendJson(res, 'downloads.info', 200, {
+          locked: true,
+          expiresAt: publicExpiresAt(transfer.expiresAt),
+        });
         return;
       }
       const owner = db
@@ -124,7 +127,7 @@ export function downloadsRouter(ctx: AppContext): Router {
           sizeBytes: f.sizeBytes,
         })),
         totalBytes: files.reduce((sum, f) => sum + f.sizeBytes, 0),
-        expiresAt: transfer.expiresAt,
+        expiresAt: publicExpiresAt(transfer.expiresAt),
         downloadCount: transfer.downloadCount,
         maxDownloads: transfer.maxDownloads,
       };

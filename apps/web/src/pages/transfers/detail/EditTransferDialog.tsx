@@ -150,9 +150,12 @@ function EditForm({
             { value: 'keep', label: t('transfers.edit.expiryKeep') },
             ...EXPIRY_KEYS.map((period) => ({
               value: period,
-              label: t('transfers.edit.expiryFromNow', {
-                period: t(`transfers.expiry.${period}`),
-              }),
+              label:
+                period === 'never'
+                  ? t('transfers.expiry.never')
+                  : t('transfers.edit.expiryFromNow', {
+                      period: t(`transfers.expiry.${period}`),
+                    }),
             })),
           ]}
         />

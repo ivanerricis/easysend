@@ -75,7 +75,7 @@ function UnlockView({
   onUnlocked,
 }: {
   token: string;
-  expiresAt: number;
+  expiresAt: number | null;
   onUnlocked: () => Promise<unknown>;
 }) {
   const { t, i18n } = useTranslation();
@@ -83,10 +83,14 @@ function UnlockView({
     <UnlockCard
       title={t('download.locked.title')}
       description={t('download.locked.description')}
-      expiresLabel={t('download.expires', {
-        date: formatDateTime(expiresAt, i18n.language),
-        relative: formatRelative(expiresAt, i18n.language),
-      })}
+      expiresLabel={
+        expiresAt === null
+          ? t('download.expiresNever')
+          : t('download.expires', {
+              date: formatDateTime(expiresAt, i18n.language),
+              relative: formatRelative(expiresAt, i18n.language),
+            })
+      }
       unlock={(password) => unlockDownload(token, { password })}
       onUnlocked={onUnlocked}
     />
@@ -151,10 +155,12 @@ function TransferView({ token, info, onDownloadStarted }: TransferViewProps) {
         </dd>
         <dt className="text-muted-foreground">{t('download.availability')}</dt>
         <dd>
-          {t('download.expires', {
-            date: formatDateTime(info.expiresAt, locale),
-            relative: formatRelative(info.expiresAt, locale),
-          })}
+          {info.expiresAt === null
+            ? t('download.expiresNever')
+            : t('download.expires', {
+                date: formatDateTime(info.expiresAt, locale),
+                relative: formatRelative(info.expiresAt, locale),
+              })}
         </dd>
         <dt className="text-muted-foreground">{t('download.counter')}</dt>
         <dd className="font-mono">

@@ -1,11 +1,12 @@
 import { and, asc, count, desc, eq, gt, inArray, lte, ne, or, sql, type SQL } from 'drizzle-orm';
-import type {
-  TransferDetail,
-  TransferMode,
-  TransferSource,
-  TransferStatus,
-  TransferSummary,
-  UserRole,
+import {
+  publicExpiresAt,
+  type TransferDetail,
+  type TransferMode,
+  type TransferSource,
+  type TransferStatus,
+  type TransferSummary,
+  type UserRole,
 } from '@easysend/shared';
 import { audit } from '../audit.js';
 import { nowSeconds } from '../clock.js';
@@ -88,7 +89,7 @@ export function summaryFrom(
     ownerId: row.ownerId,
     ownerEmail: extra.ownerEmail,
     createdAt: row.createdAt,
-    expiresAt: row.expiresAt,
+    expiresAt: publicExpiresAt(row.expiresAt),
     totalBytes: row.totalBytes,
     fileCount: extra.fileCount,
     recipientCount: extra.recipientCount,
@@ -512,7 +513,7 @@ export async function notifyRecipients(
           title: row.title,
           message: row.message,
           senderName,
-          expiresAt: row.expiresAt,
+          expiresAt: publicExpiresAt(row.expiresAt),
           fileCount: files.n,
           totalBytes: files.bytes,
         },

@@ -39,7 +39,7 @@
     "title": "Title",
     "message": "Instructions",
     "messageHint": "Shown on the upload page. Explain what you want to receive.",
-    "expiry": "Link expires after",
+    "expiry": "Link expiry",
     "expiryFromNow": "Expires in {{period}}",
     "expiryKeep": "Keep the current expiry",
     "expiryHint": "Also applies to the files received, counted from the moment of the upload. The new expiry counts from today.",

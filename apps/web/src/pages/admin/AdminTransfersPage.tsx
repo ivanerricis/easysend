@@ -261,7 +261,9 @@ export default function AdminTransfersPage() {
                     </span>
                   </DataCell>
                   <DataCell label={t('admin.transfers.columns.expires')}>
-                    {formatDateTime(item.expiresAt, i18n.language)}
+                    {item.expiresAt === null
+                      ? t('common.neverExpires')
+                      : formatDateTime(item.expiresAt, i18n.language)}
                   </DataCell>
                   <DataCell>
                     <div className="max-lg:flex max-lg:w-full max-lg:justify-end">

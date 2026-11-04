@@ -152,7 +152,8 @@ export const transferSummarySchema = z.object({
   ownerId: idSchema,
   ownerEmail: emailSchema,
   createdAt: unixSecondsSchema,
-  expiresAt: unixSecondsSchema,
+  /** `null`: the transfer never expires. */
+  expiresAt: unixSecondsSchema.nullable(),
   totalBytes: byteSizeSchema,
   fileCount: z.number().int().nonnegative(),
   recipientCount: z.number().int().nonnegative(),

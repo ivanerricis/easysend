@@ -177,8 +177,8 @@ export interface TransferLinkInput extends BaseInput {
   senderName: string | null;
   title: string | null;
   message: string | null;
-  /** Unix seconds. */
-  expiresAt: number;
+  /** Unix seconds; `null` when the link never expires. */
+  expiresAt: number | null;
   fileCount: number;
   totalBytes: number;
   timezone: string;
@@ -195,7 +195,13 @@ export function transferLinkEmail(input: TransferLinkInput) {
   const sender = oneLine(input.senderName ?? '') || name;
   const heading = input.title ? oneLine(input.title) : '';
   const size = formatBytes(input.totalBytes, locale);
-  const expires = formatDateTime(input.expiresAt, locale, input.timezone);
+  const never = input.expiresAt === null;
+  const expires =
+    input.expiresAt === null
+      ? locale === 'en'
+        ? 'Never'
+        : 'Mai'
+      : formatDateTime(input.expiresAt, locale, input.timezone);
   const note = input.message?.trim() ? input.message.trim() : undefined;
 
   const copy: EmailCopy =
@@ -204,7 +210,9 @@ export function transferLinkEmail(input: TransferLinkInput) {
           subject: heading
             ? `${sender} sent you files: ${heading}`
             : `${sender} sent you files via ${name}`,
-          preheader: `Download them before ${expires}.`,
+          preheader: never
+            ? 'Your files are ready to download.'
+            : `Download them before ${expires}.`,
           heading: heading || 'You received some files',
           greeting: 'Hello,',
           lead: [
@@ -224,7 +232,7 @@ export function transferLinkEmail(input: TransferLinkInput) {
             fallback: 'If the button does not work, copy this link into your browser:',
           },
           after: [
-            `The link expires on ${expires}.`,
+            ...(never ? [] : [`The link expires on ${expires}.`]),
             'If the link asks for a password, ask the sender: it is not included in this email.',
           ],
         }
@@ -232,7 +240,9 @@ export function transferLinkEmail(input: TransferLinkInput) {
           subject: heading
             ? `${sender} ti ha inviato dei file: ${heading}`
             : `${sender} ti ha inviato dei file con ${name}`,
-          preheader: `Scaricali prima del ${expires}.`,
+          preheader: never
+            ? 'I file sono pronti per il download.'
+            : `Scaricali prima del ${expires}.`,
           heading: heading || 'Hai ricevuto dei file',
           greeting: 'Ciao,',
           lead: [
@@ -252,7 +262,7 @@ export function transferLinkEmail(input: TransferLinkInput) {
             fallback: 'Se il pulsante non funziona, copia questo link nel browser:',
           },
           after: [
-            `Il link scade il ${expires}.`,
+            ...(never ? [] : [`Il link scade il ${expires}.`]),
             'Se il link chiede una password, chiedila al mittente: non è inclusa in questa email.',
           ],
         };

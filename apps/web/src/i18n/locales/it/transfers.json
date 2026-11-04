@@ -9,7 +9,8 @@
   "expiry": {
     "3d": "3 giorni",
     "1w": "1 settimana",
-    "1m": "1 mese"
+    "1m": "1 mese",
+    "never": "Senza scadenza"
   },
   "new": {
     "description": "Scegli i file, imposta le opzioni e ottieni un link da condividere. I file sono cifrati sul server.",
@@ -42,7 +43,7 @@
     "recipientsHint": "Premi Invio o Aggiungi dopo ogni indirizzo. Puoi incollarne più di uno, separati da virgole o a capo.",
     "recipientsList": "Destinatari aggiunti",
     "removeRecipient": "Rimuovi {{email}}",
-    "expiry": "Il link scade dopo",
+    "expiry": "Scadenza del link",
     "title": "Titolo",
     "message": "Messaggio",
     "messageHintEmail": "Compare nell'email e nella pagina di download.",

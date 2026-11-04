@@ -58,8 +58,8 @@ export interface TransferNotice {
   message: string | null;
   /** Display name of the sender, null to use the instance name. */
   senderName: string | null;
-  /** Unix seconds. */
-  expiresAt: number;
+  /** Unix seconds; `null` when the link never expires. */
+  expiresAt: number | null;
   fileCount: number;
   totalBytes: number;
 }

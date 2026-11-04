@@ -228,12 +228,18 @@ export default function TransferDetailPage() {
             </Fact>
             {!isDraft ? (
               <Fact label={t('transfers.detail.expires')}>
-                <time dateTime={new Date(transfer.expiresAt * 1000).toISOString()}>
-                  {formatDateTime(transfer.expiresAt, locale)}
-                </time>{' '}
-                <span className="text-muted-foreground">
-                  ({formatRelative(transfer.expiresAt, locale)})
-                </span>
+                {transfer.expiresAt === null ? (
+                  t('common.neverExpires')
+                ) : (
+                  <>
+                    <time dateTime={new Date(transfer.expiresAt * 1000).toISOString()}>
+                      {formatDateTime(transfer.expiresAt, locale)}
+                    </time>{' '}
+                    <span className="text-muted-foreground">
+                      ({formatRelative(transfer.expiresAt, locale)})
+                    </span>
+                  </>
+                )}
               </Fact>
             ) : null}
             <Fact label={t('transfers.detail.size')}>
