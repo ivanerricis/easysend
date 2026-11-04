@@ -35,11 +35,25 @@ const SMTP_SUGGESTION = {
   verified: false,
 };
 
+const STORAGE_LOCAL = {
+  driver: 'local',
+  s3: null,
+  source: 'panel',
+  envDiffers: false,
+  usage: { local: { files: 0, bytes: 0 }, s3: { files: 0, bytes: 0 } },
+  locked: { fields: [], reason: null },
+};
+
 function render(statusBody: ReturnType<typeof status>, routes: Record<string, unknown> = {}) {
   return renderApp({
     route: '/setup',
     publicSettings: { setupCompleted: false, appMode: statusBody.appMode },
-    routes: { 'GET /api/setup/status': statusBody, ...routes },
+    routes: {
+      'GET /api/setup/status': statusBody,
+      'GET /api/setup/storage': STORAGE_LOCAL,
+      'PUT /api/setup/storage': STORAGE_LOCAL,
+      ...routes,
+    },
   });
 }
 
@@ -304,6 +318,9 @@ describe('SMTP step', () => {
     expect(screen.queryByLabelText('Cloudflare API token')).not.toBeInTheDocument();
     expect(currentStep()).toHaveTextContent('Domain');
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await waitForStep('Where to save the files');
+    await screen.findByRole('button', { name: /^(Continue|Test connection)$/ });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await waitForStep('General settings');
     const nav = screen.getByRole('navigation', { name: 'Setup progress' });
     expect(within(nav).getByText('Skipped')).toBeInTheDocument();
@@ -397,6 +414,9 @@ describe('general and complete steps', () => {
     const { api } = render(status({ admin: true, smtp: true }), {
       'PUT /api/setup/general': { ok: true },
     });
+    await waitForStep('Where to save the files');
+    await screen.findByRole('button', { name: /^(Continue|Test connection)$/ });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await waitForStep('General settings');
     fireEvent.change(screen.getByLabelText('Instance name'), { target: { value: 'My files' } });
     fireEvent.change(screen.getByLabelText('Upload chunk size (MB)'), { target: { value: '60' } });
@@ -459,5 +479,80 @@ describe('general and complete steps', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Finish setup' }));
     await waitForStep('Enter the setup code');
     expect(screen.getByText(/The setup session expired/)).toBeInTheDocument();
+  });
+});
+
+describe('storage step', () => {
+  const S3_SAVED = {
+    ...STORAGE_LOCAL,
+    driver: 's3',
+    s3: {
+      endpoint: 'https://s3.example.com',
+      region: 'auto',
+      bucket: 'files',
+      prefix: '',
+      forcePathStyle: false,
+      accessKeyId: 'AKIA',
+      hasSecret: true,
+    },
+  };
+
+  it('continues with the local disk in one click', async () => {
+    const { api } = render(status({ admin: true, smtp: true }));
+    await waitForStep('Where to save the files');
+    await screen.findByRole('button', { name: 'Continue' });
+    expect(currentStep()).toHaveTextContent('Storage');
+    expect(screen.queryByLabelText('Endpoint')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await waitForStep('General settings');
+    expect(api.callsTo('PUT /api/setup/storage')[0]?.body).toEqual({ driver: 'local' });
+  });
+
+  it('tests the S3 connection before it can be saved', async () => {
+    const { api } = render(status({ admin: true, smtp: true }), {
+      'POST /api/setup/storage/test': { ok: true },
+      'PUT /api/setup/storage': S3_SAVED,
+    });
+    await waitForStep('Where to save the files');
+    await screen.findByRole('button', { name: /^(Continue|Test connection)$/ });
+    fireEvent.click(screen.getByRole('radio', { name: /S3-compatible storage/ }));
+    fireEvent.change(screen.getByLabelText('Endpoint'), {
+      target: { value: 'https://s3.example.com' },
+    });
+    fireEvent.change(screen.getByLabelText('Bucket'), { target: { value: 'files' } });
+    fireEvent.change(screen.getByLabelText('Access key ID'), { target: { value: 'AKIA' } });
+    fireEvent.change(screen.getByLabelText('Secret access key'), { target: { value: 'shh' } });
+    const save = screen.getByRole('button', { name: 'Save and continue' });
+    expect(save).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Test connection' }));
+    expect(await screen.findByText('Connection works.')).toBeInTheDocument();
+    expect(save).toBeEnabled();
+    fireEvent.click(save);
+    await waitForStep('General settings');
+    expect(api.callsTo('PUT /api/setup/storage')[0]?.body).toMatchObject({
+      driver: 's3',
+      s3: { endpoint: 'https://s3.example.com', bucket: 'files', secretAccessKey: 'shh' },
+    });
+  });
+
+  it('shows the translated reason of a failed test', async () => {
+    render(status({ admin: true, smtp: true }), {
+      'GET /api/setup/storage': S3_SAVED,
+      'POST /api/setup/storage/test': {
+        status: 502,
+        body: {
+          error: {
+            code: 'STORAGE_TEST_FAILED',
+            message: 'x',
+            requestId: 'r',
+            details: { reason: 'NO_SUCH_BUCKET' },
+          },
+        },
+      },
+    });
+    await waitForStep('Where to save the files');
+    await screen.findByRole('button', { name: /^(Continue|Test connection)$/ });
+    fireEvent.click(screen.getByRole('button', { name: 'Test connection' }));
+    expect(await screen.findByText(/the bucket does not exist/)).toBeInTheDocument();
   });
 });

@@ -2,7 +2,15 @@ import { Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
-export const SETUP_STEPS = ['code', 'admin', 'smtp', 'cloudflare', 'general', 'complete'] as const;
+export const SETUP_STEPS = [
+  'code',
+  'admin',
+  'smtp',
+  'cloudflare',
+  'storage',
+  'general',
+  'complete',
+] as const;
 export type SetupStepId = (typeof SETUP_STEPS)[number];
 
 interface StepperProps {
