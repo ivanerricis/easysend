@@ -200,7 +200,7 @@ main() {
   check_env_file
   check_data_path || die_code "$EXIT_DATA_PATH" "Fix DATA_PATH in .env (or leave it empty for the Docker volume), then run the deploy again. Nothing was changed."
   local protected
-  if protected="$(protected_install_prefix)"; then
+  if protected="$(protected_install_prefix "$EASYSEND_DIR")"; then
     warn "The install directory $EASYSEND_DIR is under $protected: the one-click update from the admin panel cannot run there."
     warn "Manual deploys keep working. To enable it, move the installation to /opt/easysend: $INSTALL_DIR_DOCS"
   fi
