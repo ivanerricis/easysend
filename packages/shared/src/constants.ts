@@ -98,3 +98,37 @@ export const DEFAULT_FONT: AvailableFont = 'plus-jakarta-sans';
 // ---- Pagination ------------------------------------------------------------
 export const PAGE_SIZE_DEFAULT = 20;
 export const PAGE_SIZE_MAX = 100;
+
+// ---- Storage ---------------------------------------------------------------
+/** Where the encrypted files live: the server disk or an S3-compatible object store. */
+export const STORAGE_DRIVERS = ['local', 's3'] as const;
+export type StorageDriverKind = (typeof STORAGE_DRIVERS)[number];
+
+export const STORAGE_MIGRATION_STATUSES = [
+  'running',
+  'cancelling',
+  'cancelled',
+  'done',
+  'failed',
+] as const;
+export type StorageMigrationStatus = (typeof STORAGE_MIGRATION_STATUSES)[number];
+
+/** Size of the parts of an S3 multipart upload (the S3 minimum is 5 MiB). */
+export const S3_PART_SIZE_BYTES = 16 * BYTES_PER_MB;
+
+/** Safe reasons reported by a failed storage connection test (`details.reason`). */
+export const STORAGE_TEST_REASONS = [
+  'ACCESS_DENIED',
+  'NO_SUCH_BUCKET',
+  'SIGNATURE',
+  'TIMEOUT',
+  'NETWORK',
+  'ENDPOINT',
+] as const;
+export type StorageTestReason = (typeof STORAGE_TEST_REASONS)[number];
+
+export const S3_ENDPOINT_MAX_LENGTH = 2048;
+export const S3_REGION_MAX_LENGTH = 64;
+export const S3_PREFIX_MAX_LENGTH = 256;
+export const S3_ACCESS_KEY_ID_MAX_LENGTH = 128;
+export const S3_SECRET_ACCESS_KEY_MAX_LENGTH = 256;

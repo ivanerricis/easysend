@@ -18,6 +18,7 @@ import { CodeStep } from './CodeStep';
 import { CompleteStep } from './CompleteStep';
 import { GeneralStep } from './GeneralStep';
 import { SmtpStep } from './SmtpStep';
+import { StorageStep } from './StorageStep';
 import { SETUP_STEPS, Stepper, type SetupStepId } from './Stepper';
 import type { SetupSummary } from './types';
 
@@ -27,7 +28,8 @@ function resumeStep(status: SetupStatusResponse): SetupStepId {
   if (!status.steps.admin) return 'admin';
   if (!status.steps.smtp) return 'smtp';
   if (!status.steps.cloudflare) return 'cloudflare';
-  if (!status.steps.general) return 'general';
+  // The status has no storage flag (the step is optional): resume there until general is done.
+  if (!status.steps.general) return 'storage';
   return 'complete';
 }
 
@@ -35,7 +37,7 @@ function nextStep(step: SetupStepId): SetupStepId {
   return SETUP_STEPS[Math.min(SETUP_STEPS.indexOf(step) + 1, SETUP_STEPS.length - 1)] ?? 'complete';
 }
 
-/** First-run wizard: setup code, administrator, email, Cloudflare, general settings, summary. */
+/** First-run wizard: setup code, administrator, email, Cloudflare, file storage, general settings, summary. */
 export default function SetupPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -121,6 +123,7 @@ export default function SetupPage() {
       {step === 'admin' ? <AdminStep key="admin" {...common} /> : null}
       {step === 'smtp' ? <SmtpStep key="smtp" {...common} /> : null}
       {step === 'cloudflare' ? <CloudflareStep key="cloudflare" {...common} /> : null}
+      {step === 'storage' ? <StorageStep key="storage" {...common} /> : null}
       {step === 'general' ? <GeneralStep key="general" {...common} /> : null}
       {step === 'complete' ? (
         <CompleteStep

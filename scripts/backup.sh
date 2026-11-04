@@ -20,6 +20,10 @@ mode 700; the archive is mode 600) containing:
   data/branding/                       logos, favicon, background
   data/secrets/                        master key and session secret
   .env, docker-compose.yml             deployment configuration
+Files stored on an S3-compatible service (Settings > File storage) are NOT included: data/storage only
+holds the files that are on the local disk. Back the bucket up separately (provider versioning,
+replication or `rclone sync`). This archive still has what is needed to decrypt them: the database
+backup (wrapped per-file keys, encrypted S3 settings) and the master key.
 If the api is stopped, a one-off container takes the database backup instead.
 
 WARNING: the archive contains the MASTER KEY (data/secrets and .env). Whoever has it together
@@ -108,6 +112,7 @@ main() {
   history_add "backup $archive db=$db_name"
   ok "Backup written: $archive ($(du -h "$archive" | cut -f1))"
   warn "This archive contains the MASTER KEY and .env: store it encrypted/offline and never share it."
+  log "If file storage is set to S3, the files in the bucket are NOT in this archive: back the bucket up separately."
 }
 
 main "$@"

@@ -69,6 +69,11 @@ const TAG_INFO: Record<EndpointTag, { title: string; intro: string }> = {
     title: 'Settings and appearance',
     intro: 'Public settings and branding images, plus the admin settings pages.',
   },
+  storage: {
+    title: 'File storage migration',
+    intro:
+      'Moves already stored files between the server disk and an S3-compatible bucket, as a background job with progress.',
+  },
 };
 
 // ---- JSON Schema to compact type ------------------------------------------------

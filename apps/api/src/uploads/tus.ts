@@ -35,7 +35,7 @@ import {
   verifySubmissionToken,
 } from '../requests/service.js';
 import { createByteCounter } from '../storage/byte-counter.js';
-import { reserveBytes } from '../storage/disk.js';
+import { uploadFits } from '../storage/disk.js';
 import { sanitizeFileName } from '../storage/filenames.js';
 
 type TusRequest = Parameters<NonNullable<ServerOptions['onIncomingRequest']>>[0];
@@ -420,8 +420,7 @@ export function uploadsRouter(ctx: AppContext): Router {
       }
       uploadableDraft(db, scope, metadata.transferId);
 
-      const { freeBytes } = await ctx.diskSpace(config.storageDir);
-      if (freeBytes - reserveBytes(ctx) < 2 * upload.size) {
+      if (!(await uploadFits(ctx, upload.size))) {
         throw new AppError('INSUFFICIENT_DISK_SPACE', 'Not enough free disk space');
       }
       registerUpload(scope, upload.id, upload.size, metadata);

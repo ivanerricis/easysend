@@ -13,3 +13,4 @@ export * from './schemas/downloads.js';
 export * from './schemas/settings.js';
 export * from './schemas/setup.js';
 export * from './schemas/admin.js';
+export * from './schemas/storage.js';

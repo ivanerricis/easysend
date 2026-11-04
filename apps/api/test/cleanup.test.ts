@@ -20,6 +20,7 @@ import {
   insertStoredFile,
   insertTransfer,
   insertUpload,
+  withStorageDir,
 } from './cleanup-fixtures.js';
 import type { TestApp } from './helpers.js';
 
@@ -168,7 +169,7 @@ describe('cleanup: uploads and orphan files', () => {
   it('treats missing directories as empty', async () => {
     const { t } = await setup();
     const missing = path.join(t.config.dataDir, 'nowhere');
-    const ctx = { ...t.ctx, config: { ...t.config, storageDir: missing, tmpUploadDir: missing } };
+    const ctx = withStorageDir(t, missing, { tmpUploadDir: missing });
     expect((await runCleanup(ctx)).failedSteps).toEqual([]);
   });
 });
@@ -234,7 +235,7 @@ describe('cleanup: retention and bookkeeping', () => {
     // A regular file where the storage directory should be makes that step fail (ENOTDIR).
     const notADir = path.join(t.config.dataDir, 'file-not-dir');
     writeFileSync(notADir, 'x');
-    const ctx = { ...t.ctx, config: { ...t.config, storageDir: notADir } };
+    const ctx = withStorageDir(t, notADir);
     const revoked = insertTransfer(t, { ownerId: owner.id, status: 'revoked' });
     t.db.db.update(users).set({ usedBytes: 7 }).where(eq(users.id, owner.id)).run();
 

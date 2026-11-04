@@ -7,6 +7,9 @@ import {
   appearanceSchema,
   generalSettingsSchema,
   smtpSettingsSchema,
+  s3ConfigSchema,
+  storageDriverSchema,
+  storageSourceSchema,
   type Appearance,
   type BrandingAssetKind,
   type GeneralSettings,
@@ -71,6 +74,18 @@ const brandingAssetsSettingSchema = z.object({
 /** Absent key = built-in default for that asset. */
 export type BrandingAssetsSetting = z.infer<typeof brandingAssetsSettingSchema>;
 
+/**
+ * File storage configuration. Encrypted as a whole (it holds the S3 secret key). `s3` is kept
+ * when the driver goes back to `local`, so the admin can switch again without retyping it.
+ */
+export const storageSettingSchema = z.object({
+  driver: storageDriverSchema,
+  s3: s3ConfigSchema.optional(),
+  /** `env`: imported from the `.env` file at the first start; `panel`: saved by the wizard or panel. */
+  source: storageSourceSchema,
+});
+export type StorageSetting = z.infer<typeof storageSettingSchema>;
+
 /** Known setting keys with their value schema. Values are stored as JSON. */
 const SETTING_SCHEMAS = {
   smtp: smtpSettingsSchema,
@@ -81,6 +96,7 @@ const SETTING_SCHEMAS = {
   tunnel: tunnelSettingSchema,
   setup_admin_pending: setupAdminPendingSchema,
   branding_assets: brandingAssetsSettingSchema,
+  storage: storageSettingSchema,
 } as const;
 
 export interface SettingValues {
@@ -92,6 +108,7 @@ export interface SettingValues {
   tunnel: TunnelSetting;
   setup_admin_pending: SetupAdminPending;
   branding_assets: BrandingAssetsSetting;
+  storage: StorageSetting;
 }
 /** What `set` accepts: `general` may omit fields that have a default (e.g. `updateCheck`). */
 export type SettingInputs = Omit<SettingValues, 'general'> & {
@@ -103,6 +120,7 @@ export type SettingKey = keyof SettingValues;
 export const ENCRYPTED_KEYS: Partial<Record<SettingKey, KeyPurpose>> = {
   smtp: 'smtp',
   setup_admin_pending: 'totp',
+  storage: 'storage',
 };
 
 export const DEFAULT_LOCALE: Locale = 'it';
@@ -127,13 +145,14 @@ export interface SettingsRepo {
 
 export function createSettingsRepo(deps: {
   db: Db;
-  keys: Pick<DerivedKeys, 'smtp' | 'totp'>;
+  keys: Pick<DerivedKeys, 'smtp' | 'totp' | 'storage'>;
   clock: Clock;
 }): SettingsRepo {
   const { db, keys, clock } = deps;
   const keyFor = (purpose: KeyPurpose): Buffer => {
     if (purpose === 'smtp') return keys.smtp;
     if (purpose === 'totp') return keys.totp;
+    if (purpose === 'storage') return keys.storage;
     throw new Error(`No key available for setting purpose ${purpose}`);
   };
 

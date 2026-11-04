@@ -12,6 +12,8 @@ const TABLES = [
   'recovery_codes',
   'sessions',
   'settings',
+  'storage_deletions',
+  'storage_migrations',
   'transfer_files',
   'transfer_recipients',
   'transfers',
@@ -35,6 +37,8 @@ const INDEXES = [
   'upload_requests_token_unique',
   'upload_requests_owner_id_idx',
   'upload_requests_status_expires_at_idx',
+  'storage_deletions_delete_after_idx',
+  'storage_migrations_status_idx',
   'transfer_files_transfer_id_idx',
   'transfer_recipients_transfer_id_idx',
   'uploads_owner_id_idx',
@@ -84,7 +88,12 @@ describe('migrations', () => {
     };
 
     const first = await runMigrations(sqlite, options);
-    expect(first.applied).toEqual(['0000_init', '0001_auth_sessions', '0002_upload_requests']);
+    expect(first.applied).toEqual([
+      '0000_init',
+      '0001_auth_sessions',
+      '0002_upload_requests',
+      '0003_storage',
+    ]);
     expect(first.backupPath).toBeUndefined();
 
     const second = await runMigrations(sqlite, options);
@@ -198,7 +207,7 @@ describe('migrations', () => {
       logger: silentLogger,
     });
 
-    expect(result.applied).toEqual(['0001_auth_sessions', '0002_upload_requests']);
+    expect(result.applied).toEqual(['0001_auth_sessions', '0002_upload_requests', '0003_storage']);
     expect(sqlite.prepare('SELECT last_seen_at, absolute_expires_at FROM sessions').get()).toEqual({
       last_seen_at: 0,
       absolute_expires_at: 0,
@@ -263,7 +272,7 @@ describe('migrations', () => {
       backupDir,
       logger: silentLogger,
     });
-    expect(result.applied).toEqual(['0002_upload_requests']);
+    expect(result.applied).toEqual(['0002_upload_requests', '0003_storage']);
     expect(
       sqlite
         .prepare('SELECT source, upload_request_id, sender_name, sender_email FROM transfers')
@@ -283,5 +292,72 @@ describe('migrations', () => {
     expect(sqlite.prepare('SELECT upload_request_id FROM transfers').get()).toEqual({
       upload_request_id: null,
     });
+  });
+
+  it('applies 0003 keeping existing files on the local storage and creating the new tables', async () => {
+    const dir = makeTempDir();
+    const backupDir = path.join(dir, 'backups');
+    const { sqlite } = trackDb(openDatabase(path.join(dir, 'app.sqlite')));
+    const full = resolveMigrationsFolder();
+
+    // A folder holding 0000 to 0002: the state of a database before phase 9.
+    const before = path.join(dir, 'drizzle-0002');
+    cpSync(full, before, { recursive: true });
+    const journalFile = path.join(before, 'meta', '_journal.json');
+    const journal = JSON.parse(readFileSync(journalFile, 'utf8')) as { entries: unknown[] };
+    journal.entries = journal.entries.slice(0, 3);
+    writeFileSync(journalFile, JSON.stringify(journal));
+    await runMigrations(sqlite, { migrationsFolder: before, backupDir, logger: silentLogger });
+
+    sqlite
+      .prepare(
+        "INSERT INTO users (id, email, password_hash, role, created_at) VALUES ('u1', 'a@b.c', 'h', 'admin', 1)",
+      )
+      .run();
+    sqlite
+      .prepare(
+        "INSERT INTO transfers (id, owner_id, token, mode, expires_at, status, created_at) VALUES ('t1', 'u1', 'tok', 'link', 100, 'active', 1)",
+      )
+      .run();
+    sqlite
+      .prepare(
+        "INSERT INTO transfer_files (id, transfer_id, original_name, storage_name, size_bytes, stored_size_bytes, enc_key_wrapped, enc_nonce_prefix, enc_segment_size, enc_version, created_at) VALUES ('f1', 't1', 'a.txt', 's', 1, 2, 'k', 'n', 65536, 1, 1)",
+      )
+      .run();
+
+    const result = await runMigrations(sqlite, {
+      migrationsFolder: full,
+      backupDir,
+      logger: silentLogger,
+    });
+    expect(result.applied).toEqual(['0003_storage']);
+    expect(result.backupPath).toBeDefined();
+    expect(sqlite.prepare('SELECT id, storage, storage_name FROM transfer_files').get()).toEqual({
+      id: 'f1',
+      storage: 'local',
+      storage_name: 's',
+    });
+    expect(names(sqlite, 'table')).toEqual(
+      expect.arrayContaining(['storage_migrations', 'storage_deletions']),
+    );
+
+    // started_by is set to null when the user disappears; the queue accepts rows.
+    sqlite
+      .prepare(
+        "INSERT INTO storage_migrations (id, target, status, started_by, started_at, updated_at) VALUES ('m1', 's3', 'running', 'u1', 1, 1)",
+      )
+      .run();
+    sqlite
+      .prepare(
+        "INSERT INTO storage_deletions (id, storage, name, delete_after, created_at) VALUES ('d1', 'local', 'n', 5, 1)",
+      )
+      .run();
+    expect(() => sqlite.prepare("DELETE FROM users WHERE id = 'u1'").run()).toThrow(/FOREIGN KEY/);
+    sqlite.prepare("DELETE FROM transfers WHERE id = 't1'").run();
+    sqlite.prepare("DELETE FROM users WHERE id = 'u1'").run();
+    expect(sqlite.prepare('SELECT started_by FROM storage_migrations').get()).toEqual({
+      started_by: null,
+    });
+    expect(sqlite.prepare('SELECT attempts FROM storage_deletions').get()).toEqual({ attempts: 0 });
   });
 });

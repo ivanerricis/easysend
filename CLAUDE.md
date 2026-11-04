@@ -74,7 +74,8 @@ Prerequisiti: `fnm use` (Node 26), pnpm 12.14.0, Docker Desktop per `local:*`.
 | `pnpm local:up` / `local:down` / `local:reset` | Stack locale Docker (http://localhost:8080, `/api/health`, Mailpit :8025) / ferma / cancella i volumi |
 | `pnpm user:create-admin -- --email <e>` | Solo locale; in Docker `docker compose -p easysend-local exec api node dist/cli/create-admin.js --email <e>` |
 | `pnpm key:rotate [-- --new-key-file <f>]` | Rotazione della chiave master con API ferma; in Docker `docker compose stop api && docker compose run --rm --no-deps api node dist/cli/rotate-key.js && docker compose up -d api` |
-| `node scripts/measure-transfer.mjs [--size-gb 5]` | Upload, download e zip con RAM dell'api campionata |
+| `pnpm storage:migrate -- --to s3\|local [--dry-run]` | Sposta i file cifrati tra disco locale e S3 (copia i byte così come sono, sorgenti eliminate dopo 1 ora dalla pulizia). Nello stack Docker: `docker compose exec api node dist/cli/storage-migrate.js --to s3\|local [--dry-run]` |
+| `node scripts/measure-transfer.mjs [--size-gb 5] [--storage s3 --s3-endpoint ...]` | Upload, download e zip con RAM dell'api campionata; con `--storage s3` il file va su un bucket (esempio con MinIO nell'intestazione dello script) |
 | `pnpm screenshots [-- --keep]` | Stack isolato (:18080), screenshot in `docs/screenshots/`, fallisce su axe o CSP |
 | `pnpm docs:dev` / `docs:build` | Sito VitePress (la build fallisce sui link rotti) |
 | `bash scripts/tests/run.sh` | Test degli script bash di deploy e aggiornamento |

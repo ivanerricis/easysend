@@ -1,16 +1,14 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 import { createServer, request } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import path from 'node:path';
 import type { Express } from 'express';
-import type { TransferStatus } from '@easysend/shared';
+import type { StorageDriverKind, TransferStatus } from '@easysend/shared';
 import { nowSeconds } from '../src/clock.js';
 import { randomToken } from '../src/crypto/hash.js';
-import { encryptFile } from '../src/crypto/segments.js';
 import { transferFiles, transfers } from '../src/db/schema/index.js';
-import { storagePath } from '../src/storage/paths.js';
-import { makeTempDir, type TestApp, type TestUser } from './helpers.js';
+import type { TestApp, TestUser } from './helpers.js';
+import { encryptContentToDriver } from './storage-helpers.js';
 
 /** Plaintext sizes around the 64 KiB segment boundary, plus empty and tiny files. */
 export const FIXTURE_SIZES = [0, 1, 65_535, 65_536, 65_537, 200_000] as const;
@@ -33,6 +31,8 @@ export interface TransferFixtureOptions {
   status?: TransferStatus;
   title?: string | null;
   message?: string | null;
+  /** Driver that stores the encrypted files (`ctx.storage.forFile`). Default `local`. */
+  storage?: StorageDriverKind;
 }
 
 export interface TransferFixture {
@@ -54,7 +54,6 @@ export async function createTransferFixture(
   const specs = options.files ?? FIXTURE_SIZES.map((size) => ({ name: `file-${size}.bin`, size }));
   const { ctx } = t;
   mkdirSync(ctx.config.storageDir, { recursive: true });
-  const scratch = makeTempDir();
   const now = nowSeconds(ctx.clock);
 
   const transfer = ctx.db
@@ -75,23 +74,22 @@ export async function createTransferFixture(
     .get();
 
   const files: FixtureFile[] = [];
-  for (const [index, spec] of specs.entries()) {
+  for (const spec of specs) {
     const content = randomBytes(spec.size);
-    const srcPath = path.join(scratch, `src-${index}`);
-    writeFileSync(srcPath, content);
     const storageName = randomUUID();
-    const enc = await encryptFile({
-      srcPath,
-      dstPath: storagePath(ctx.config, storageName),
-      size: spec.size,
-      fileKey: ctx.keys.file,
-    });
+    const enc = await encryptContentToDriver(
+      ctx.storage.forFile(options.storage ?? 'local'),
+      content,
+      ctx.keys.file,
+      storageName,
+    );
     const row = ctx.db
       .insert(transferFiles)
       .values({
         transferId: transfer.id,
         originalName: spec.name,
         storageName,
+        storage: options.storage ?? 'local',
         sizeBytes: spec.size,
         storedSizeBytes: enc.storedSize,
         sha256: enc.sha256,

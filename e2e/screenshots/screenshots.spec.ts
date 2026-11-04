@@ -132,6 +132,11 @@ test('screenshots and accessibility', async ({ newSession }) => {
   // Cloudflare is skipped in local mode.
   await expect(w.getByText('Saltato in modalità locale')).toBeVisible();
   await w.getByRole('button', { name: 'Continua' }).click();
+  // File storage (optional step): local disk by default, S3 fields appear on demand.
+  await expect(w.getByRole('heading', { name: 'Dove salvare i file' })).toBeVisible();
+  await settle(w);
+  await capture(w, '22-setup-storage');
+  await w.getByRole('button', { name: 'Continua' }).click();
   await expect(w.getByLabel("Nome dell'istanza")).toBeVisible();
   await w.getByRole('button', { name: 'Continua' }).click();
   await w.getByRole('button', { name: 'Concludi la configurazione' }).click();
@@ -232,6 +237,19 @@ test('screenshots and accessibility', async ({ newSession }) => {
     await settle(a);
     await capture(a, name, { full });
   }
+
+  // ---------------------------------------------------------------- file storage settings
+  await a.goto('/admin/settings/storage');
+  await expect(
+    a.getByRole('heading', { name: 'Archiviazione dei file', exact: true }),
+  ).toBeVisible();
+  await a.getByRole('radio', { name: /Archiviazione compatibile S3/ }).click();
+  await a.getByLabel(/^Endpoint/).fill('https://abc123.r2.cloudflarestorage.com');
+  await a.getByLabel(/^Regione/).fill('auto');
+  await a.getByLabel(/^Bucket/).fill('easysend-files');
+  await a.getByLabel(/^Access key ID/).fill('0123456789abcdef');
+  await settle(a);
+  await capture(a, '23-admin-settings-storage', { full: true });
 
   // ---------------------------------------------------------------- file requests
   await a.goto('/requests');

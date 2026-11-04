@@ -14,6 +14,7 @@ export default defineConfig({
     'cli/rotate-key': 'src/cli/rotate-key.ts',
     'cli/backup-db': 'src/cli/backup-db.ts',
     'cli/restore-db': 'src/cli/restore-db.ts',
+    'cli/storage-migrate': 'src/cli/storage-migrate.ts',
   },
   format: 'esm',
   platform: 'node',

@@ -20,6 +20,7 @@ EasySend is a self-hosted web application for sending large files, similar to We
 - Italian and English interface, light and dark theme, configurable branding.
 - Setup wizard for admin, SMTP, Cloudflare tunnel and general settings.
 - Optional one-click update from the admin panel, run by a small systemd unit on the host (no Docker socket in the containers).
+- Optional S3-compatible storage (Cloudflare R2, MinIO, AWS S3, Backblaze B2, Wasabi) for the encrypted files, with migration in both directions.
 - Data in a Docker volume or in a host folder of your choice, for example a second disk.
 
 ## Quick start

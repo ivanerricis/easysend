@@ -6,6 +6,7 @@ import {
   idSchema,
   unixSecondsSchema,
 } from './common.js';
+import { storageDriverSchema } from './storage.js';
 
 export const storageResponseSchema = z.object({
   disk: z.object({
@@ -18,7 +19,14 @@ export const storageResponseSchema = z.object({
   }),
   /** Where `/data` lives on the host. `hostPath` is null for the default Docker volume. The disk figures above describe the filesystem of the storage folder. */
   dataLocation: z.object({ hostPath: z.string().nullable() }),
-  /** Bytes used by encrypted files on disk. */
+  /** Driver used for new files. With `s3` the disk figures describe the temporary upload folder. */
+  driver: storageDriverSchema,
+  /** Encrypted files per driver (rows of `transfer_files`, by their `storage` column). */
+  usageByDriver: z.object({
+    local: z.object({ files: z.number().int().nonnegative(), bytes: byteSizeSchema }),
+    s3: z.object({ files: z.number().int().nonnegative(), bytes: byteSizeSchema }),
+  }),
+  /** Bytes used by encrypted files (all drivers). */
   storedBytes: byteSizeSchema,
   activeTransfers: z.number().int().nonnegative(),
   totalFiles: z.number().int().nonnegative(),

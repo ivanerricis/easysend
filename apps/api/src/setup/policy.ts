@@ -12,6 +12,8 @@ export const SETUP_POLICY = {
     setupCodeGlobal: { points: 30, durationSeconds: HOUR, blockSeconds: HOUR },
     /** SMTP test emails (wizard and admin panel), single key per scope. */
     smtpTest: { points: 10, durationSeconds: HOUR, blockSeconds: HOUR },
+    /** S3 storage connection tests (wizard and admin panel), single key per scope. */
+    storageTest: { points: 10, durationSeconds: HOUR, blockSeconds: HOUR },
     /** Cloudflare tunnel configuration attempts (wizard and admin panel), single key. */
     cloudflare: { points: 10, durationSeconds: HOUR, blockSeconds: HOUR },
   } satisfies Record<string, LimitPolicy>,

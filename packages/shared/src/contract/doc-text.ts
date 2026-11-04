@@ -61,6 +61,13 @@ export const ERROR_MEANINGS: Record<ErrorCode, string> = {
   UPDATE_IN_PROGRESS: 'An update was already requested or is running.',
   UPDATE_VERSION_NOT_AVAILABLE:
     'The requested version is not a published release newer than the running one.',
+  STORAGE_TEST_FAILED:
+    'The storage connection test failed (`details.reason` is one of ACCESS_DENIED, NO_SUCH_BUCKET, SIGNATURE, TIMEOUT, NETWORK, ENDPOINT).',
+  STORAGE_NOT_VERIFIED: 'The storage settings were not verified with a successful connection test.',
+  STORAGE_IN_USE:
+    'Endpoint, bucket or prefix cannot change (or the S3 configuration cannot be removed) while files are stored on S3: migrate them first.',
+  STORAGE_UNAVAILABLE: 'The configured file storage did not answer or refused the request.',
+  MIGRATION_RUNNING: 'A storage migration is already running.',
   INVALID_IMAGE: 'The file is not a valid PNG, JPEG or WebP image (magic bytes checked).',
 };
 

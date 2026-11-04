@@ -48,6 +48,7 @@ catalog:
   tsdown: 0.23.1
   supertest: 7.3.1
   '@types/express': 5.0.6
+  aws4fetch: 1.0.20
   '@types/supertest': 7.2.1
   '@types/better-sqlite3': 9.6.0
   '@node-rs/argon2': 2.2.2

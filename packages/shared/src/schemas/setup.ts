@@ -23,6 +23,11 @@ export const setupStatusResponseSchema = z.object({
     /** Always `true` in local mode, where the step is skipped. */
     cloudflare: z.boolean(),
     general: z.boolean(),
+    /**
+     * Optional step "Where to save the files": never blocks `setup.complete`. `true` with the
+     * local disk (the default) or once an S3 configuration is saved. Always sent by the API.
+     */
+    storage: z.boolean().optional(),
   }),
 });
 export type SetupStatusResponse = z.infer<typeof setupStatusResponseSchema>;

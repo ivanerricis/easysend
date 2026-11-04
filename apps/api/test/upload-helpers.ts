@@ -7,7 +7,6 @@ import { createDecryptStream } from '../src/crypto/segments.js';
 import { transferFiles, uploads } from '../src/db/schema/index.js';
 import { SESSION_COOKIE } from '../src/http/cookies.js';
 import { tusFilePaths } from '../src/storage/paths.js';
-import { storagePath } from '../src/storage/paths.js';
 import {
   bodyAs,
   createTestApp,
@@ -197,7 +196,7 @@ export async function readStoredFile(
   file: ReturnType<typeof filesOf>[number],
 ): Promise<Buffer> {
   const stream = createDecryptStream({
-    path: storagePath(t.config, file.storageName),
+    reader: await t.ctx.storage.forFile(file.storage).openReader(file.storageName),
     size: file.sizeBytes,
     noncePrefix: file.encNoncePrefix,
     segmentSize: file.encSegmentSize,
