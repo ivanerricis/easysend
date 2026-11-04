@@ -37,7 +37,7 @@ services:
       - '127.0.0.1:${E2E_WEB_PORT:-18090}:8080'
 
   mailpit:
-    image: axllent/mailpit:v1.31.6
+    image: axllent/mailpit:v1.33.0
     restart: unless-stopped
     mem_limit: 128m
     security_opt:
@@ -58,7 +58,7 @@ services:
 
   # Plain node:http server around apps/api/test/fake-cloudflare.ts (Node strips the types itself).
   fake-cloudflare:
-    image: node:26.12.0-alpine3.24
+    image: node:26.13.0-alpine3.24
     restart: unless-stopped
     command: ['node', '/repo/e2e/fake-cloudflare/server.ts']
     read_only: true
